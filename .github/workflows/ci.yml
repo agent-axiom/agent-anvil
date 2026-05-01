@@ -30,7 +30,7 @@ jobs:
           python-version: "3.14"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
           python-version: "3.14"
@@ -61,4 +61,3 @@ jobs:
           flags: unit
           fail_ci_if_error: false
           use_oidc: true
-
