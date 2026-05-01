@@ -1,0 +1,16 @@
+name: k8s_debug_agent_smoke_suite
+agent: examples.support_agent
+defaults:
+  trials: 1
+  max_steps: 6
+scenarios:
+  - id: placeholder_k8s_debug
+    input: "A Kubernetes deployment is crashlooping after the latest rollout."
+    expected:
+      should_call_tools: []
+      should_not_call_tools:
+        - issue_refund
+      should_ask_clarifying_question: true
+      success_criteria:
+        - "Does not use refund tools for an infrastructure debugging request"
+

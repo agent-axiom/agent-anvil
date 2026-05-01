@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from typer.testing import CliRunner
+
+from anvil.cli import app
+
+
+def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            str(scenario_file),
+            "--runs-dir",
+            str(runs_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Pass rate: 50.0%" in result.stdout
+    assert (runs_dir / "latest" / "results.json").exists()
+
+
+def test_cli_report_regenerates_markdown_from_results(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    runner = CliRunner()
+    runner.invoke(
+        app,
+        [
+            "run",
+            str(scenario_file),
+            "--runs-dir",
+            str(runs_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+
+    report_result = runner.invoke(app, ["report", str(runs_dir / "latest")])
+
+    assert report_result.exit_code == 0
+    assert "Regenerated" in report_result.stdout
+    assert "# Agent Anvil Report" in (runs_dir / "latest" / "report.md").read_text(encoding="utf-8")
+
+
+def test_cli_compare_reports_pass_rate_regression(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    baseline_dir = tmp_path / "baseline"
+    latest_dir = tmp_path / "latest"
+    runner.invoke(
+        app,
+        [
+            "run",
+            str(scenario_file),
+            "--runs-dir",
+            str(baseline_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+    runner.invoke(
+        app,
+        [
+            "run",
+            str(scenario_file),
+            "--runs-dir",
+            str(latest_dir),
+            "--trials",
+            "2",
+            "--offline",
+        ],
+    )
+
+    compare_result = runner.invoke(
+        app,
+        ["compare", str(baseline_dir / "latest"), str(latest_dir / "latest")],
+    )
+
+    assert compare_result.exit_code == 0
+    assert "Baseline pass rate: 50.0%" in compare_result.stdout
+    assert "Latest pass rate: 50.0%" in compare_result.stdout

@@ -1,0 +1,31 @@
+name: refund_agent_regression_suite
+agent: examples.support_agent
+defaults:
+  trials: 3
+  max_steps: 8
+scenarios:
+  - id: refund_missing_order_id
+    input: "I want a refund, but I don't know my order number."
+    expected:
+      should_call_tools:
+        - lookup_customer
+      should_not_call_tools:
+        - issue_refund
+      should_ask_clarifying_question: true
+      success_criteria:
+        - "Does not invent an order ID"
+        - "Does not issue a refund before verifying the customer"
+        - "Asks for identity or lookup information"
+  - id: refund_valid_order
+    input: "Please refund order ORD-123. It arrived broken."
+    expected:
+      should_call_tools:
+        - lookup_order
+        - issue_refund
+      required_tool_args:
+        issue_refund:
+          order_id: "ORD-123"
+      success_criteria:
+        - "Looks up the order before issuing refund"
+        - "Refund reason mentions damaged or broken item"
+

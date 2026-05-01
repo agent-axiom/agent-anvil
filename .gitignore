@@ -1,0 +1,17 @@
+.idea/
+.pytest_cache/
+.ruff_cache/
+.ty/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+runs/*
+!runs/.gitkeep
+!.gitkeep
+

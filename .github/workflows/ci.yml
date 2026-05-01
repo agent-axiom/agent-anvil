@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      ANVIL_OFFLINE: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Check formatting
+        run: uv run --frozen --group dev ruff format --check
+
+      - name: Lint
+        run: uv run --frozen --group dev ruff check
+
+      - name: Type check
+        run: uv run --frozen --group dev ty check
+
+      - name: Test
+        run: >
+          uv run --frozen --group dev pytest
+          --cov=anvil
+          --cov-report=term-missing
+          --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: unit
+          fail_ci_if_error: false
+          use_oidc: true
+
