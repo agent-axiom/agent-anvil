@@ -41,7 +41,7 @@ jobs:
           expected-exit-code: "1"
 
       - name: Upload Agent Anvil run artifacts
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: agent-anvil-runs
           path: runs/

@@ -33,6 +33,10 @@ inputs:
     description: Python version used by uv for running Agent Anvil.
     required: false
     default: "3.14"
+  uv-cache:
+    description: Enable setup-uv caching. Keep false when invoking this action multiple times in one job.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -40,7 +44,7 @@ runs:
     - name: Set up uv
       uses: astral-sh/setup-uv@v8.1.0
       with:
-        enable-cache: true
+        enable-cache: ${{ inputs.uv-cache }}
         python-version: ${{ inputs.python-version }}
 
     - name: Run Agent Anvil

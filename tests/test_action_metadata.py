@@ -18,7 +18,11 @@ def test_composite_action_exposes_agent_anvil_inputs() -> None:
         "trials",
         "expected-exit-code",
         "github-summary",
+        "uv-cache",
     }
+    setup_uv = action["runs"]["steps"][0]
+    assert setup_uv["uses"] == "astral-sh/setup-uv@v8.1.0"
+    assert setup_uv["with"]["enable-cache"] == "${{ inputs.uv-cache }}"
 
 
 def test_agent_anvil_workflow_uses_local_composite_action() -> None:
@@ -31,3 +35,15 @@ def test_agent_anvil_workflow_uses_local_composite_action() -> None:
         for step in steps
         if step.get("uses") == "./"
     )
+
+
+def test_workflows_use_node24_artifact_upload_action() -> None:
+    workflow_paths = [
+        Path(".github/workflows/ci.yml"),
+        Path(".github/workflows/agent-anvil.yml"),
+    ]
+
+    for workflow_path in workflow_paths:
+        workflow_text = workflow_path.read_text(encoding="utf-8")
+        assert "actions/upload-artifact@v5.0.0" not in workflow_text
+        assert "actions/upload-artifact@v7.0.1" in workflow_text

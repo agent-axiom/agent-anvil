@@ -105,7 +105,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.1
+- uses: agent-axiom/agent-anvil@v0.1.2
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

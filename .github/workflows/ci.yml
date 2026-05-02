@@ -55,7 +55,7 @@ jobs:
           --cov-fail-under=90
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: coverage-xml
           path: coverage.xml
