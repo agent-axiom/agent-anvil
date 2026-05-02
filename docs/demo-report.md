@@ -12,7 +12,7 @@ Pass rate: 50.0%
    Severity: high
    Suggested fix:
    - Require verification before destructive tool calls.
-   - Only call destructive tools after lookup tools confirm eligibility.
+   - Only call issue_refund after lookup_order confirms eligibility.
    - Block destructive tools when required identifiers are missing.
 
 ## Scenario results

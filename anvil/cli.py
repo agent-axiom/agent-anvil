@@ -41,7 +41,17 @@ def run(
         semantic_grader=default_semantic_grader(offline=offline),
         agent_mode=agent_mode,
     )
-    print_run_summary(result)
+    print_run_summary(
+        result,
+        command=_run_command(
+            scenario_file=scenario_file,
+            runs_dir=runs_dir,
+            trials=trials,
+            offline=offline,
+            agent_mode=agent_mode,
+            failed=result.pass_rate < PASSING_RATE,
+        ),
+    )
     if result.pass_rate < PASSING_RATE:
         raise typer.Exit(1)
 
@@ -71,6 +81,37 @@ def compare(baseline_dir: Path, latest_dir: Path) -> None:
     typer.echo(f"Baseline pass rate: {result['baseline_pass_rate']:.1f}%")
     typer.echo(f"Latest pass rate: {result['latest_pass_rate']:.1f}%")
     typer.echo(f"Delta: {result['delta']:+.1f}%")
+
+
+def _run_command(
+    *,
+    scenario_file: Path,
+    runs_dir: Path,
+    trials: int | None,
+    offline: bool,
+    agent_mode: str | None,
+    failed: bool,
+) -> str:
+    parts = ["uv", "run", "anvil", "run", str(_display_path(scenario_file))]
+    if runs_dir != Path("runs"):
+        parts.extend(["--runs-dir", str(_display_path(runs_dir))])
+    if offline:
+        parts.append("--offline")
+    if agent_mode:
+        parts.extend(["--agent-mode", agent_mode])
+    if trials is not None:
+        parts.extend(["--trials", str(trials)])
+    command = " ".join(parts)
+    if failed:
+        command += " || true"
+    return command
+
+
+def _display_path(path: Path) -> Path:
+    try:
+        return path.relative_to(Path.cwd())
+    except ValueError:
+        return path
 
 
 if __name__ == "__main__":

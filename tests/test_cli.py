@@ -29,9 +29,13 @@ def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
 
     assert result.exit_code == 1
     assert "Agent Anvil eval report" in result.stdout
+    assert "$ uv run anvil run" in result.stdout
+    assert "--offline --trials 1" in result.stdout
+    assert "intentional regression demo" in result.stdout
     assert "Scenario results" in result.stdout
     assert "Top failure cluster" in result.stdout
-    assert "Repair hint" in result.stdout
+    assert "Repair plan" in result.stdout
+    assert "uv run anvil repair runs/latest" in result.stdout
     assert "Pass rate: 50.0%" in result.stdout
     assert (runs_dir / "latest" / "results.json").exists()
 
