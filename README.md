@@ -1,7 +1,7 @@
 # Agent Anvil
 
 [![CI](https://github.com/agent-axiom/agent-anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/agent-axiom/agent-anvil/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/agent-axiom/agent-anvil/graph/badge.svg)](https://codecov.io/gh/agent-axiom/agent-anvil)
+![coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25-brightgreen)
 
 Agent Anvil is a CI-first evaluation harness for tool-using AI agents. It runs
 scenario suites, records traces, checks tool-call behavior, uses OpenAI models to
@@ -156,8 +156,12 @@ uv lock
 uv run --group dev ruff format
 uv run --group dev ruff check
 uv run --group dev ty check
-uv run --group dev pytest
+uv run --group dev pytest --cov-fail-under=90
 ```
+
+CI enforces at least 90% coverage and uploads `coverage.xml` as a GitHub Actions
+artifact. The README badge tracks that enforced threshold instead of depending
+on an external coverage service being initialized.
 
 ## Docker
 
