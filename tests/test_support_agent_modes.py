@@ -101,7 +101,9 @@ def test_openai_support_agent_executes_responses_tool_calls() -> None:
     assert client.responses.calls[0]["model"] == "gpt-test"
     second_input = client.responses.calls[1]["input"]
     assert isinstance(second_input, list)
-    last_input = second_input[-1]
-    assert isinstance(last_input, dict)
-    last_input_dict = cast(dict[str, Any], last_input)
-    assert last_input_dict["type"] == "function_call_output"
+    assert isinstance(second_input[-2], FakeOutputItem)
+    assert second_input[-2].type == "function_call"
+    function_output = second_input[-1]
+    assert isinstance(function_output, dict)
+    function_output_dict = cast(dict[str, Any], function_output)
+    assert function_output_dict["type"] == "function_call_output"

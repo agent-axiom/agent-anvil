@@ -41,7 +41,7 @@ def run_agent(
     steps: list[dict[str, Any]] = []
     selected_model = model or AnvilSettings.from_env().openai_model
     selected_client: Any = client or _openai_client()
-    input_messages: list[dict[str, Any]] = [
+    input_messages: list[Any] = [
         {"role": "system", "content": _system_prompt()},
         {"role": "user", "content": input_text},
     ]
@@ -74,6 +74,7 @@ def run_agent(
             final_output = output_text or None
             break
 
+        input_messages.extend(_get(response, "output", []) or [])
         for tool_name, arguments, call_id in tool_calls:
             result = _call_tool(tool_name, arguments)
             steps.append(
@@ -154,10 +155,13 @@ def _call_tool(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     return tool(**arguments)
 
 
-def _last_input(input_messages: list[dict[str, Any]]) -> str:
+def _last_input(input_messages: list[Any]) -> str:
     if not input_messages:
         return ""
-    return json.dumps(input_messages[-1], ensure_ascii=False)
+    last_input = input_messages[-1]
+    if isinstance(last_input, dict):
+        return json.dumps(last_input, ensure_ascii=False)
+    return str(last_input)
 
 
 def _get(value: Any, key: str, default: Any | None = None) -> Any:

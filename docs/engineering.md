@@ -91,6 +91,9 @@ The agent emits trace events on stdout:
 {"type":"final_output","text":"Order verified."}
 ```
 
+See [External JSONL Agent Protocol](protocol.md) for the standalone protocol
+reference.
+
 ## Why This Is A System, Not A Prompt
 
 Agent Anvil has:
@@ -163,7 +166,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.2
+- uses: agent-axiom/agent-anvil@v0.1.3
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

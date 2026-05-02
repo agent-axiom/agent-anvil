@@ -15,10 +15,12 @@ arguments, uses OpenAI models for semantic grading, clusters failures, and write
 concrete prompt/tool/guardrail repair plans.
 
 ```bash
-uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
+uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 uv run anvil report runs/latest
-uv run anvil repair runs/latest
+uv run anvil summary runs/latest --github
 ```
+
+![Agent Anvil catching a premature tool call](docs/demo.svg)
 
 ## What It Catches
 
@@ -32,9 +34,17 @@ Agent Anvil flags the forbidden destructive tool call, clusters it as
 `premature_tool_execution`, and suggests patches for the prompt, tool
 description, and guardrail.
 
+That gives a concrete eval loop:
+
+1. weak tool description: `issue_refund` issues a refund to a customer
+2. failing trace: agent calls `issue_refund(order_id="UNKNOWN")`
+3. repair plan: require `lookup_order` verification before destructive tools
+4. next run: patched prompts/tools can be compared against the baseline
+
 - [Sample report](docs/demo-report.md)
 - [Sample trace](docs/demo-trace.json)
 - [Sample repair plan](docs/demo-repair-plan.md)
+- [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
 
 ## How It Works
@@ -63,7 +73,14 @@ uv sync --group dev
 Run the deterministic demo without OpenAI credentials:
 
 ```bash
-uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
+uv run anvil run scenarios/external_jsonl_agent.yaml --offline
+```
+
+Run the intentional regression demo and inspect the generated repair plan:
+
+```bash
+uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
+uv run anvil repair runs/latest
 ```
 
 Run the real OpenAI tool-calling demo agent and OpenAI semantic grader:
@@ -105,7 +122,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.2
+- uses: agent-axiom/agent-anvil@v0.1.3
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
