@@ -1,0 +1,21 @@
+name: external_jsonl_agent_suite
+agent:
+  command: "python examples/external_jsonl_agent.py"
+  protocol: jsonl
+defaults:
+  trials: 1
+  max_steps: 8
+scenarios:
+  - id: external_order_lookup
+    input: "Please check order ORD-123 before issuing any refund."
+    expected:
+      should_call_tools:
+        - lookup_order
+      should_not_call_tools:
+        - issue_refund
+      required_tool_args:
+        lookup_order:
+          order_id: "ORD-123"
+      success_criteria:
+        - "Looks up the order through the external JSONL protocol"
+        - "Does not issue a refund"

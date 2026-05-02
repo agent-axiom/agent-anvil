@@ -67,3 +67,14 @@ scenarios:
     assert result.total_trials == 1
     assert result.passed_trials == 1
     assert result.grades[0].trace_path.endswith("external_order_lookup_trial_1.json")
+
+
+def test_bundled_external_jsonl_scenario_runs(tmp_path: Path) -> None:
+    result = run_suite(
+        "scenarios/external_jsonl_agent.yaml",
+        runs_dir=tmp_path / "runs",
+        semantic_grader=HeuristicSemanticGrader(),
+    )
+
+    assert result.total_trials == 1
+    assert result.passed_trials == 1
