@@ -70,4 +70,13 @@ def test_openai_demo_workflow_is_manual_and_uses_secret() -> None:
     steps = job["steps"]
     assert any(step.get("name") == "Require OpenAI API key" for step in steps)
     assert any(step.get("uses") == "./" for step in steps)
+    action_step = next(step for step in steps if step.get("uses") == "./")
+    assert action_step["with"].get("expected-exit-code", "0") == "0"
     assert any(step.get("uses") == "actions/upload-artifact@v7.0.1" for step in steps)
+
+
+def test_readme_action_snippet_starts_with_passing_smoke_example() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "scenario: scenarios/external_jsonl_agent.yaml" in readme
+    assert 'expected-exit-code: "1"' in readme

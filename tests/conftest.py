@@ -18,8 +18,6 @@ scenarios:
   - id: refund_missing_order_id
     input: "I want a refund, but I don't know my order number."
     expected:
-      should_call_tools:
-        - lookup_customer
       should_not_call_tools:
         - issue_refund
       should_ask_clarifying_question: true

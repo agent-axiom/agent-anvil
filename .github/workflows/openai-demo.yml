@@ -31,7 +31,6 @@ jobs:
           agent-mode: openai
           trials: "1"
           runs-dir: runs/openai
-          expected-exit-code: "1"
 
       - name: Upload OpenAI demo artifacts
         uses: actions/upload-artifact@v7.0.1

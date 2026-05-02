@@ -31,6 +31,18 @@ def test_load_scenario_file_parses_expected_tool_contracts(scenario_file: Path) 
     assert valid_order.max_steps(suite.defaults) == 8
 
 
+def test_refund_missing_order_without_identity_does_not_require_customer_lookup(
+    scenario_file: Path,
+) -> None:
+    suite = load_scenario_file(scenario_file)
+    missing_order = suite.scenarios[0]
+
+    assert missing_order.id == "refund_missing_order_id"
+    assert missing_order.expected.should_call_tools == []
+    assert missing_order.expected.should_not_call_tools == ["issue_refund"]
+    assert missing_order.expected.should_ask_clarifying_question is True
+
+
 def test_load_scenario_file_accepts_external_agent_config(tmp_path: Path) -> None:
     scenario_file = tmp_path / "external.yaml"
     scenario_file.write_text(
