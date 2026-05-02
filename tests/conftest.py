@@ -54,7 +54,7 @@ def trace_steps() -> list[dict[str, object]]:
     return [
         {
             "type": "model_call",
-            "model": "gpt-4.1-mini",
+            "model": "gpt-5.4-mini",
             "input": "Please refund order ORD-123. It arrived broken.",
             "output_text": "I will look up the order first.",
             "tool_calls": [{"name": "lookup_order", "arguments": {"order_id": "ORD-123"}}],

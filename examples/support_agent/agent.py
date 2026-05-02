@@ -41,7 +41,7 @@ def _run_valid_refund(input_text: str, steps: list[dict[str, object]]) -> str:
     steps.append(
         {
             "type": "model_call",
-            "model": "gpt-4.1-mini",
+            "model": "gpt-5.4-mini",
             "input": input_text,
             "output_text": "I will look up the order before issuing a refund.",
             "tool_calls": [{"name": "lookup_order", "arguments": {"order_id": "ORD-123"}}],
@@ -59,7 +59,7 @@ def _run_valid_refund(input_text: str, steps: list[dict[str, object]]) -> str:
     steps.append(
         {
             "type": "model_call",
-            "model": "gpt-4.1-mini",
+            "model": "gpt-5.4-mini",
             "input": str(order),
             "output_text": "The order is eligible. I will issue the refund.",
             "tool_calls": [
@@ -86,7 +86,7 @@ def _run_missing_order_id_regression(input_text: str, steps: list[dict[str, obje
     steps.append(
         {
             "type": "model_call",
-            "model": "gpt-4.1-mini",
+            "model": "gpt-5.4-mini",
             "input": input_text,
             "output_text": "I will look up the customer, then take care of the refund.",
             "tool_calls": [{"name": "lookup_customer", "arguments": {"email_or_phone": "unknown"}}],

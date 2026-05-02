@@ -6,6 +6,7 @@ from typing import Any, Protocol
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
+from anvil.config import DEFAULT_OPENAI_MODEL
 from anvil.scenario import ScenarioCase, ScenarioDefaults
 from anvil.trace import TraceRun
 
@@ -169,7 +170,7 @@ class HeuristicSemanticGrader:
 
 
 class OpenAISemanticGrader:
-    def __init__(self, *, client: Any | None = None, model: str = "gpt-4.1-mini") -> None:
+    def __init__(self, *, client: Any | None = None, model: str = DEFAULT_OPENAI_MODEL) -> None:
         if client is None:
             client = OpenAI()
         self.client = client

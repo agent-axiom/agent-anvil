@@ -53,9 +53,24 @@ Use OpenAI semantic grading by setting an API key:
 
 ```bash
 export OPENAI_API_KEY=...
-export ANVIL_OPENAI_MODEL=gpt-4.1-mini
+export ANVIL_OPENAI_MODEL=gpt-5.4-mini
 uv run anvil run scenarios/refund_agent.yaml
 ```
+
+Model selection:
+
+| Model | Use it for |
+| --- | --- |
+| `gpt-5.4-mini` | Default grader model. Strong enough for trace reasoning while staying practical for repeated eval runs. |
+| `gpt-5.4-nano` | Cheapest high-volume mode for simple pass/fail classification and smoke checks. |
+| `gpt-5.5` | Highest-quality semantic grading when cost matters less than judgment quality. |
+| `gpt-5-mini` / `gpt-5-nano` | Valid older low-cost GPT-5 variants; OpenAI's model docs point most new low-latency workloads to the GPT-5.4 variants. |
+
+See OpenAI's model catalog for current guidance:
+[`gpt-5.4-mini`](https://developers.openai.com/api/docs/models/gpt-5.4-mini),
+[`gpt-5.4-nano`](https://developers.openai.com/api/docs/models/gpt-5.4-nano),
+[`gpt-5-mini`](https://developers.openai.com/api/docs/models/gpt-5-mini), and
+[`gpt-5-nano`](https://developers.openai.com/api/docs/models/gpt-5-nano).
 
 Artifacts are written to `runs/<run_id>/`:
 
@@ -116,6 +131,9 @@ Agent Anvil has:
 
 - The semantic grader uses the OpenAI Python SDK Responses API with
   `responses.parse` and a Pydantic schema.
+- The default semantic grader model is `gpt-5.4-mini`. Override it with
+  `ANVIL_OPENAI_MODEL` when you want cheaper (`gpt-5.4-nano`) or deeper
+  (`gpt-5.5`) grading.
 - The example support-agent tool schemas follow OpenAI function/tool calling
   conventions, including strict JSON Schema tool parameters.
 - The offline heuristic grader keeps local tests and demos deterministic when

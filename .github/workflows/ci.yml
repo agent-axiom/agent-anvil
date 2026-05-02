@@ -59,5 +59,8 @@ jobs:
         with:
           files: ./coverage.xml
           flags: unit
-          fail_ci_if_error: false
+          name: agent-anvil-pytest
+          slug: agent-axiom/agent-anvil
+          fail_ci_if_error: true
+          verbose: true
           use_oidc: true

@@ -3,7 +3,7 @@ services:
     build: .
     environment:
       ANVIL_OFFLINE: "${ANVIL_OFFLINE:-true}"
-      ANVIL_OPENAI_MODEL: "${ANVIL_OPENAI_MODEL:-gpt-4.1-mini}"
+      ANVIL_OPENAI_MODEL: "${ANVIL_OPENAI_MODEL:-gpt-5.4-mini}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     volumes:
       - ./runs:/app/runs

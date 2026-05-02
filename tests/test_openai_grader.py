@@ -34,7 +34,7 @@ class FakeClient:
 
 def test_openai_semantic_grader_uses_responses_parse_with_semantic_schema() -> None:
     client = FakeClient()
-    grader = OpenAISemanticGrader(client=client, model="gpt-4.1-mini")
+    grader = OpenAISemanticGrader(client=client, model="gpt-5.5")
     scenario = ScenarioCase(
         id="refund_missing_order_id",
         input="I want a refund, but I don't know my order number.",
@@ -65,5 +65,5 @@ def test_openai_semantic_grader_uses_responses_parse_with_semantic_schema() -> N
     grade = grader.grade(scenario, trace)
 
     assert grade.failure_type == "premature_tool_execution"
-    assert client.responses.calls[0]["model"] == "gpt-4.1-mini"
+    assert client.responses.calls[0]["model"] == "gpt-5.5"
     assert client.responses.calls[0]["text_format"] is SemanticGrade
