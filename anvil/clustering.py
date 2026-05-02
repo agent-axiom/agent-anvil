@@ -7,14 +7,17 @@ from pydantic import BaseModel, Field
 from anvil.grading import CheckOutcome, DeterministicCheck, GradeResult
 
 DETERMINISTIC_SEVERITY = {
+    DeterministicCheck.TRACE_COMPLETED: "high",
     DeterministicCheck.FORBIDDEN_TOOL_NOT_CALLED: "high",
     DeterministicCheck.REQUIRED_TOOL_ARGS_MATCHED: "high",
     DeterministicCheck.FINAL_OUTPUT_EXISTS: "high",
     DeterministicCheck.EXPECTED_TOOLS_CALLED: "medium",
     DeterministicCheck.MAX_STEPS_NOT_EXCEEDED: "medium",
+    DeterministicCheck.CLARIFYING_QUESTION_ASKED: "medium",
 }
 
 DETERMINISTIC_REPAIR_PREFIX = {
+    DeterministicCheck.TRACE_COMPLETED: "Fix agent execution so traces complete",
     DeterministicCheck.EXPECTED_TOOLS_CALLED: (
         "Update the agent prompt or tool policy so expected tools are called"
     ),
@@ -26,6 +29,9 @@ DETERMINISTIC_REPAIR_PREFIX = {
     ),
     DeterministicCheck.MAX_STEPS_NOT_EXCEEDED: "Add loop limits or stop conditions",
     DeterministicCheck.FINAL_OUTPUT_EXISTS: "Ensure the agent produces a final response",
+    DeterministicCheck.CLARIFYING_QUESTION_ASKED: (
+        "Ask for missing identity or lookup information before proceeding"
+    ),
 }
 
 

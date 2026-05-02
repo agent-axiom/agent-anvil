@@ -245,7 +245,7 @@ def _failure_reason(grade: GradeResult) -> str:
 def _tool_argument_line(grade: GradeResult) -> str:
     try:
         payload = json.loads(Path(grade.trace_path).read_text(encoding="utf-8"))
-    except OSError, json.JSONDecodeError:
+    except (OSError, json.JSONDecodeError) as _error:
         return ""
 
     for step in payload.get("steps", []):

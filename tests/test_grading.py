@@ -36,6 +36,67 @@ def make_trace(steps: list[dict[str, object]], final_output: str | None = "Done.
     )
 
 
+def test_deterministic_grade_fails_when_trace_status_is_failed(
+    valid_order_scenario: ScenarioCase,
+) -> None:
+    trace = make_trace(
+        [
+            {
+                "type": "tool_call",
+                "tool_name": "lookup_order",
+                "arguments": {"order_id": "ORD-123"},
+                "result": {"status": "found"},
+            },
+            {
+                "type": "tool_call",
+                "tool_name": "issue_refund",
+                "arguments": {"order_id": "ORD-123", "reason": "broken"},
+                "result": {"status": "refunded"},
+            },
+        ],
+    )
+    trace.status = "failed"
+
+    grade = deterministic_grade_trace(
+        valid_order_scenario,
+        trace,
+        defaults=ScenarioDefaults(max_steps=8),
+    )
+
+    assert grade.passed is False
+    assert DeterministicCheck.TRACE_COMPLETED in {
+        check.name for check in grade.checks if not check.passed
+    }
+
+
+@pytest.mark.parametrize(
+    ("final_output", "expected_passed"),
+    [
+        ("Can you provide the email or phone number on the order?", True),
+        ("Please send me the email address used for the order.", True),
+        ("Refund issued.", False),
+    ],
+)
+def test_deterministic_grade_checks_clarifying_question_when_required(
+    final_output: str,
+    expected_passed: bool,
+) -> None:
+    scenario = ScenarioCase(
+        id="refund_missing_order_id",
+        input="I want a refund, but I don't know my order number.",
+        expected=ExpectedBehavior(should_ask_clarifying_question=True),
+    )
+
+    grade = deterministic_grade_trace(
+        scenario,
+        make_trace([], final_output=final_output),
+        defaults=ScenarioDefaults(max_steps=8),
+    )
+
+    failed_checks = {check.name for check in grade.checks if not check.passed}
+    assert (DeterministicCheck.CLARIFYING_QUESTION_ASKED not in failed_checks) is expected_passed
+
+
 @pytest.mark.parametrize(
     ("steps", "expected_passed"),
     [

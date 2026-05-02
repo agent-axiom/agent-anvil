@@ -12,11 +12,13 @@ from anvil.trace import TraceRun
 
 
 class DeterministicCheck(StrEnum):
+    TRACE_COMPLETED = "trace_completed"
     EXPECTED_TOOLS_CALLED = "expected_tools_called"
     FORBIDDEN_TOOL_NOT_CALLED = "forbidden_tool_not_called"
     MAX_STEPS_NOT_EXCEEDED = "max_steps_not_exceeded"
     REQUIRED_TOOL_ARGS_MATCHED = "required_tool_args_matched"
     FINAL_OUTPUT_EXISTS = "final_output_exists"
+    CLARIFYING_QUESTION_ASKED = "clarifying_question_asked"
 
 
 class CheckOutcome(BaseModel):
@@ -84,13 +86,25 @@ def deterministic_grade_trace(
     defaults: ScenarioDefaults,
 ) -> DeterministicGrade:
     checks = [
+        _trace_completed(trace),
         _expected_tools_called(scenario, trace),
         _forbidden_tools_not_called(scenario, trace),
         _max_steps_not_exceeded(scenario, trace, defaults),
         _required_tool_args_matched(scenario, trace),
         _final_output_exists(trace),
+        _clarifying_question_asked(scenario, trace),
     ]
     return DeterministicGrade(passed=all(check.passed for check in checks), checks=checks)
+
+
+def _trace_completed(trace: TraceRun) -> CheckOutcome:
+    return CheckOutcome(
+        name=DeterministicCheck.TRACE_COMPLETED,
+        passed=trace.status == "completed",
+        reason="trace completed"
+        if trace.status == "completed"
+        else f"trace status is {trace.status}",
+    )
 
 
 def _expected_tools_called(scenario: ScenarioCase, trace: TraceRun) -> CheckOutcome:
@@ -159,6 +173,62 @@ def _final_output_exists(trace: TraceRun) -> CheckOutcome:
         name=DeterministicCheck.FINAL_OUTPUT_EXISTS,
         passed=exists,
         reason="final output exists" if exists else "final output is missing",
+    )
+
+
+def _clarifying_question_asked(scenario: ScenarioCase, trace: TraceRun) -> CheckOutcome:
+    if not scenario.expected.should_ask_clarifying_question:
+        return CheckOutcome(
+            name=DeterministicCheck.CLARIFYING_QUESTION_ASKED,
+            passed=True,
+            reason="clarifying question not required",
+        )
+
+    text = " ".join(
+        str(part)
+        for part in [
+            trace.final_output or "",
+            *[
+                step.get("output_text", "")
+                for step in trace.steps
+                if step.get("type") == "model_call"
+            ],
+        ]
+    ).lower()
+    asks_for_info = any(
+        cue in text
+        for cue in [
+            "?",
+            "please provide",
+            "please send",
+            "send me",
+            "provide",
+            "share",
+            "can you",
+            "could you",
+            "i need",
+        ]
+    )
+    asks_for_identity = any(
+        keyword in text
+        for keyword in [
+            "email",
+            "phone",
+            "order number",
+            "order id",
+            "identity",
+            "lookup information",
+            "customer id",
+            "contact",
+        ]
+    )
+    passed = asks_for_info and asks_for_identity
+    return CheckOutcome(
+        name=DeterministicCheck.CLARIFYING_QUESTION_ASKED,
+        passed=passed,
+        reason="clarifying question asked"
+        if passed
+        else "missing clarifying question for identity or lookup information",
     )
 
 

@@ -89,7 +89,10 @@ Use this event to finish the trace.
 
 - Exit code `0` means the external agent process completed normally.
 - Non-zero exit code marks the trace as failed.
-- Deterministic and semantic grading still decide whether the scenario passes.
+- Malformed JSONL or a command timeout marks the trace as failed and records an
+  `agent_protocol_error` event in the trace artifact.
+- Deterministic grading checks `trace.status == "completed"`, so failed external
+  agent processes fail the scenario even if their partial output looked valid.
 - `anvil run` exits with code `1` when any graded trial fails, which makes it
   suitable for CI.
 

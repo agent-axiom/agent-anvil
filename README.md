@@ -13,9 +13,10 @@ Agent Anvil is a CI-first evaluation harness for tool-using AI agents.
 Most evals ask: "was the final answer good?" Agent Anvil asks: "did the
 agent behave safely while getting there?"
 
-It runs YAML scenario suites, records model/tool traces, checks tool choice and
-arguments, uses OpenAI models for semantic grading, clusters failures, and writes
-concrete prompt/tool/guardrail repair plans.
+It runs YAML scenario suites, records model/tool traces, checks trace completion,
+tool choice, arguments, and clarification behavior, uses OpenAI models for
+semantic grading, clusters failures, and writes concrete prompt/tool/guardrail
+repair plans.
 
 It catches workflow bugs final-answer evals miss: wrong tools, wrong arguments,
 destructive tools called too early, missing clarifying questions, loops, and
@@ -51,6 +52,8 @@ That gives a concrete eval loop:
 - [Sample report](docs/demo-report.md)
 - [Sample trace](docs/demo-trace.json)
 - [Sample repair plan](docs/demo-repair-plan.md)
+- [Patched demo report](docs/patched-demo-report.md)
+- [Patched demo trace](docs/patched-demo-trace.json)
 - [OpenAI demo report](docs/openai-demo-report.md)
 - [OpenAI clarification trace](docs/openai-demo-trace.json)
 - [OpenAI tool-call trace](docs/openai-demo-tool-trace.json)
@@ -94,6 +97,12 @@ uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --tr
 uv run anvil repair runs/latest
 ```
 
+Run the patched after-demo:
+
+```bash
+uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
+```
+
 `anvil run` prints a compact terminal report with scenario results, the top
 failure cluster, repair plan, and artifact paths.
 
@@ -135,6 +144,7 @@ uv run anvil run scenarios/refund_agent.yaml
 uv run anvil run scenarios/refund_agent.yaml --trials 5
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
 uv run anvil run scenarios/refund_agent.yaml --agent-mode openai
+uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
 uv run anvil report runs/latest
 uv run anvil repair runs/latest
 uv run anvil summary runs/latest --github
@@ -153,7 +163,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.6
+- uses: agent-axiom/agent-anvil@v0.1.7
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -162,7 +172,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.1.6
+- uses: agent-axiom/agent-anvil@v0.1.7
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

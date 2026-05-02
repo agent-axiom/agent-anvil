@@ -41,15 +41,40 @@ def run_external_agent(
         "run_id": run_id,
         "max_steps": max_steps,
     }
-    completed = subprocess.run(
-        shlex.split(config.command),
-        input=json.dumps(payload),
-        text=True,
-        capture_output=True,
-        timeout=config.timeout_seconds,
-        check=False,
-    )
-    steps, final_output = _parse_jsonl_trace_events(completed.stdout)
+    try:
+        completed = subprocess.run(
+            shlex.split(config.command),
+            input=json.dumps(payload),
+            text=True,
+            capture_output=True,
+            timeout=config.timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return _failed_external_trace(
+            run_id=run_id,
+            scenario_id=scenario_id,
+            trial=trial,
+            input_text=input_text,
+            started_at=started_at,
+            error_type="timeout",
+            message=f"Agent command timed out after {config.timeout_seconds} seconds.",
+        )
+
+    try:
+        steps, final_output = _parse_jsonl_trace_events(completed.stdout)
+    except ValueError as error:
+        message = f"Agent protocol error: {error}"
+        return _failed_external_trace(
+            run_id=run_id,
+            scenario_id=scenario_id,
+            trial=trial,
+            input_text=input_text,
+            started_at=started_at,
+            error_type="malformed_jsonl",
+            message=message,
+        )
+
     status = "completed"
     if completed.returncode != 0 or len(steps) > max_steps:
         status = "failed"
@@ -71,13 +96,46 @@ def run_external_agent(
     )
 
 
+def _failed_external_trace(
+    *,
+    run_id: str,
+    scenario_id: str,
+    trial: int,
+    input_text: str,
+    started_at: datetime,
+    error_type: str,
+    message: str,
+) -> TraceRun:
+    return TraceRun(
+        run_id=run_id,
+        scenario_id=scenario_id,
+        trial=trial,
+        input=input_text,
+        started_at=started_at,
+        ended_at=datetime.now(UTC),
+        status="failed",
+        steps=[
+            {
+                "type": "agent_protocol_error",
+                "error_type": error_type,
+                "message": message,
+            }
+        ],
+        final_output=message,
+    )
+
+
 def _parse_jsonl_trace_events(stdout: str) -> tuple[list[dict[str, Any]], str | None]:
     steps: list[dict[str, Any]] = []
     final_output: str | None = None
     for line_number, line in enumerate(stdout.splitlines(), start=1):
         if not line.strip():
             continue
-        event = json.loads(line)
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as error:
+            msg = f"JSONL event on line {line_number} is not valid JSON: {error.msg}"
+            raise ValueError(msg) from error
         if not isinstance(event, dict):
             msg = f"JSONL event on line {line_number} must be an object"
             raise ValueError(msg)

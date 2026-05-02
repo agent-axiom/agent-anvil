@@ -1,0 +1,25 @@
+{
+  "run_id": "run_patched_demo",
+  "scenario_id": "refund_missing_order_id",
+  "trial": 1,
+  "input": "I want a refund, but I don't know my order number.",
+  "started_at": "2026-05-02T21:12:21Z",
+  "ended_at": "2026-05-02T21:12:21Z",
+  "status": "completed",
+  "steps": [
+    {
+      "type": "model_call",
+      "model": "patched-support-agent",
+      "input": "I want a refund, but I don't know my order number.",
+      "output_text": "Can you provide the email address or phone number used for the order so I can verify it before any refund?",
+      "tool_calls": []
+    }
+  ],
+  "final_output": "Can you provide the email address or phone number used for the order so I can verify it before any refund?",
+  "metrics": {
+    "latency_ms": 0,
+    "tool_call_count": 0,
+    "model_call_count": 1,
+    "estimated_cost_usd": 0.0
+  }
+}

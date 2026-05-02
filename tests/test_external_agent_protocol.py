@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -78,3 +79,73 @@ def test_bundled_external_jsonl_scenario_runs(tmp_path: Path) -> None:
 
     assert result.total_trials == 1
     assert result.passed_trials == 1
+
+
+def test_external_agent_malformed_jsonl_becomes_failed_trace(tmp_path: Path) -> None:
+    agent_script = tmp_path / "bad_jsonl_agent.py"
+    agent_script.write_text("print('not json')\n", encoding="utf-8")
+    scenario_file = tmp_path / "external.yaml"
+    scenario_file.write_text(
+        f"""
+name: external_agent_suite
+agent:
+  command: "{sys.executable} {agent_script}"
+  protocol: jsonl
+defaults:
+  trials: 1
+  max_steps: 8
+scenarios:
+  - id: malformed_jsonl
+    input: "hello"
+""",
+        encoding="utf-8",
+    )
+
+    result = run_suite(
+        scenario_file,
+        runs_dir=tmp_path / "runs",
+        semantic_grader=HeuristicSemanticGrader(),
+    )
+
+    trace_payload = json.loads(Path(result.grades[0].trace_path).read_text(encoding="utf-8"))
+    assert result.passed_trials == 0
+    assert trace_payload["status"] == "failed"
+    assert trace_payload["steps"][0]["type"] == "agent_protocol_error"
+    assert "Agent protocol error" in trace_payload["final_output"]
+
+
+def test_external_agent_timeout_becomes_failed_trace(tmp_path: Path) -> None:
+    agent_script = tmp_path / "slow_agent.py"
+    agent_script.write_text(
+        "\n".join(["import time", "time.sleep(2)", 'print(\'{"type":"final_output"}\')']),
+        encoding="utf-8",
+    )
+    scenario_file = tmp_path / "external.yaml"
+    scenario_file.write_text(
+        f"""
+name: external_agent_suite
+agent:
+  command: "{sys.executable} {agent_script}"
+  protocol: jsonl
+  timeout_seconds: 1
+defaults:
+  trials: 1
+  max_steps: 8
+scenarios:
+  - id: timeout_agent
+    input: "hello"
+""",
+        encoding="utf-8",
+    )
+
+    result = run_suite(
+        scenario_file,
+        runs_dir=tmp_path / "runs",
+        semantic_grader=HeuristicSemanticGrader(),
+    )
+
+    trace_payload = json.loads(Path(result.grades[0].trace_path).read_text(encoding="utf-8"))
+    assert result.passed_trials == 0
+    assert trace_payload["status"] == "failed"
+    assert trace_payload["steps"][0]["type"] == "agent_protocol_error"
+    assert "timed out" in trace_payload["final_output"]
