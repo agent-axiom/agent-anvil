@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
-from anvil.grading import OpenAISemanticGrader, SemanticGrade
+from openai.lib._parsing._completions import type_to_response_format_param
+
+from anvil.grading import OpenAISemanticGrade, OpenAISemanticGrader, OpenAISuggestedFix
 from anvil.scenario import ExpectedBehavior, ScenarioCase
 from anvil.trace import TraceRun
 
@@ -15,13 +18,17 @@ class FakeResponses:
         self.calls.append(kwargs)
 
         class ParsedResponse:
-            output_parsed = SemanticGrade(
+            output_parsed = OpenAISemanticGrade(
                 passed=False,
                 score=0.42,
                 failure_type="premature_tool_execution",
                 severity="high",
                 reason="The agent issued a refund too early.",
-                suggested_fix={"guardrail_patch": "Block issue_refund until verified."},
+                suggested_fix=OpenAISuggestedFix(
+                    prompt_patch="Require verification first.",
+                    tool_description_patch="Only call issue_refund after lookup_order.",
+                    guardrail_patch="Block issue_refund until verified.",
+                ),
             )
 
         return ParsedResponse()
@@ -65,5 +72,23 @@ def test_openai_semantic_grader_uses_responses_parse_with_semantic_schema() -> N
     grade = grader.grade(scenario, trace)
 
     assert grade.failure_type == "premature_tool_execution"
+    assert grade.suggested_fix["guardrail_patch"] == "Block issue_refund until verified."
     assert client.responses.calls[0]["model"] == "gpt-5.5"
-    assert client.responses.calls[0]["text_format"] is SemanticGrade
+    assert client.responses.calls[0]["text_format"] is OpenAISemanticGrade
+
+
+def test_openai_semantic_grade_schema_uses_fixed_suggested_fix_fields() -> None:
+    response_format = type_to_response_format_param(OpenAISemanticGrade)
+    response_format_dict = cast(dict[str, Any], response_format)
+    schema = response_format_dict["json_schema"]["schema"]
+
+    assert "suggested_fix" in schema["properties"]
+    assert "suggested_fix" in schema["required"]
+    suggested_fix_ref = schema["properties"]["suggested_fix"]["$ref"]
+    suggested_fix_schema = schema["$defs"][suggested_fix_ref.removeprefix("#/$defs/")]
+    assert set(suggested_fix_schema["properties"]) == {
+        "prompt_patch",
+        "tool_description_patch",
+        "guardrail_patch",
+    }
+    assert suggested_fix_schema["additionalProperties"] is False

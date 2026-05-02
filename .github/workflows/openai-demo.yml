@@ -18,6 +18,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Require OpenAI API key
+        if: ${{ env.OPENAI_API_KEY == '' }}
+        run: |
+          echo "OPENAI_API_KEY repository secret is required for the manual OpenAI demo."
+          exit 1
+
       - name: Run OpenAI refund agent eval
         uses: ./
         with:

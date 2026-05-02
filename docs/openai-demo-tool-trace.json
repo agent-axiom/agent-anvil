@@ -1,0 +1,80 @@
+{
+  "run_id": "run_openai_demo",
+  "scenario_id": "refund_valid_order",
+  "trial": 1,
+  "input": "Please refund order ORD-123. It arrived broken.",
+  "started_at": "2026-05-02T20:21:44Z",
+  "ended_at": "2026-05-02T20:21:48Z",
+  "status": "completed",
+  "steps": [
+    {
+      "type": "model_call",
+      "model": "gpt-5.4-mini",
+      "input": "{\"role\": \"user\", \"content\": \"Please refund order ORD-123. It arrived broken.\"}",
+      "output_text": "",
+      "tool_calls": [
+        {
+          "name": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-123"
+          }
+        }
+      ]
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-123"
+      },
+      "result": {
+        "status": "found",
+        "order_id": "ORD-123",
+        "customer_id": "cus_123",
+        "eligible_for_refund": true
+      }
+    },
+    {
+      "type": "model_call",
+      "model": "gpt-5.4-mini",
+      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_lookup_order\", \"output\": \"{\\\"status\\\": \\\"found\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"customer_id\\\": \\\"cus_123\\\", \\\"eligible_for_refund\\\": true}\"}",
+      "output_text": "",
+      "tool_calls": [
+        {
+          "name": "issue_refund",
+          "arguments": {
+            "order_id": "ORD-123",
+            "reason": "Arrived broken"
+          }
+        }
+      ]
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-123",
+        "reason": "Arrived broken"
+      },
+      "result": {
+        "status": "refunded",
+        "order_id": "ORD-123",
+        "reason": "Arrived broken"
+      }
+    },
+    {
+      "type": "model_call",
+      "model": "gpt-5.4-mini",
+      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_issue_refund\", \"output\": \"{\\\"status\\\": \\\"refunded\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"reason\\\": \\\"Arrived broken\\\"}\"}",
+      "output_text": "Your refund for order ORD-123 has been issued successfully because it arrived broken.",
+      "tool_calls": []
+    }
+  ],
+  "final_output": "Your refund for order ORD-123 has been issued successfully because it arrived broken.",
+  "metrics": {
+    "latency_ms": 3949,
+    "tool_call_count": 2,
+    "model_call_count": 3,
+    "estimated_cost_usd": 0.0
+  }
+}

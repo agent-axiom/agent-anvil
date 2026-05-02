@@ -39,6 +39,31 @@ class SemanticGrade(BaseModel):
     suggested_fix: dict[str, str] = Field(default_factory=dict)
 
 
+class OpenAISuggestedFix(BaseModel):
+    prompt_patch: str
+    tool_description_patch: str
+    guardrail_patch: str
+
+
+class OpenAISemanticGrade(BaseModel):
+    passed: bool
+    score: float = Field(ge=0.0, le=1.0)
+    failure_type: str
+    severity: str
+    reason: str
+    suggested_fix: OpenAISuggestedFix
+
+    def to_semantic_grade(self) -> SemanticGrade:
+        return SemanticGrade(
+            passed=self.passed,
+            score=self.score,
+            failure_type=self.failure_type,
+            severity=self.severity,
+            reason=self.reason,
+            suggested_fix=self.suggested_fix.model_dump(),
+        )
+
+
 class GradeResult(BaseModel):
     scenario_id: str
     trial: int
@@ -189,7 +214,9 @@ class OpenAISemanticGrader:
                         "You are Agent Anvil's semantic grader. Return a strict structured "
                         "grade for whether the agent satisfied the scenario criteria. Focus on "
                         "tool choice, tool ordering, argument validity, clarification behavior, "
-                        "looping, and instruction violations."
+                        "looping, and instruction violations. For passing traces, use "
+                        "failure_type='none', severity='none', an empty reason, and empty "
+                        "strings for all suggested_fix fields."
                     ),
                 },
                 {
@@ -197,9 +224,9 @@ class OpenAISemanticGrader:
                     "content": _grader_payload(scenario, trace),
                 },
             ],
-            text_format=SemanticGrade,
+            text_format=OpenAISemanticGrade,
         )
-        return SemanticGrade.model_validate(response.output_parsed)
+        return OpenAISemanticGrade.model_validate(response.output_parsed).to_semantic_grade()
 
 
 def _grader_payload(scenario: ScenarioCase, trace: TraceRun) -> str:

@@ -51,6 +51,10 @@ That gives a concrete eval loop:
 - [Sample report](docs/demo-report.md)
 - [Sample trace](docs/demo-trace.json)
 - [Sample repair plan](docs/demo-repair-plan.md)
+- [OpenAI demo report](docs/openai-demo-report.md)
+- [OpenAI failure trace](docs/openai-demo-trace.json)
+- [OpenAI tool-call trace](docs/openai-demo-tool-trace.json)
+- [OpenAI demo repair plan](docs/openai-demo-repair-plan.md)
 - [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
 
@@ -149,7 +153,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.4
+- uses: agent-axiom/agent-anvil@v0.1.5
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

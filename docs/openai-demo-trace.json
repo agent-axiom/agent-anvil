@@ -1,0 +1,25 @@
+{
+  "run_id": "run_openai_demo",
+  "scenario_id": "refund_missing_order_id",
+  "trial": 1,
+  "input": "I want a refund, but I don't know my order number.",
+  "started_at": "2026-05-02T20:21:39Z",
+  "ended_at": "2026-05-02T20:21:41Z",
+  "status": "completed",
+  "steps": [
+    {
+      "type": "model_call",
+      "model": "gpt-5.4-mini",
+      "input": "{\"role\": \"user\", \"content\": \"I want a refund, but I don't know my order number.\"}",
+      "output_text": "I can help with that. Please send me the email address or phone number you used for the order, and I'll look it up for you.",
+      "tool_calls": []
+    }
+  ],
+  "final_output": "I can help with that. Please send me the email address or phone number you used for the order, and I'll look it up for you.",
+  "metrics": {
+    "latency_ms": 2730,
+    "tool_call_count": 0,
+    "model_call_count": 1,
+    "estimated_cost_usd": 0.0
+  }
+}

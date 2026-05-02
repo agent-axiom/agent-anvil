@@ -4,7 +4,29 @@ from collections import defaultdict
 
 from pydantic import BaseModel, Field
 
-from anvil.grading import GradeResult
+from anvil.grading import CheckOutcome, DeterministicCheck, GradeResult
+
+DETERMINISTIC_SEVERITY = {
+    DeterministicCheck.FORBIDDEN_TOOL_NOT_CALLED: "high",
+    DeterministicCheck.REQUIRED_TOOL_ARGS_MATCHED: "high",
+    DeterministicCheck.FINAL_OUTPUT_EXISTS: "high",
+    DeterministicCheck.EXPECTED_TOOLS_CALLED: "medium",
+    DeterministicCheck.MAX_STEPS_NOT_EXCEEDED: "medium",
+}
+
+DETERMINISTIC_REPAIR_PREFIX = {
+    DeterministicCheck.EXPECTED_TOOLS_CALLED: (
+        "Update the agent prompt or tool policy so expected tools are called"
+    ),
+    DeterministicCheck.FORBIDDEN_TOOL_NOT_CALLED: (
+        "Add a guardrail before forbidden or destructive tool calls"
+    ),
+    DeterministicCheck.REQUIRED_TOOL_ARGS_MATCHED: (
+        "Validate required tool arguments before execution"
+    ),
+    DeterministicCheck.MAX_STEPS_NOT_EXCEEDED: "Add loop limits or stop conditions",
+    DeterministicCheck.FINAL_OUTPUT_EXISTS: "Ensure the agent produces a final response",
+}
 
 
 class FailureCluster(BaseModel):
@@ -18,7 +40,7 @@ class FailureCluster(BaseModel):
 def cluster_failures(failures: list[GradeResult]) -> list[FailureCluster]:
     grouped: dict[tuple[str, str], list[GradeResult]] = defaultdict(list)
     for failure in failures:
-        key = (failure.semantic.failure_type, failure.semantic.severity)
+        key = _failure_key(failure)
         grouped[key].append(failure)
 
     clusters = [
@@ -42,4 +64,31 @@ def _repair_plan(items: list[GradeResult]) -> list[str]:
             if patch and patch not in seen:
                 seen.add(patch)
                 plan.append(patch)
+        if not item.semantic.passed:
+            continue
+        for check in _failed_deterministic_checks(item):
+            patch = _deterministic_repair(check)
+            if patch not in seen:
+                seen.add(patch)
+                plan.append(patch)
     return plan
+
+
+def _failure_key(failure: GradeResult) -> tuple[str, str]:
+    if failure.semantic.failure_type != "none":
+        return failure.semantic.failure_type, failure.semantic.severity
+
+    failed_checks = _failed_deterministic_checks(failure)
+    if failed_checks:
+        check = failed_checks[0]
+        return check.name.value, DETERMINISTIC_SEVERITY[check.name]
+
+    return "unknown_failure", "medium"
+
+
+def _failed_deterministic_checks(failure: GradeResult) -> list[CheckOutcome]:
+    return [check for check in failure.deterministic_checks if not check.passed]
+
+
+def _deterministic_repair(check: CheckOutcome) -> str:
+    return f"{DETERMINISTIC_REPAIR_PREFIX[check.name]}: {check.reason}"

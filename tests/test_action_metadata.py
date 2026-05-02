@@ -68,5 +68,6 @@ def test_openai_demo_workflow_is_manual_and_uses_secret() -> None:
     assert job["env"]["OPENAI_API_KEY"] == "${{ secrets.OPENAI_API_KEY }}"
     assert job["env"]["ANVIL_OPENAI_MODEL"] == "gpt-5.4-mini"
     steps = job["steps"]
+    assert any(step.get("name") == "Require OpenAI API key" for step in steps)
     assert any(step.get("uses") == "./" for step in steps)
     assert any(step.get("uses") == "actions/upload-artifact@v7.0.1" for step in steps)

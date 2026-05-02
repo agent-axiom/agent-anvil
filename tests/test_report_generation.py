@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from anvil.clustering import cluster_failures
-from anvil.grading import GradeResult, SemanticGrade
+from anvil.grading import CheckOutcome, DeterministicCheck, GradeResult, SemanticGrade
 from anvil.report import render_github_summary, render_markdown_report
 
 
@@ -53,6 +53,35 @@ def test_cluster_failures_groups_by_failure_type_and_severity() -> None:
         "refund_missing_order_id/trial_2",
     ]
     assert len(clusters[0].repair_plan) == 2
+
+
+def test_cluster_failures_falls_back_to_failed_deterministic_check() -> None:
+    failures = [
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=1,
+            passed=False,
+            deterministic_passed=False,
+            semantic=SemanticGrade(passed=True, score=1.0),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_1.json",
+            deterministic_checks=[
+                CheckOutcome(
+                    name=DeterministicCheck.EXPECTED_TOOLS_CALLED,
+                    passed=False,
+                    reason="missing expected tool calls: lookup_customer",
+                )
+            ],
+        )
+    ]
+
+    clusters = cluster_failures(failures)
+
+    assert clusters[0].name == "expected_tools_called"
+    assert clusters[0].severity == "medium"
+    assert clusters[0].repair_plan == [
+        "Update the agent prompt or tool policy so expected tools are called: "
+        "missing expected tool calls: lookup_customer"
+    ]
 
 
 def test_render_markdown_report_includes_suite_summary_and_trace_links() -> None:

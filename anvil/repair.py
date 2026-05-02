@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from anvil.clustering import FailureCluster
-from anvil.grading import GradeResult
+from anvil.clustering import DETERMINISTIC_SEVERITY, FailureCluster
+from anvil.grading import CheckOutcome, GradeResult
 from anvil.storage import load_results
 
 
@@ -63,16 +63,18 @@ def render_repair_plan(
 
     lines.extend(["", "## Failed Trials"])
     for grade in failed:
+        failure_type, severity, reason = _trial_failure_summary(grade)
         lines.extend(
             [
                 f"- {grade.scenario_id}/trial_{grade.trial}",
-                f"  Failure type: {grade.semantic.failure_type}",
-                f"  Severity: {grade.semantic.severity}",
-                f"  Reason: {grade.semantic.reason or 'No semantic reason supplied.'}",
+                f"  Failure type: {failure_type}",
+                f"  Severity: {severity}",
+                f"  Reason: {reason}",
             ]
         )
         for patch_type, patch in grade.semantic.suggested_fix.items():
-            lines.append(f"  {patch_type}: {patch}")
+            if patch:
+                lines.append(f"  {patch_type}: {patch}")
         failing_checks = [check for check in grade.deterministic_checks if not check.passed]
         lines.extend(
             f"  Deterministic check: {check.name} - {check.reason}" for check in failing_checks
@@ -80,3 +82,27 @@ def render_repair_plan(
         lines.append(f"  Trace: {grade.trace_path}")
 
     return "\n".join(lines) + "\n"
+
+
+def _trial_failure_summary(grade: GradeResult) -> tuple[str, str, str]:
+    if grade.semantic.failure_type != "none":
+        return (
+            grade.semantic.failure_type,
+            grade.semantic.severity,
+            grade.semantic.reason or "No semantic reason supplied.",
+        )
+
+    failed_checks = _failed_deterministic_checks(grade)
+    if not failed_checks:
+        return (
+            grade.semantic.failure_type,
+            grade.semantic.severity,
+            grade.semantic.reason or "No semantic reason supplied.",
+        )
+
+    check = failed_checks[0]
+    return check.name.value, DETERMINISTIC_SEVERITY[check.name], check.reason
+
+
+def _failed_deterministic_checks(grade: GradeResult) -> list[CheckOutcome]:
+    return [check for check in grade.deterministic_checks if not check.passed]

@@ -166,7 +166,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.4
+- uses: agent-axiom/agent-anvil@v0.1.5
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
