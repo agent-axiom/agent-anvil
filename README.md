@@ -1,7 +1,12 @@
 # Agent Anvil
 
 [![CI](https://github.com/agent-axiom/agent-anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/agent-axiom/agent-anvil/actions/workflows/ci.yml)
+[![Agent Anvil Demo](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil-demo.yml/badge.svg)](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil-demo.yml)
 ![coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25-brightgreen)
+[![release](https://img.shields.io/github/v/release/agent-axiom/agent-anvil)](https://github.com/agent-axiom/agent-anvil/releases)
+![python](https://img.shields.io/badge/python-3.14-blue)
+![openai](https://img.shields.io/badge/OpenAI-Responses%20API-412991)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Agent Anvil is a CI-first evaluation harness for tool-using AI agents.
 
@@ -91,6 +96,10 @@ uv run anvil compare runs/baseline runs/latest
 regressions.
 
 ## GitHub Actions
+
+This repo runs Agent Anvil against itself in GitHub Actions. The separate
+`Agent Anvil Demo` workflow uploads `agent-anvil-runs` with `report.md`,
+`results.json`, traces, and `repair_plan.md`.
 
 ```yaml
 - name: Run Agent Anvil

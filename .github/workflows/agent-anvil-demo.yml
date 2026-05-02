@@ -1,0 +1,61 @@
+name: Agent Anvil Demo
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent-anvil-demo:
+    name: Agent Anvil Demo
+    runs-on: ubuntu-latest
+    env:
+      ANVIL_OFFLINE: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run passing external agent eval
+        run: >
+          uv run --frozen anvil run
+          scenarios/external_jsonl_agent.yaml
+          --offline
+          --runs-dir runs/external
+
+      - name: Run intentional refund regression demo
+        run: |
+          set +e
+          uv run --frozen anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 --runs-dir runs/refund
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 1
+          uv run --frozen anvil repair runs/refund/latest
+
+      - name: Upload Agent Anvil run artifacts
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: agent-anvil-runs
+          path: runs/
+          if-no-files-found: error
