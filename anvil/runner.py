@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import importlib
 import os
-from collections.abc import Callable
 from dataclasses import dataclass
+from inspect import Parameter, signature
 from pathlib import Path
 
+from anvil.agent import AgentRunner, load_agent_runner
 from anvil.clustering import FailureCluster, cluster_failures
 from anvil.config import AnvilSettings
 from anvil.grading import (
@@ -25,8 +25,6 @@ from anvil.storage import (
     write_trace,
 )
 from anvil.trace import TraceRun
-
-AgentRunner = Callable[..., TraceRun]
 
 
 @dataclass(frozen=True)
@@ -49,23 +47,27 @@ def run_suite(
     trials_override: int | None = None,
     semantic_grader: SemanticGrader | None = None,
     run_id: str | None = None,
+    agent_mode: str | None = None,
 ) -> RunResult:
     suite = load_scenario_file(scenario_file)
     run_dir = create_run_dir(runs_dir, run_id=run_id)
     selected_run_id = run_dir.name
-    agent = _load_agent_runner(suite.agent)
+    agent = load_agent_runner(suite.agent)
     grader = semantic_grader or default_semantic_grader()
+    selected_agent_mode = agent_mode or AnvilSettings.from_env().agent_mode
 
     grades: list[GradeResult] = []
     for scenario in suite.scenarios:
         trials = trials_override or scenario.trials(suite.defaults)
         for trial in range(1, trials + 1):
-            trace = agent(
+            trace = _run_agent(
+                agent,
                 input_text=scenario.input,
                 scenario_id=scenario.id,
                 trial=trial,
                 run_id=selected_run_id,
                 max_steps=scenario.max_steps(suite.defaults),
+                agent_mode=selected_agent_mode,
             )
             trace_path = write_trace(run_dir, trace)
             deterministic = deterministic_grade_trace(scenario, trace, suite.defaults)
@@ -153,6 +155,17 @@ def compare_runs(baseline_dir: str | Path, latest_dir: str | Path) -> dict[str, 
     }
 
 
-def _load_agent_runner(agent_module: str) -> AgentRunner:
-    module = importlib.import_module(agent_module)
-    return module.run_agent
+def _run_agent(agent: AgentRunner, **kwargs: object) -> TraceRun:
+    if _accepts_keyword(agent, "agent_mode"):
+        return agent(**kwargs)
+
+    kwargs.pop("agent_mode", None)
+    return agent(**kwargs)
+
+
+def _accepts_keyword(agent: AgentRunner, keyword: str) -> bool:
+    parameters = signature(agent).parameters.values()
+    return any(
+        parameter.kind is Parameter.VAR_KEYWORD or parameter.name == keyword
+        for parameter in parameters
+    )

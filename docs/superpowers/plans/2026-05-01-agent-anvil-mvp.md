@@ -4,7 +4,7 @@
 
 **Goal:** Build a Python-first CI evaluation harness that runs YAML scenario suites, records tool-agent traces, grades behavior, clusters failures, and writes JSON/Markdown reports.
 
-**Architecture:** The CLI loads a YAML suite into Pydantic models, invokes a pluggable example agent for each scenario trial, records trace JSON, runs deterministic checks plus an OpenAI-ready semantic grader, aggregates failures, and persists run artifacts under `runs/<run_id>/`. The demo agent is deterministic by default so tests and local demos do not require credentials, while the grading layer uses the official OpenAI SDK when `OPENAI_API_KEY` is available.
+**Architecture:** The CLI loads a YAML suite into Pydantic models, invokes a pluggable example or external agent for each scenario trial, records trace JSON, runs deterministic checks plus an OpenAI semantic grader, aggregates failures, and persists run artifacts under `runs/<run_id>/`. The demo agent is deterministic by default so tests and local demos do not require credentials, while OpenAI mode uses the official SDK for tool calling and semantic grading when `OPENAI_API_KEY` is available.
 
 **Tech Stack:** Python 3.14 runtime target with `requires-python >=3.12`, `uv` for environment and locking, Typer for CLI, Pydantic for schemas, PyYAML for scenario loading, OpenAI Python SDK Responses API for semantic grading, Ruff for lint/format, ty for type checking, pytest with fixtures, parametrization, coverage, mock, asyncio, randomly, and sugar plugins.
 
@@ -23,8 +23,8 @@
 - `anvil/report.py`: Markdown and JSON result rendering.
 - `anvil/storage.py`: run directory, trace, result, report, and `runs/latest` handling.
 - `anvil/runner.py`: suite orchestration.
-- `anvil/cli.py`: `anvil run`, `anvil report`, and `anvil compare`.
-- `examples/support_agent/`: toy refund agent, tools, and prompt.
+- `anvil/cli.py`: `anvil run`, `anvil report`, `anvil repair`, and `anvil compare`.
+- `examples/support_agent/`: offline and OpenAI tool-calling refund agents, tools, and prompt.
 - `scenarios/`: refund and Kubernetes debug demo suites.
 - `tests/`: behavior-first tests for loaders, trace schemas, grading, reports, runner, and CLI.
 
@@ -49,4 +49,3 @@
 - Spec coverage: every MVP requirement maps to a module and test area above.
 - Placeholder scan: no implementation placeholders are left in this plan.
 - Type consistency: scenario, trace, grade, cluster, and report names match the intended module boundaries.
-

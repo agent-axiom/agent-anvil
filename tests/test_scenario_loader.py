@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from anvil.scenario import ScenarioSuite, load_scenario_file
+from anvil.scenario import ExternalAgentConfig, ScenarioSuite, load_scenario_file
 
 
 def test_load_scenario_file_preserves_suite_defaults(scenario_file: Path) -> None:
@@ -29,6 +29,28 @@ def test_load_scenario_file_parses_expected_tool_contracts(scenario_file: Path) 
     assert valid_order.expected.required_tool_args == {"issue_refund": {"order_id": "ORD-123"}}
     assert valid_order.trials(suite.defaults) == 3
     assert valid_order.max_steps(suite.defaults) == 8
+
+
+def test_load_scenario_file_accepts_external_agent_config(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "external.yaml"
+    scenario_file.write_text(
+        """
+name: external_agent_suite
+agent:
+  command: "python my_agent.py"
+  protocol: jsonl
+scenarios:
+  - id: smoke
+    input: "hello"
+""",
+        encoding="utf-8",
+    )
+
+    suite = load_scenario_file(scenario_file)
+
+    assert isinstance(suite.agent, ExternalAgentConfig)
+    assert suite.agent.command == "python my_agent.py"
+    assert suite.agent.protocol == "jsonl"
 
 
 @pytest.mark.parametrize(

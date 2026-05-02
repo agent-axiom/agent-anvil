@@ -1,10 +1,21 @@
 services:
-  anvil:
+  anvil-offline:
     build: .
     environment:
-      ANVIL_OFFLINE: "${ANVIL_OFFLINE:-true}"
+      ANVIL_AGENT_MODE: offline
+      ANVIL_OFFLINE: "true"
+      ANVIL_OPENAI_MODEL: "${ANVIL_OPENAI_MODEL:-gpt-5.4-mini}"
+    volumes:
+      - ./runs:/app/runs
+    command: ["anvil", "run", "scenarios/refund_agent.yaml", "--offline", "--agent-mode", "offline"]
+
+  anvil-openai:
+    build: .
+    environment:
+      ANVIL_AGENT_MODE: openai
+      ANVIL_OFFLINE: "${ANVIL_OFFLINE:-false}"
       ANVIL_OPENAI_MODEL: "${ANVIL_OPENAI_MODEL:-gpt-5.4-mini}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
     volumes:
       - ./runs:/app/runs
-    command: ["anvil", "run", "scenarios/refund_agent.yaml", "--offline"]
+    command: ["anvil", "run", "scenarios/refund_agent.yaml", "--agent-mode", "openai"]

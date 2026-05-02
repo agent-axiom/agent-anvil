@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -36,11 +36,27 @@ class ScenarioCase(BaseModel):
         return self.max_step_count or defaults.max_steps
 
 
+class ExternalAgentConfig(BaseModel):
+    command: str = Field(min_length=1)
+    protocol: Literal["jsonl"] = "jsonl"
+    timeout_seconds: int = Field(default=60, ge=1)
+
+
+AgentConfig = str | ExternalAgentConfig
+
+
 class ScenarioSuite(BaseModel):
     name: str = Field(min_length=1)
-    agent: str = Field(min_length=1)
+    agent: AgentConfig
     defaults: ScenarioDefaults = Field(default_factory=ScenarioDefaults)
     scenarios: list[ScenarioCase] = Field(min_length=1)
+
+    @field_validator("agent")
+    @classmethod
+    def require_nonempty_agent(cls, agent: AgentConfig) -> AgentConfig:
+        if isinstance(agent, str) and not agent.strip():
+            raise ValueError("agent must not be empty")
+        return agent
 
     @field_validator("scenarios")
     @classmethod
