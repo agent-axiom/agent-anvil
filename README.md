@@ -1,7 +1,7 @@
 # Agent Anvil
 
 [![CI](https://github.com/agent-axiom/agent-anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/agent-axiom/agent-anvil/actions/workflows/ci.yml)
-[![Agent Anvil Demo](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil-demo.yml/badge.svg)](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil-demo.yml)
+[![Agent Anvil](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil.yml/badge.svg)](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil.yml)
 ![coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25-brightgreen)
 [![release](https://img.shields.io/github/v/release/agent-axiom/agent-anvil)](https://github.com/agent-axiom/agent-anvil/releases)
 ![python](https://img.shields.io/badge/python-3.14-blue)
@@ -98,7 +98,7 @@ regressions.
 ## GitHub Actions
 
 This repo runs Agent Anvil against itself in GitHub Actions. The separate
-`Agent Anvil Demo` workflow uploads `agent-anvil-runs` with `report.md`,
+`Agent Anvil` workflow uploads `agent-anvil-runs` with `report.md`,
 `results.json`, traces, and `repair_plan.md`.
 
 ```yaml

@@ -1,4 +1,4 @@
-name: Agent Anvil Demo
+name: Agent Anvil
 
 on:
   push:
@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  agent-anvil-demo:
-    name: Agent Anvil Demo
+  demo-eval:
+    name: Demo Eval
     runs-on: ubuntu-latest
     env:
       ANVIL_OFFLINE: "true"
