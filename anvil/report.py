@@ -59,6 +59,67 @@ def render_markdown_report(
     return "\n".join(lines) + "\n"
 
 
+def render_github_summary(
+    *,
+    suite_name: str,
+    run_id: str,
+    total_scenarios: int,
+    grades: list[GradeResult],
+    clusters: list[FailureCluster],
+) -> str:
+    total_trials = len(grades)
+    passed_trials = sum(1 for grade in grades if grade.passed)
+    failed_trials = total_trials - passed_trials
+    pass_rate = (passed_trials / total_trials * 100) if total_trials else 0.0
+    status = "PASS" if failed_trials == 0 else "FAIL"
+
+    lines = [
+        "## Agent Anvil Summary",
+        "",
+        f"**Status:** {status}",
+        "",
+        "| Metric | Value |",
+        "| --- | --- |",
+        f"| Suite | {suite_name} |",
+        f"| Run | {run_id} |",
+        f"| Total scenarios | {total_scenarios} |",
+        f"| Trials | {total_trials} |",
+        f"| Passed trials | {passed_trials} |",
+        f"| Failed trials | {failed_trials} |",
+        f"| Pass rate | {pass_rate:.1f}% |",
+        "",
+        "### Failure Clusters",
+    ]
+
+    if clusters:
+        lines.extend(["", "| Failure type | Severity | Count |", "| --- | --- | --- |"])
+        lines.extend(
+            f"| {cluster.name} | {cluster.severity} | {cluster.count} |" for cluster in clusters
+        )
+        lines.extend(["", "### Suggested Fixes"])
+        for cluster in clusters:
+            lines.append(f"- `{cluster.name}`")
+            if cluster.repair_plan:
+                lines.extend(f"  - {item}" for item in cluster.repair_plan)
+            else:
+                lines.append("  - Review trace and deterministic checks.")
+    else:
+        lines.append("")
+        lines.append("No failure clusters.")
+
+    failed = [grade for grade in grades if not grade.passed]
+    if failed:
+        lines.extend(["", "### Failed Trials"])
+        lines.extend(
+            f"- `{grade.scenario_id}/trial_{grade.trial}`: "
+            f"{grade.semantic.failure_type} ({grade.semantic.severity})"
+            for grade in failed
+        )
+
+    lines.extend(["", "### Artifacts", "- `report.md`", "- `results.json`", "- `traces/*.json`"])
+    return "\n".join(lines) + "\n"
+
+
 def _scenario_results(grades: list[GradeResult]) -> dict[str, bool]:
     grouped: dict[str, list[GradeResult]] = defaultdict(list)
     for grade in grades:

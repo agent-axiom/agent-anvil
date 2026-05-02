@@ -58,6 +58,33 @@ def test_cli_report_regenerates_markdown_from_results(
     assert "# Agent Anvil Report" in (runs_dir / "latest" / "report.md").read_text(encoding="utf-8")
 
 
+def test_cli_summary_prints_github_summary(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    runs_dir = tmp_path / "runs"
+    runner = CliRunner()
+    runner.invoke(
+        app,
+        [
+            "run",
+            str(scenario_file),
+            "--runs-dir",
+            str(runs_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+
+    summary_result = runner.invoke(app, ["summary", str(runs_dir / "latest"), "--github"])
+
+    assert summary_result.exit_code == 0
+    assert "## Agent Anvil Summary" in summary_result.stdout
+    assert "| Pass rate | 50.0% |" in summary_result.stdout
+    assert "premature_tool_execution" in summary_result.stdout
+
+
 def test_cli_compare_reports_pass_rate_regression(
     scenario_file: Path,
     tmp_path: Path,

@@ -23,35 +23,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          enable-cache: true
-          python-version: "3.14"
-
-      - name: Install dependencies
-        run: uv sync --frozen
-
       - name: Run passing external agent eval
-        run: >
-          uv run --frozen anvil run
-          scenarios/external_jsonl_agent.yaml
-          --offline
-          --runs-dir runs/external
+        uses: ./
+        with:
+          scenario: scenarios/external_jsonl_agent.yaml
+          offline: "true"
+          runs-dir: runs/external
 
       - name: Run intentional refund regression demo
-        run: |
-          set +e
-          uv run --frozen anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 --runs-dir runs/refund
-          exit_code=$?
-          set -e
-          test "$exit_code" -eq 1
-          uv run --frozen anvil repair runs/refund/latest
+        uses: ./
+        with:
+          scenario: scenarios/refund_agent.yaml
+          offline: "true"
+          agent-mode: offline
+          trials: "1"
+          runs-dir: runs/refund
+          expected-exit-code: "1"
 
       - name: Upload Agent Anvil run artifacts
         uses: actions/upload-artifact@v5.0.0

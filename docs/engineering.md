@@ -157,6 +157,23 @@ CI enforces at least 90% coverage and uploads `coverage.xml` as a GitHub Actions
 artifact. The README badge tracks that enforced threshold instead of depending
 on an external coverage service being initialized.
 
+## GitHub Action
+
+The repository exposes a composite GitHub Action:
+
+```yaml
+- uses: actions/checkout@v6
+- uses: agent-axiom/agent-anvil@v0.1.1
+  with:
+    scenario: scenarios/refund_agent.yaml
+    offline: "true"
+    agent-mode: offline
+```
+
+The action runs `anvil run`, verifies the expected exit code, generates
+`repair_plan.md` for intentional failure demos, and appends `anvil summary
+--github` output to the GitHub Step Summary.
+
 ## Docker
 
 ```bash

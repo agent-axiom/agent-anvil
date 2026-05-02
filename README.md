@@ -89,6 +89,7 @@ uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
 uv run anvil run scenarios/refund_agent.yaml --agent-mode openai
 uv run anvil report runs/latest
 uv run anvil repair runs/latest
+uv run anvil summary runs/latest --github
 uv run anvil compare runs/baseline runs/latest
 ```
 
@@ -99,11 +100,16 @@ regressions.
 
 This repo runs Agent Anvil against itself in GitHub Actions. The separate
 `Agent Anvil` workflow uploads `agent-anvil-runs` with `report.md`,
-`results.json`, traces, and `repair_plan.md`.
+`results.json`, traces, and `repair_plan.md`. It also writes an Agent Anvil
+summary directly into the GitHub Actions run page.
 
 ```yaml
-- name: Run Agent Anvil
-  run: uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
+- uses: actions/checkout@v6
+- uses: agent-axiom/agent-anvil@v0.1.1
+  with:
+    scenario: scenarios/refund_agent.yaml
+    offline: "true"
+    agent-mode: offline
 ```
 
 ## Why AI Was Necessary

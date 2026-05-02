@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from anvil.clustering import cluster_failures
 from anvil.grading import GradeResult, SemanticGrade
-from anvil.report import render_markdown_report
+from anvil.report import render_github_summary, render_markdown_report
 
 
 def test_cluster_failures_groups_by_failure_type_and_severity() -> None:
@@ -95,3 +95,45 @@ def test_render_markdown_report_includes_suite_summary_and_trace_links() -> None
     assert "Pass rate: 50.0%" in markdown
     assert "premature_tool_execution" in markdown
     assert "runs/test/traces/refund_missing_order_id_trial_1.json" in markdown
+
+
+def test_render_github_summary_highlights_failure_clusters() -> None:
+    grades = [
+        GradeResult(
+            scenario_id="refund_valid_order",
+            trial=1,
+            passed=True,
+            deterministic_passed=True,
+            semantic=SemanticGrade(passed=True, score=1.0),
+            trace_path="runs/test/traces/refund_valid_order_trial_1.json",
+        ),
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=1,
+            passed=False,
+            deterministic_passed=False,
+            semantic=SemanticGrade(
+                passed=False,
+                score=0.1,
+                failure_type="premature_tool_execution",
+                severity="high",
+                reason="Issued refund too early.",
+                suggested_fix={"guardrail_patch": "Block issue_refund until verified."},
+            ),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_1.json",
+        ),
+    ]
+
+    summary = render_github_summary(
+        suite_name="refund_agent_regression_suite",
+        run_id="run_test",
+        total_scenarios=2,
+        grades=grades,
+        clusters=cluster_failures([grade for grade in grades if not grade.passed]),
+    )
+
+    assert "## Agent Anvil Summary" in summary
+    assert "| Pass rate | 50.0% |" in summary
+    assert "| premature_tool_execution | high | 1 |" in summary
+    assert "Block issue_refund until verified." in summary
+    assert "refund_missing_order_id/trial_1" in summary

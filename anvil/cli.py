@@ -6,12 +6,18 @@ import typer
 
 from anvil.repair import generate_repair_plan
 from anvil.runner import compare_runs, default_semantic_grader, regenerate_report, run_suite
+from anvil.summary import generate_github_summary
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
 OFFLINE_OPTION = typer.Option(False, "--offline", help="Use local heuristic grading only.")
+GITHUB_SUMMARY_OPTION = typer.Option(
+    False,
+    "--github",
+    help="Render Markdown optimized for GitHub Step Summary.",
+)
 AGENT_MODE_OPTION = typer.Option(
     None,
     "--agent-mode",
@@ -51,6 +57,13 @@ def report(run_dir: Path) -> None:
 def repair(run_dir: Path) -> None:
     repair_path = generate_repair_plan(run_dir)
     typer.echo(f"Wrote {repair_path}")
+
+
+@app.command()
+def summary(run_dir: Path, github: bool = GITHUB_SUMMARY_OPTION) -> None:
+    if not github:
+        typer.echo("Rendering GitHub-compatible Markdown summary.", err=True)
+    typer.echo(generate_github_summary(run_dir), nl=False)
 
 
 @app.command()

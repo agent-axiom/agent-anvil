@@ -1,0 +1,88 @@
+name: Agent Anvil
+description: Run Agent Anvil scenario suites in GitHub Actions.
+
+inputs:
+  scenario:
+    description: Path to the Agent Anvil YAML scenario suite.
+    required: true
+  runs-dir:
+    description: Directory where run artifacts should be written.
+    required: false
+    default: runs/agent-anvil
+  offline:
+    description: Use local heuristic semantic grading instead of OpenAI grading.
+    required: false
+    default: "false"
+  agent-mode:
+    description: Demo agent mode, such as offline, openai, or auto.
+    required: false
+    default: ""
+  trials:
+    description: Optional trial-count override.
+    required: false
+    default: ""
+  expected-exit-code:
+    description: Expected anvil run exit code. Use 1 for intentional regression demos.
+    required: false
+    default: "0"
+  github-summary:
+    description: Append a Markdown run summary to GITHUB_STEP_SUMMARY.
+    required: false
+    default: "true"
+  python-version:
+    description: Python version used by uv for running Agent Anvil.
+    required: false
+    default: "3.14"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v8.1.0
+      with:
+        enable-cache: true
+        python-version: ${{ inputs.python-version }}
+
+    - name: Run Agent Anvil
+      shell: bash
+      run: |
+        scenario="${{ inputs.scenario }}"
+        runs_dir="${{ inputs.runs-dir }}"
+
+        if [[ "$scenario" != /* ]]; then
+          scenario="$GITHUB_WORKSPACE/$scenario"
+        fi
+        if [[ "$runs_dir" != /* ]]; then
+          runs_dir="$GITHUB_WORKSPACE/$runs_dir"
+        fi
+
+        cd "$GITHUB_WORKSPACE"
+
+        args=(run "$scenario" --runs-dir "$runs_dir")
+        if [[ "${{ inputs.offline }}" == "true" ]]; then
+          args+=(--offline)
+        fi
+        if [[ -n "${{ inputs.agent-mode }}" ]]; then
+          args+=(--agent-mode "${{ inputs.agent-mode }}")
+        fi
+        if [[ -n "${{ inputs.trials }}" ]]; then
+          args+=(--trials "${{ inputs.trials }}")
+        fi
+
+        set +e
+        uv run --project "$GITHUB_ACTION_PATH" --frozen anvil "${args[@]}"
+        exit_code=$?
+        set -e
+
+        if [[ "$exit_code" != "${{ inputs.expected-exit-code }}" ]]; then
+          echo "Agent Anvil exited with $exit_code, expected ${{ inputs.expected-exit-code }}."
+          exit "$exit_code"
+        fi
+
+        if [[ "$exit_code" != "0" ]]; then
+          uv run --project "$GITHUB_ACTION_PATH" --frozen anvil repair "$runs_dir/latest"
+        fi
+
+        if [[ "${{ inputs.github-summary }}" == "true" && -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+          uv run --project "$GITHUB_ACTION_PATH" --frozen anvil summary "$runs_dir/latest" --github >> "$GITHUB_STEP_SUMMARY"
+        fi
