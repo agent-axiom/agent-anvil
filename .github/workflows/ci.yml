@@ -54,6 +54,29 @@ jobs:
           --cov-report=xml
           --cov-fail-under=90
 
+      - name: Run passing external agent eval
+        run: >
+          uv run --frozen anvil run
+          scenarios/external_jsonl_agent.yaml
+          --offline
+          --runs-dir runs/external
+
+      - name: Run intentional refund regression demo
+        run: |
+          set +e
+          uv run --frozen anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 --runs-dir runs/refund
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 1
+          uv run --frozen anvil repair runs/refund/latest
+
+      - name: Upload Agent Anvil run artifacts
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: agent-anvil-runs
+          path: runs/
+          if-no-files-found: error
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v5.0.0
         with:
