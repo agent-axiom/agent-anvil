@@ -10,9 +10,16 @@
 
 Agent Anvil is a CI-first evaluation harness for tool-using AI agents.
 
+Most evals ask: "was the final answer good?" Agent Anvil asks: "did the
+agent behave safely while getting there?"
+
 It runs YAML scenario suites, records model/tool traces, checks tool choice and
 arguments, uses OpenAI models for semantic grading, clusters failures, and writes
 concrete prompt/tool/guardrail repair plans.
+
+It catches workflow bugs final-answer evals miss: wrong tools, wrong arguments,
+destructive tools called too early, missing clarifying questions, loops, and
+violated business invariants.
 
 ```bash
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
@@ -84,7 +91,7 @@ uv run anvil repair runs/latest
 ```
 
 `anvil run` prints a compact terminal report with scenario results, the top
-failure cluster, repair hints, and artifact paths.
+failure cluster, repair plan, and artifact paths.
 
 Run the real OpenAI tool-calling demo agent and OpenAI semantic grader:
 
@@ -98,6 +105,18 @@ Evaluate an external JSONL agent:
 
 ```bash
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
+```
+
+Agent Anvil executes configured external agent commands. Do not run untrusted
+scenario files or agent commands outside a sandboxed environment.
+
+Run with Docker:
+
+```bash
+docker build -t agent-anvil .
+docker run --rm -v "$PWD/runs:/app/runs" agent-anvil
+docker compose run --rm anvil-smoke
+docker compose run --rm anvil-regression-demo || true
 ```
 
 ## CLI
@@ -125,7 +144,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.3
+- uses: agent-axiom/agent-anvil@v0.1.4
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

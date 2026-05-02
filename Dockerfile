@@ -13,4 +13,4 @@ RUN uv sync --frozen --no-dev
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-CMD ["anvil", "run", "scenarios/refund_agent.yaml", "--offline", "--agent-mode", "offline"]
+CMD ["anvil", "run", "scenarios/external_jsonl_agent.yaml", "--offline"]

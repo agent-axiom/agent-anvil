@@ -9,7 +9,7 @@
   "steps": [
     {
       "type": "model_call",
-      "model": "gpt-5.4-mini",
+      "model": "offline-demo-agent",
       "input": "I want a refund, but I don't know my order number.",
       "output_text": "I will look up the customer, then take care of the refund.",
       "tool_calls": [

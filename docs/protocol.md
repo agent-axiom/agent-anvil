@@ -3,6 +3,11 @@
 Agent Anvil can evaluate agents written in any language by spawning an external
 command and exchanging JSON over stdin/stdout.
 
+## Trust Boundary
+
+Agent Anvil executes the configured external command. Do not run untrusted
+scenario files or agent commands outside a sandboxed environment.
+
 ## Scenario Configuration
 
 ```yaml

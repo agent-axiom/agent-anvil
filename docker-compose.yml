@@ -1,5 +1,5 @@
 services:
-  anvil-offline:
+  anvil-smoke:
     build: .
     environment:
       ANVIL_AGENT_MODE: offline
@@ -7,7 +7,27 @@ services:
       ANVIL_OPENAI_MODEL: "${ANVIL_OPENAI_MODEL:-gpt-5.4-mini}"
     volumes:
       - ./runs:/app/runs
-    command: ["anvil", "run", "scenarios/refund_agent.yaml", "--offline", "--agent-mode", "offline"]
+    command: ["anvil", "run", "scenarios/external_jsonl_agent.yaml", "--offline"]
+
+  anvil-regression-demo:
+    build: .
+    environment:
+      ANVIL_AGENT_MODE: offline
+      ANVIL_OFFLINE: "true"
+      ANVIL_OPENAI_MODEL: "${ANVIL_OPENAI_MODEL:-gpt-5.4-mini}"
+    volumes:
+      - ./runs:/app/runs
+    command:
+      [
+        "anvil",
+        "run",
+        "scenarios/refund_agent.yaml",
+        "--offline",
+        "--agent-mode",
+        "offline",
+        "--trials",
+        "1",
+      ]
 
   anvil-openai:
     build: .

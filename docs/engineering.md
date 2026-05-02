@@ -166,7 +166,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.3
+- uses: agent-axiom/agent-anvil@v0.1.4
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
@@ -187,6 +187,7 @@ docker run --rm -v "$PWD/runs:/app/runs" agent-anvil
 Docker Compose has separate offline and OpenAI services:
 
 ```bash
-docker compose run --rm anvil-offline
+docker compose run --rm anvil-smoke
+docker compose run --rm anvil-regression-demo || true
 OPENAI_API_KEY=... docker compose run --rm anvil-openai
 ```

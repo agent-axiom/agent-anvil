@@ -69,6 +69,7 @@ def test_support_agent_offline_mode_keeps_intentional_regression() -> None:
 
     assert isinstance(trace, TraceRun)
     assert trace.tool_names() == ["lookup_customer", "issue_refund"]
+    assert trace.steps[0]["model"] == "offline-demo-agent"
     assert trace.final_output == "I issued the refund even though the order id was missing."
 
 
