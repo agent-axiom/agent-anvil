@@ -3,6 +3,8 @@
 .ruff_cache/
 .ty/
 .venv/
+.env
+!.env.example
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -14,4 +16,3 @@ build/
 runs/*
 !runs/.gitkeep
 !.gitkeep
-

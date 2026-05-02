@@ -1,0 +1,35 @@
+name: OpenAI Demo
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  openai-demo:
+    name: OpenAI Tool-Calling Demo
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANVIL_OPENAI_MODEL: gpt-5.4-mini
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run OpenAI refund agent eval
+        uses: ./
+        with:
+          scenario: scenarios/refund_agent.yaml
+          agent-mode: openai
+          trials: "1"
+          runs-dir: runs/openai
+          expected-exit-code: "1"
+
+      - name: Upload OpenAI demo artifacts
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: openai-demo-runs
+          path: runs/openai/
+          if-no-files-found: error

@@ -96,10 +96,15 @@ failure cluster, repair plan, and artifact paths.
 Run the real OpenAI tool-calling demo agent and OpenAI semantic grader:
 
 ```bash
-export OPENAI_API_KEY=...
-export ANVIL_OPENAI_MODEL=gpt-5.4-mini
-uv run anvil run scenarios/refund_agent.yaml --agent-mode openai
+cp .env.example .env
+# edit .env and set OPENAI_API_KEY
+uv run --env-file .env anvil run scenarios/refund_agent.yaml --agent-mode openai --trials 1
+uv run --env-file .env anvil repair runs/latest
 ```
+
+For GitHub Actions, add `OPENAI_API_KEY` as a repository secret. The regular
+CI workflows stay offline; the `OpenAI Demo` workflow is manual so API usage is
+explicit.
 
 Evaluate an external JSONL agent:
 
