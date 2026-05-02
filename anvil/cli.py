@@ -7,6 +7,7 @@ import typer
 from anvil.repair import generate_repair_plan
 from anvil.runner import compare_runs, default_semantic_grader, regenerate_report, run_suite
 from anvil.summary import generate_github_summary
+from anvil.terminal import print_run_summary
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
 PASSING_RATE = 100.0
@@ -40,9 +41,7 @@ def run(
         semantic_grader=default_semantic_grader(offline=offline),
         agent_mode=agent_mode,
     )
-    typer.echo(f"Run: {result.run_dir}")
-    typer.echo(f"Trials: {result.total_trials}")
-    typer.echo(f"Pass rate: {result.pass_rate:.1f}%")
+    print_run_summary(result)
     if result.pass_rate < PASSING_RATE:
         raise typer.Exit(1)
 

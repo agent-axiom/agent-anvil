@@ -83,6 +83,9 @@ uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --tr
 uv run anvil repair runs/latest
 ```
 
+`anvil run` prints a compact terminal report with scenario results, the top
+failure cluster, repair hints, and artifact paths.
+
 Run the real OpenAI tool-calling demo agent and OpenAI semantic grader:
 
 ```bash
