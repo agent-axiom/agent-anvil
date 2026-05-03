@@ -124,6 +124,9 @@ uv run --env-file .env anvil run scenarios/refund_agent.yaml --agent-mode openai
 uv run --env-file .env anvil repair runs/latest
 ```
 
+Non-offline runs require `OPENAI_API_KEY`; use `--offline` only when you want the
+local heuristic grader for deterministic CI smoke tests.
+
 Run the intentionally failing offline agent with the OpenAI semantic grader:
 
 ```bash

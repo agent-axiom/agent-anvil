@@ -127,8 +127,9 @@ Agent Anvil has:
 - The default semantic grader model is `gpt-5.4-mini`. Override it with
   `ANVIL_OPENAI_MODEL` when you want cheaper (`gpt-5.4-nano`) or deeper
   (`gpt-5.5`) grading.
-- The offline heuristic grader keeps local tests and demos deterministic when
-  `OPENAI_API_KEY` is not set.
+- The offline heuristic grader is used only when `--offline` or
+  `ANVIL_OFFLINE=true` is set. Non-offline runs require `OPENAI_API_KEY` so
+  OpenAI grading is never silently replaced by local heuristics.
 
 ## Model Selection
 

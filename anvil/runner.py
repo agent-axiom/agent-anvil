@@ -75,6 +75,10 @@ class CompareResult:
     scenario_regressions: list[ScenarioRegression]
 
 
+class OpenAIKeyMissingError(RuntimeError):
+    pass
+
+
 def run_suite(
     scenario_file: str | Path,
     *,
@@ -161,8 +165,15 @@ def default_semantic_grader(
     redact: bool | None = None,
 ) -> SemanticGrader:
     settings = AnvilSettings.from_env()
-    if offline or settings.offline or not os.getenv("OPENAI_API_KEY"):
+    if offline or settings.offline:
         return HeuristicSemanticGrader()
+    if not os.getenv("OPENAI_API_KEY"):
+        msg = (
+            "OPENAI_API_KEY is required for OpenAI semantic grading. "
+            "Set OPENAI_API_KEY or run with --offline/ANVIL_OFFLINE=true "
+            "to use the local heuristic grader."
+        )
+        raise OpenAIKeyMissingError(msg)
     return OpenAISemanticGrader(
         model=settings.openai_model,
         redact=settings.redact if redact is None else redact,

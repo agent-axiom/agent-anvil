@@ -7,6 +7,7 @@ import typer
 from anvil.repair import generate_repair_plan
 from anvil.runner import (
     FailureDelta,
+    OpenAIKeyMissingError,
     compare_runs,
     default_semantic_grader,
     regenerate_report,
@@ -46,11 +47,17 @@ def run(
     redact: bool | None = REDACT_OPTION,
     agent_mode: str | None = AGENT_MODE_OPTION,
 ) -> None:
+    try:
+        semantic_grader = default_semantic_grader(offline=offline, redact=redact)
+    except OpenAIKeyMissingError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+
     result = run_suite(
         scenario_file,
         runs_dir=runs_dir,
         trials_override=trials,
-        semantic_grader=default_semantic_grader(offline=offline, redact=redact),
+        semantic_grader=semantic_grader,
         agent_mode=agent_mode,
     )
     print_run_summary(

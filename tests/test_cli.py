@@ -7,6 +7,29 @@ from typer.testing import CliRunner
 from anvil.cli import app
 
 
+def test_cli_requires_explicit_offline_without_openai_key(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANVIL_OFFLINE", raising=False)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "scenarios/external_jsonl_agent.yaml",
+            "--runs-dir",
+            str(tmp_path / "runs"),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "OPENAI_API_KEY is required for OpenAI semantic grading" in result.stderr
+    assert "--offline" in result.stderr
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,
