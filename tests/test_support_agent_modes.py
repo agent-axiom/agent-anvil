@@ -62,6 +62,44 @@ class FakeOpenAIClient:
         self.responses = FakeResponses()
 
 
+class FakeMalformedToolArgsResponses:
+    def create(self, **kwargs: object) -> FakeResponse:
+        return FakeResponse(
+            output=[
+                FakeOutputItem(
+                    type="function_call",
+                    name="lookup_order",
+                    arguments="{not-json",
+                    call_id="call_bad_args",
+                )
+            ]
+        )
+
+
+class FakeMalformedToolArgsClient:
+    def __init__(self) -> None:
+        self.responses = FakeMalformedToolArgsResponses()
+
+
+class FakeToolExecutionErrorResponses:
+    def create(self, **kwargs: object) -> FakeResponse:
+        return FakeResponse(
+            output=[
+                FakeOutputItem(
+                    type="function_call",
+                    name="issue_refund",
+                    arguments='{"order_id": "ORD-123"}',
+                    call_id="call_missing_reason",
+                )
+            ]
+        )
+
+
+class FakeToolExecutionErrorClient:
+    def __init__(self) -> None:
+        self.responses = FakeToolExecutionErrorResponses()
+
+
 def test_support_agent_offline_mode_keeps_intentional_regression() -> None:
     trace = run_agent(
         input_text="I want a refund, but I don't know my order number.",
@@ -117,3 +155,39 @@ def test_openai_support_agent_executes_responses_tool_calls() -> None:
     assert isinstance(function_output, dict)
     function_output_dict = cast(dict[str, Any], function_output)
     assert function_output_dict["type"] == "function_call_output"
+
+
+def test_openai_support_agent_records_tool_argument_errors() -> None:
+    trace = run_openai_agent(
+        input_text="Please refund order ORD-123.",
+        scenario_id="refund_valid_order",
+        trial=1,
+        run_id="run_test",
+        max_steps=8,
+        client=FakeMalformedToolArgsClient(),
+        model="gpt-5.4-mini",
+    )
+
+    assert trace.status == "failed"
+    assert trace.steps[0]["type"] == "model_call"
+    assert trace.steps[1]["type"] == "tool_argument_error"
+    assert trace.steps[1]["tool_name"] == "lookup_order"
+    assert "Invalid JSON tool arguments" in str(trace.final_output)
+
+
+def test_openai_support_agent_records_tool_execution_errors() -> None:
+    trace = run_openai_agent(
+        input_text="Please refund order ORD-123.",
+        scenario_id="refund_valid_order",
+        trial=1,
+        run_id="run_test",
+        max_steps=8,
+        client=FakeToolExecutionErrorClient(),
+        model="gpt-5.4-mini",
+    )
+
+    assert trace.status == "failed"
+    assert trace.steps[0]["type"] == "model_call"
+    assert trace.steps[1]["type"] == "tool_execution_error"
+    assert trace.steps[1]["tool_name"] == "issue_refund"
+    assert "Tool execution failed" in str(trace.final_output)

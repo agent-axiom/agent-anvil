@@ -4,6 +4,7 @@ import json
 import os
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,12 @@ MODEL_TOKEN_PRICES_USD_PER_1M = {
     "gpt-5.4": (2.50, 15.00),
     "gpt-5-mini": (0.25, 2.00),
 }
+
+
+class ToolArgumentError(ValueError):
+    def __init__(self, tool_name: str, message: str) -> None:
+        super().__init__(message)
+        self.tool_name = tool_name
 
 
 def run_agent(
@@ -69,8 +76,29 @@ def run_agent(
         input_tokens += usage["input_tokens"]
         output_tokens += usage["output_tokens"]
         total_tokens += usage["total_tokens"]
-        tool_calls = list(_iter_function_calls(response))
         output_text = _response_output_text(response)
+        try:
+            tool_calls = list(_iter_function_calls(response))
+        except ToolArgumentError as error:
+            steps.append(
+                {
+                    "type": "model_call",
+                    "model": selected_model,
+                    "input": _last_input(input_messages),
+                    "output_text": output_text,
+                    "tool_calls": [],
+                }
+            )
+            steps.append(
+                {
+                    "type": "tool_argument_error",
+                    "tool_name": error.tool_name,
+                    "message": str(error),
+                }
+            )
+            status = "failed"
+            final_output = str(error)
+            break
         steps.append(
             {
                 "type": "model_call",
@@ -90,7 +118,20 @@ def run_agent(
 
         input_messages.extend(_get(response, "output", []) or [])
         for tool_name, arguments, call_id in tool_calls:
-            result = _call_tool(tool_name, arguments)
+            try:
+                result = _call_tool(tool_name, arguments)
+            except (TypeError, ValueError, KeyError) as error:
+                final_output = f"Tool execution failed for {tool_name}: {error}"
+                steps.append(
+                    {
+                        "type": "tool_execution_error",
+                        "tool_name": tool_name,
+                        "arguments": arguments,
+                        "message": final_output,
+                    }
+                )
+                status = "failed"
+                break
             steps.append(
                 {
                     "type": "tool_call",
@@ -106,6 +147,8 @@ def run_agent(
                     "output": json.dumps(result),
                 }
             )
+        if status == "failed":
+            break
     else:
         status = "failed"
         final_output = "Agent reached max_steps before producing a final response."
@@ -145,9 +188,17 @@ def _iter_function_calls(response: Any) -> Iterable[tuple[str, dict[str, Any], s
         if _get(item, "type") != "function_call":
             continue
         arguments = _get(item, "arguments", "{}") or "{}"
+        tool_name = str(_get(item, "name"))
+        try:
+            parsed_arguments = (
+                json.loads(arguments) if isinstance(arguments, str) else dict(arguments)
+            )
+        except (JSONDecodeError, TypeError, ValueError) as error:
+            msg = f"Invalid JSON tool arguments for {tool_name}: {error}"
+            raise ToolArgumentError(tool_name, msg) from error
         yield (
-            str(_get(item, "name")),
-            json.loads(arguments) if isinstance(arguments, str) else dict(arguments),
+            tool_name,
+            parsed_arguments,
             str(_get(item, "call_id")),
         )
 
