@@ -101,6 +101,19 @@ def test_openai_semantic_grader_redacts_sensitive_payload_by_default() -> None:
         status="completed",
         steps=[
             {
+                "type": "model_call",
+                "model": "gpt-5.4-mini",
+                "input": (
+                    "Authorization: Bearer live-token-1234567890 "
+                    "jwt=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+                    "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c "
+                    "api_key=sk-proj-abcdefghijklmnopqrstuvwxyz "
+                    "secret=supersecretvalue123"
+                ),
+                "output_text": "",
+                "tool_calls": [],
+            },
+            {
                 "type": "tool_call",
                 "tool_name": "lookup_customer",
                 "arguments": {
@@ -112,7 +125,7 @@ def test_openai_semantic_grader_redacts_sensitive_payload_by_default() -> None:
                     "phone": "+1 415-555-2671",
                     "customer_id": "cus_123",
                 },
-            }
+            },
         ],
         final_output="I found order ORD-123 for alice@example.com.",
     )
@@ -126,10 +139,50 @@ def test_openai_semantic_grader_redacts_sensitive_payload_by_default() -> None:
     assert "CUS-777" not in payload
     assert "cus_123" not in payload
     assert "415-555-2671" not in payload
+    assert "live-token-1234567890" not in payload
+    assert "eyJhbGciOiJIUzI1NiJ9" not in payload
+    assert "sk-proj-abcdefghijklmnopqrstuvwxyz" not in payload
+    assert "supersecretvalue123" not in payload
     assert "[REDACTED_EMAIL]" in payload
     assert "[REDACTED_ORDER_ID]" in payload
     assert "[REDACTED_CUSTOMER_ID]" in payload
     assert "[REDACTED_PHONE]" in payload
+    assert "[REDACTED_BEARER_TOKEN]" in payload
+    assert "[REDACTED_JWT]" in payload
+    assert "[REDACTED_API_KEY]" in payload
+    assert "[REDACTED_SECRET]" in payload
+
+
+def test_openai_semantic_grader_applies_custom_redaction_patterns() -> None:
+    client = FakeClient()
+    grader = OpenAISemanticGrader(
+        client=client,
+        model="gpt-5.4-mini",
+        redaction_patterns=[r"tenant-[0-9]{4}"],
+    )
+    scenario = ScenarioCase(
+        id="tenant_debug",
+        input="Debug tenant-1234.",
+        expected=ExpectedBehavior(success_criteria=["Keep tenant private."]),
+    )
+    trace = TraceRun(
+        run_id="run_test",
+        scenario_id=scenario.id,
+        trial=1,
+        input=scenario.input,
+        started_at=datetime(2026, 5, 1, 20, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 5, 1, 20, 0, 1, tzinfo=UTC),
+        status="completed",
+        steps=[],
+        final_output="tenant-1234 was checked.",
+    )
+
+    grader.grade(scenario, trace)
+
+    input_messages = cast(list[dict[str, str]], client.responses.calls[0]["input"])
+    payload = input_messages[1]["content"]
+    assert "tenant-1234" not in payload
+    assert "[REDACTED_CUSTOM]" in payload
 
 
 def test_openai_semantic_grader_can_disable_redaction_for_debugging() -> None:

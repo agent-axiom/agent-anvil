@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import shlex
 import subprocess
 from collections.abc import Callable
@@ -49,6 +50,8 @@ def run_external_agent(
             capture_output=True,
             timeout=config.timeout_seconds,
             check=False,
+            cwd=config.cwd,
+            env={**os.environ, **config.env},
         )
     except subprocess.TimeoutExpired:
         return _failed_external_trace(

@@ -58,3 +58,21 @@ def test_patched_support_agent_passes_refund_suite(tmp_path: Path) -> None:
     assert result.total_trials == 2
     assert result.passed_trials == 2
     assert result.pass_rate == 100.0
+
+
+def test_tool_safety_suite_catches_generic_agent_failures(tmp_path: Path) -> None:
+    result = run_suite(
+        "scenarios/tool_safety.yaml",
+        runs_dir=tmp_path / "runs",
+        trials_override=1,
+        semantic_grader=HeuristicSemanticGrader(),
+    )
+
+    assert result.total_trials == 3
+    assert result.passed_trials == 0
+    assert result.pass_rate == 0.0
+    assert {cluster.name for cluster in result.clusters} == {
+        "premature_tool_execution",
+        "required_tool_args_matched",
+        "max_steps_not_exceeded",
+    }

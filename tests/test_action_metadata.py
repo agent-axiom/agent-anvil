@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -35,6 +37,43 @@ def test_composite_action_exposes_agent_anvil_inputs() -> None:
     assert setup_uv["uses"] == "astral-sh/setup-uv@v8.1.0"
     assert setup_uv["with"]["enable-cache"] == "${{ inputs.uv-cache }}"
     assert setup_uv["with"]["python-version"] == "${{ inputs.python-version }}"
+
+
+def test_composite_action_fails_when_expected_failure_passes(tmp_path: Path) -> None:
+    action = yaml.safe_load(Path("action.yml").read_text(encoding="utf-8"))
+    run_step = next(step for step in action["runs"]["steps"] if step["name"] == "Run Agent Anvil")
+    script = (
+        run_step["run"]
+        .replace("${{ inputs.scenario }}", "scenario.yaml")
+        .replace("${{ inputs.runs-dir }}", "runs/action-test")
+        .replace("${{ inputs.offline }}", "true")
+        .replace("${{ inputs.agent-mode }}", "")
+        .replace("${{ inputs.trials }}", "")
+        .replace("${{ inputs.expected-exit-code }}", "1")
+        .replace("${{ inputs.github-summary }}", "false")
+    )
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    fake_uv.chmod(0o755)
+
+    completed = subprocess.run(
+        ["bash", "-c", script],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+            "GITHUB_ACTION_PATH": str(tmp_path),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 1
+    assert "Agent Anvil exited with 0, expected 1." in completed.stdout
 
 
 def test_ci_runs_against_python_312_and_314() -> None:
@@ -115,3 +154,11 @@ def test_readme_action_snippet_starts_with_passing_smoke_example() -> None:
 
     assert "scenario: scenarios/external_jsonl_agent.yaml" in readme
     assert 'expected-exit-code: "1"' in readme
+
+
+def test_readme_action_reference_matches_package_version() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    version = pyproject["project"]["version"]
+    assert f"agent-axiom/agent-anvil@v{version}" in readme

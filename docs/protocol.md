@@ -14,9 +14,14 @@ scenario files or agent commands outside a sandboxed environment.
 agent:
   command: "python examples/external_jsonl_agent.py"
   protocol: jsonl
+  cwd: "."
+  env:
+    AGENT_MODE: test
 ```
 
 `command` is split like a shell command. `protocol` currently supports `jsonl`.
+`cwd` is optional and sets the external process working directory. `env` is
+optional and is merged into the inherited environment for that command.
 
 ## Input
 

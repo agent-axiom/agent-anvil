@@ -70,6 +70,64 @@ scenarios:
     assert result.grades[0].trace_path.endswith("external_order_lookup_trial_1.json")
 
 
+def test_external_agent_config_passes_cwd_and_env(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    agent_dir.mkdir()
+    agent_script = agent_dir / "cwd_env_agent.py"
+    agent_script.write_text(
+        "\n".join(
+            [
+                "from __future__ import annotations",
+                "import json",
+                "import os",
+                "from pathlib import Path",
+                "payload = json.loads(input())",
+                "print(json.dumps({",
+                "    'type': 'model_call',",
+                "    'model': 'cwd-env-agent',",
+                "    'input': payload['input'],",
+                "    'output_text': Path.cwd().name + ':' + os.environ['AGENT_MODE'],",
+                "    'tool_calls': [],",
+                "}))",
+                "print(json.dumps({'type': 'final_output', 'text': 'cwd/env ok'}))",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    scenario_file = tmp_path / "external.yaml"
+    scenario_file.write_text(
+        f"""
+name: external_agent_suite
+agent:
+  command: "{sys.executable} cwd_env_agent.py"
+  protocol: jsonl
+  cwd: "{agent_dir}"
+  env:
+    AGENT_MODE: test
+defaults:
+  trials: 1
+  max_steps: 8
+scenarios:
+  - id: cwd_env
+    input: "hello"
+    expected:
+      success_criteria:
+        - "Agent receives cwd and env"
+""",
+        encoding="utf-8",
+    )
+
+    result = run_suite(
+        scenario_file,
+        runs_dir=tmp_path / "runs",
+        semantic_grader=HeuristicSemanticGrader(),
+    )
+
+    trace_payload = json.loads(Path(result.grades[0].trace_path).read_text(encoding="utf-8"))
+    assert result.passed_trials == 1
+    assert trace_payload["steps"][0]["output_text"] == "agent:test"
+
+
 def test_bundled_external_jsonl_scenario_runs(tmp_path: Path) -> None:
     result = run_suite(
         "scenarios/external_jsonl_agent.yaml",

@@ -276,12 +276,14 @@ class OpenAISemanticGrader:
         client: Any | None = None,
         model: str = DEFAULT_OPENAI_MODEL,
         redact: bool = True,
+        redaction_patterns: list[str] | None = None,
     ) -> None:
         if client is None:
             client = OpenAI()
         self.client = client
         self.model = model
         self.redact = redact
+        self.redaction_patterns = redaction_patterns or []
 
     def grade(self, scenario: ScenarioCase, trace: TraceRun) -> SemanticGrade:
         response = self.client.responses.parse(
@@ -302,7 +304,12 @@ class OpenAISemanticGrader:
                 },
                 {
                     "role": "user",
-                    "content": _grader_payload(scenario, trace, redact=self.redact),
+                    "content": _grader_payload(
+                        scenario,
+                        trace,
+                        redact=self.redact,
+                        redaction_patterns=self.redaction_patterns,
+                    ),
                 },
             ],
             text_format=OpenAISemanticGrade,
@@ -310,12 +317,18 @@ class OpenAISemanticGrader:
         return OpenAISemanticGrade.model_validate(response.output_parsed).to_semantic_grade()
 
 
-def _grader_payload(scenario: ScenarioCase, trace: TraceRun, *, redact: bool = True) -> str:
+def _grader_payload(
+    scenario: ScenarioCase,
+    trace: TraceRun,
+    *,
+    redact: bool = True,
+    redaction_patterns: list[str] | None = None,
+) -> str:
     scenario_payload: Any = scenario.model_dump(mode="json")
     trace_payload: Any = trace.model_dump(mode="json")
     if redact:
-        scenario_payload = redact_payload(scenario_payload)
-        trace_payload = redact_payload(trace_payload)
+        scenario_payload = redact_payload(scenario_payload, patterns=redaction_patterns)
+        trace_payload = redact_payload(trace_payload, patterns=redaction_patterns)
 
     return (
         "Scenario:\n"

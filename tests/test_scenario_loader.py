@@ -51,6 +51,9 @@ name: external_agent_suite
 agent:
   command: "python my_agent.py"
   protocol: jsonl
+  cwd: agents/support
+  env:
+    AGENT_MODE: test
 scenarios:
   - id: smoke
     input: "hello"
@@ -63,6 +66,8 @@ scenarios:
     assert isinstance(suite.agent, ExternalAgentConfig)
     assert suite.agent.command == "python my_agent.py"
     assert suite.agent.protocol == "jsonl"
+    assert suite.agent.cwd == "agents/support"
+    assert suite.agent.env == {"AGENT_MODE": "test"}
 
 
 @pytest.mark.parametrize(

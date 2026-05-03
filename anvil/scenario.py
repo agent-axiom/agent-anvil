@@ -40,6 +40,8 @@ class ExternalAgentConfig(BaseModel):
     command: str = Field(min_length=1)
     protocol: Literal["jsonl"] = "jsonl"
     timeout_seconds: int = Field(default=60, ge=1)
+    cwd: str | None = None
+    env: dict[str, str] = Field(default_factory=dict)
 
 
 AgentConfig = str | ExternalAgentConfig

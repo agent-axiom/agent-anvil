@@ -166,6 +166,7 @@ def default_semantic_grader(
     return OpenAISemanticGrader(
         model=settings.openai_model,
         redact=settings.redact if redact is None else redact,
+        redaction_patterns=settings.redaction_patterns,
     )
 
 

@@ -67,6 +67,9 @@ External agents can speak a small JSONL protocol:
 agent:
   command: "python examples/external_jsonl_agent.py"
   protocol: jsonl
+  cwd: "."
+  env:
+    AGENT_MODE: test
 ```
 
 Agent Anvil sends one JSON object to stdin:
@@ -117,7 +120,9 @@ Agent Anvil has:
 - The semantic grader uses the OpenAI Python SDK Responses API with
   `responses.parse` and a Pydantic schema.
 - Before semantic grading, Agent Anvil redacts email addresses, phone numbers,
-  order IDs, and customer IDs from scenario and trace payloads by default.
+  order IDs, customer IDs, API keys, bearer tokens, JWTs, and common
+  secret-like values from scenario and trace payloads by default. Add
+  project-specific semicolon-separated regexes with `ANVIL_REDACT_PATTERNS`.
   Disable with `--no-redact` or `ANVIL_REDACT=false` only for local debugging.
 - The default semantic grader model is `gpt-5.4-mini`. Override it with
   `ANVIL_OPENAI_MODEL` when you want cheaper (`gpt-5.4-nano`) or deeper
@@ -173,7 +178,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.9
+- uses: agent-axiom/agent-anvil@v0.1.10
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

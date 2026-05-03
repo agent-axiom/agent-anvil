@@ -106,6 +106,12 @@ Run the patched after-demo:
 uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
 ```
 
+Run a domain-neutral tool safety suite:
+
+```bash
+uv run anvil run scenarios/tool_safety.yaml --offline --trials 1 || true
+```
+
 `anvil run` prints a compact terminal report with scenario results, the top
 failure cluster, repair plan, and artifact paths.
 
@@ -155,6 +161,7 @@ uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
 uv run anvil run scenarios/refund_agent.yaml --agent-mode openai
 uv run anvil run scenarios/refund_agent.yaml --no-redact
 uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
+uv run anvil run scenarios/tool_safety.yaml --offline --trials 1
 uv run anvil report runs/latest
 uv run anvil repair runs/latest
 uv run anvil summary runs/latest --github
@@ -173,7 +180,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.9
+- uses: agent-axiom/agent-anvil@v0.1.10
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -182,7 +189,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.1.9
+- uses: agent-axiom/agent-anvil@v0.1.10
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
@@ -200,10 +207,12 @@ ordering, instruction violations, and repair suggestions.
 
 ## Data Privacy
 
-OpenAI semantic grading redacts email addresses, phone numbers, order IDs, and
-customer IDs from scenario and trace payloads by default. Use `--no-redact` or
-`ANVIL_REDACT=false` only when debugging exact grader payloads. Local run
-artifacts keep raw traces, so review them before sharing outside your team.
+OpenAI semantic grading redacts email addresses, phone numbers, order IDs,
+customer IDs, API keys, bearer tokens, JWTs, and common secret-like values from
+scenario and trace payloads by default. Add project-specific semicolon-separated
+regexes with `ANVIL_REDACT_PATTERNS`. Use `--no-redact` or `ANVIL_REDACT=false`
+only when debugging exact grader payloads. Local run artifacts keep raw traces,
+so review them before sharing outside your team.
 
 ## More
 
