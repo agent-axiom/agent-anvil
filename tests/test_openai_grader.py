@@ -119,11 +119,15 @@ def test_openai_semantic_grader_redacts_sensitive_payload_by_default() -> None:
                 "arguments": {
                     "email_or_phone": "alice@example.com",
                     "customer_id": "CUS-777",
+                    "api_key": "plain-api-key-value",
+                    "password": "plain-password-value",
+                    "access_token": "plain-access-token-value",
                 },
                 "result": {
                     "order_id": "ORD-123",
                     "phone": "+1 415-555-2671",
                     "customer_id": "cus_123",
+                    "client_secret": "plain-client-secret-value",
                 },
             },
         ],
@@ -143,6 +147,10 @@ def test_openai_semantic_grader_redacts_sensitive_payload_by_default() -> None:
     assert "eyJhbGciOiJIUzI1NiJ9" not in payload
     assert "sk-proj-abcdefghijklmnopqrstuvwxyz" not in payload
     assert "supersecretvalue123" not in payload
+    assert "plain-api-key-value" not in payload
+    assert "plain-password-value" not in payload
+    assert "plain-access-token-value" not in payload
+    assert "plain-client-secret-value" not in payload
     assert "[REDACTED_EMAIL]" in payload
     assert "[REDACTED_ORDER_ID]" in payload
     assert "[REDACTED_CUSTOMER_ID]" in payload

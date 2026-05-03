@@ -90,3 +90,66 @@ def test_scenario_suite_rejects_invalid_payloads(payload: dict[str, object], fie
         ScenarioSuite.model_validate(payload)
 
     assert field in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("payload", "field"),
+    [
+        (
+            {
+                "name": "suite",
+                "agent": "examples.support_agent",
+                "unknown_suite_field": True,
+                "scenarios": [{"id": "smoke", "input": "hello"}],
+            },
+            "unknown_suite_field",
+        ),
+        (
+            {
+                "name": "suite",
+                "agent": {"command": "python agent.py", "protocol": "jsonl", "shell": True},
+                "scenarios": [{"id": "smoke", "input": "hello"}],
+            },
+            "shell",
+        ),
+        (
+            {
+                "name": "suite",
+                "agent": "examples.support_agent",
+                "defaults": {"trials": 1, "retry_count": 3},
+                "scenarios": [{"id": "smoke", "input": "hello"}],
+            },
+            "retry_count",
+        ),
+        (
+            {
+                "name": "suite",
+                "agent": "examples.support_agent",
+                "scenarios": [
+                    {
+                        "id": "smoke",
+                        "input": "hello",
+                        "expected": {"should_never_call_tools": ["delete_project"]},
+                    }
+                ],
+            },
+            "should_never_call_tools",
+        ),
+        (
+            {
+                "name": "suite",
+                "agent": "examples.support_agent",
+                "scenarios": [{"id": "smoke", "input": "hello", "timeout": 10}],
+            },
+            "timeout",
+        ),
+    ],
+)
+def test_scenario_suite_rejects_unknown_fields(
+    payload: dict[str, object],
+    field: str,
+) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        ScenarioSuite.model_validate(payload)
+
+    assert field in str(exc_info.value)

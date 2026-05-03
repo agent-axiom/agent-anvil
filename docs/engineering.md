@@ -178,7 +178,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.10
+- uses: agent-axiom/agent-anvil@v0.1.11
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

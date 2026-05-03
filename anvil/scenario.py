@@ -8,11 +8,15 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ScenarioDefaults(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     trials: int = Field(default=1, ge=1)
     max_steps: int = Field(default=8, ge=1)
 
 
 class ExpectedBehavior(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     should_call_tools: list[str] = Field(default_factory=list)
     should_not_call_tools: list[str] = Field(default_factory=list)
     required_tool_args: dict[str, dict[str, Any]] = Field(default_factory=dict)
@@ -21,7 +25,7 @@ class ExpectedBehavior(BaseModel):
 
 
 class ScenarioCase(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     id: str = Field(min_length=1)
     input: str = Field(min_length=1)
@@ -37,6 +41,8 @@ class ScenarioCase(BaseModel):
 
 
 class ExternalAgentConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     command: str = Field(min_length=1)
     protocol: Literal["jsonl"] = "jsonl"
     timeout_seconds: int = Field(default=60, ge=1)
@@ -48,6 +54,8 @@ AgentConfig = str | ExternalAgentConfig
 
 
 class ScenarioSuite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=1)
     agent: AgentConfig
     defaults: ScenarioDefaults = Field(default_factory=ScenarioDefaults)

@@ -14,16 +14,30 @@ EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 ORDER_ID_RE = re.compile(r"\bORD-[A-Za-z0-9-]+\b")
 CUSTOMER_ID_RE = re.compile(r"\b(?:CUS-[A-Za-z0-9-]+|cus_[A-Za-z0-9_]+)\b")
 PHONE_RE = re.compile(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)")
+SECRET_KEY_RE = re.compile(
+    r"(?:^|_)(?:api_?key|access_token|refresh_token|id_token|token|password|secret|"
+    r"client_secret|private_key)(?:$|_)",
+    re.IGNORECASE,
+)
+API_KEY_NAME_RE = re.compile(r"api_?key", re.IGNORECASE)
 
 
 def redact_payload(value: Any, *, patterns: list[str] | None = None) -> Any:
     if isinstance(value, dict):
-        return {key: redact_payload(item, patterns=patterns) for key, item in value.items()}
+        return {key: _redact_by_key(key, item, patterns=patterns) for key, item in value.items()}
     if isinstance(value, list):
         return [redact_payload(item, patterns=patterns) for item in value]
     if isinstance(value, str):
         return redact_text(value, patterns=patterns)
     return value
+
+
+def _redact_by_key(key: str, value: Any, *, patterns: list[str] | None = None) -> Any:
+    if not SECRET_KEY_RE.search(key):
+        return redact_payload(value, patterns=patterns)
+    if API_KEY_NAME_RE.search(key):
+        return "[REDACTED_API_KEY]"
+    return "[REDACTED_SECRET]"
 
 
 def redact_text(value: str, *, patterns: list[str] | None = None) -> str:
