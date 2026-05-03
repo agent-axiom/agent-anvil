@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from anvil.config import AnvilSettings
 
 
@@ -35,3 +37,10 @@ def test_settings_read_openai_model_and_offline_flag_from_environment(
     assert settings.agent_mode == "openai"
     assert settings.redact is False
     assert settings.redaction_patterns == ["tenant-[0-9]+", "vault://[^\\s]+"]
+
+
+def test_settings_reject_invalid_custom_redaction_regex(monkeypatch) -> None:
+    monkeypatch.setenv("ANVIL_REDACT_PATTERNS", "tenant-[")
+
+    with pytest.raises(ValueError, match="ANVIL_REDACT_PATTERNS contains invalid regex"):
+        AnvilSettings.from_env()

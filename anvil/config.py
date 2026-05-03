@@ -23,7 +23,7 @@ class AnvilSettings(BaseModel):
             offline=_env_bool("ANVIL_OFFLINE"),
             agent_mode=os.getenv("ANVIL_AGENT_MODE", DEFAULT_AGENT_MODE),
             redact=_env_bool("ANVIL_REDACT", default=True),
-            redaction_patterns=_env_list("ANVIL_REDACT_PATTERNS"),
+            redaction_patterns=_env_regex_list("ANVIL_REDACT_PATTERNS"),
         )
 
 
@@ -39,3 +39,14 @@ def _env_list(name: str) -> list[str]:
     if not raw_value.strip():
         return []
     return [item.strip() for item in re.split(r"[;\n]", raw_value) if item.strip()]
+
+
+def _env_regex_list(name: str) -> list[str]:
+    patterns = _env_list(name)
+    for pattern in patterns:
+        try:
+            re.compile(pattern)
+        except re.error as error:
+            msg = f"{name} contains invalid regex {pattern!r}: {error}"
+            raise ValueError(msg) from error
+    return patterns
