@@ -13,6 +13,10 @@ from anvil.scenario import AgentConfig, ExternalAgentConfig
 from anvil.trace import TraceRun
 
 AgentRunner = Callable[..., TraceRun]
+EVENT_REQUIRED_FIELDS = {
+    "model_call": {"model", "output_text", "tool_calls"},
+    "tool_call": {"tool_name", "arguments", "result"},
+}
 
 
 def load_agent_runner(agent_config: AgentConfig) -> AgentRunner:
@@ -142,8 +146,35 @@ def _parse_jsonl_trace_events(stdout: str) -> tuple[list[dict[str, Any]], str | 
         if not isinstance(event, dict):
             msg = f"JSONL event on line {line_number} must be an object"
             raise ValueError(msg)
+        _validate_jsonl_event(event, line_number)
         if event.get("type") == "final_output":
             final_output = str(event.get("text") or event.get("final_output") or "")
         else:
             steps.append(event)
     return steps, final_output
+
+
+def _validate_jsonl_event(event: dict[str, Any], line_number: int) -> None:
+    event_type = event.get("type")
+    if not isinstance(event_type, str) or not event_type:
+        msg = f"JSONL event on line {line_number} missing required field: type"
+        raise ValueError(msg)
+
+    if event_type == "final_output":
+        if not event.get("text") and not event.get("final_output"):
+            msg = f"final_output event on line {line_number} missing required fields: text"
+            raise ValueError(msg)
+        return
+
+    required = EVENT_REQUIRED_FIELDS.get(event_type)
+    if required is None:
+        msg = f"JSONL event on line {line_number} has unknown type: {event_type}"
+        raise ValueError(msg)
+
+    missing = sorted(field for field in required if field not in event)
+    if missing:
+        msg = (
+            f"{event_type} event on line {line_number} missing required fields: "
+            f"{', '.join(missing)}"
+        )
+        raise ValueError(msg)

@@ -172,6 +172,50 @@ scenarios:
     assert "Agent protocol error" in trace_payload["final_output"]
 
 
+def test_external_agent_invalid_event_schema_becomes_failed_trace(tmp_path: Path) -> None:
+    agent_script = tmp_path / "bad_event_agent.py"
+    agent_script.write_text(
+        "\n".join(
+            [
+                "import json",
+                "print(json.dumps({'type': 'tool_call'}))",
+                "print(json.dumps({'type': 'final_output', 'text': 'done'}))",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    scenario_file = tmp_path / "external.yaml"
+    scenario_file.write_text(
+        f"""
+name: external_agent_suite
+agent:
+  command: "{sys.executable} {agent_script}"
+  protocol: jsonl
+defaults:
+  trials: 1
+  max_steps: 8
+scenarios:
+  - id: invalid_event
+    input: "hello"
+""",
+        encoding="utf-8",
+    )
+
+    result = run_suite(
+        scenario_file,
+        runs_dir=tmp_path / "runs",
+        semantic_grader=HeuristicSemanticGrader(),
+    )
+
+    trace_payload = json.loads(Path(result.grades[0].trace_path).read_text(encoding="utf-8"))
+    assert result.passed_trials == 0
+    assert trace_payload["status"] == "failed"
+    assert trace_payload["steps"][0]["type"] == "agent_protocol_error"
+    assert "tool_call event on line 1 missing required fields: arguments, result, tool_name" in (
+        trace_payload["final_output"]
+    )
+
+
 def test_external_agent_timeout_becomes_failed_trace(tmp_path: Path) -> None:
     agent_script = tmp_path / "slow_agent.py"
     agent_script.write_text(

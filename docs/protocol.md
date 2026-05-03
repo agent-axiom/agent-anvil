@@ -40,10 +40,13 @@ Agent Anvil sends one JSON object to stdin:
 ## Output Events
 
 The agent writes one JSON object per line to stdout.
+Each event must include a supported `type`. Invalid events are recorded as
+`agent_protocol_error` traces instead of crashing the run.
 
 ### `model_call`
 
 Use this event when your agent asks a model what to do next.
+Required fields: `type`, `model`, `output_text`, `tool_calls`.
 
 ```json
 {
@@ -65,6 +68,7 @@ Use this event when your agent asks a model what to do next.
 ### `tool_call`
 
 Use this event when your agent executes a tool.
+Required fields: `type`, `tool_name`, `arguments`, `result`.
 
 ```json
 {
@@ -82,6 +86,7 @@ Use this event when your agent executes a tool.
 ### `final_output`
 
 Use this event to finish the trace.
+Required fields: `type` and either `text` or `final_output`.
 
 ```json
 {
