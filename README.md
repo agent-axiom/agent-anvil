@@ -61,6 +61,8 @@ That gives a concrete eval loop:
 - [OpenAI-graded regression report](docs/openai-graded-regression-report.md)
 - [OpenAI-graded regression repair plan](docs/openai-graded-regression-repair-plan.md)
 - [OpenAI-graded regression trace](docs/openai-graded-regression-trace.json)
+- [Tool-safety report](docs/tool-safety-report.md)
+- [Tool-safety repair plan](docs/tool-safety-repair-plan.md)
 - [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
 
