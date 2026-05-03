@@ -8,6 +8,7 @@ import yaml
 def test_dockerfile_default_runs_passing_smoke_eval() -> None:
     dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
 
+    assert dockerfile.startswith("FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim")
     assert 'CMD ["anvil", "run", "scenarios/external_jsonl_agent.yaml", "--offline"]' in dockerfile
 
 

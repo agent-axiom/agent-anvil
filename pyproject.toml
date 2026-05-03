@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agent-anvil"
-version = "0.1.7"
+version = "0.1.8"
 description = "CI-first evaluation harness for tool-using AI agents."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 license = "MIT"
 authors = [{ name = "Agent Anvil contributors" }]
 dependencies = [
@@ -53,7 +53,7 @@ xfail_strict = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
@@ -84,7 +84,7 @@ ignore = [
 "tests/**/*.py" = ["S101", "PLR2004"]
 
 [tool.ty.environment]
-python-version = "3.14"
+python-version = "3.12"
 root = ["."]
 
 [tool.ty.rules]

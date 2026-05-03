@@ -136,7 +136,7 @@ See OpenAI's model catalog for current guidance:
 
 ## Development
 
-The project targets Python 3.14 and uses a modern Astral-first toolchain:
+The project supports Python 3.12+ and uses a modern Astral-first toolchain:
 
 - `uv` for environment, scripts, and locking
 - `ruff` for formatting and linting
@@ -154,9 +154,10 @@ uv run --group dev ty check
 uv run --group dev pytest --cov-fail-under=90
 ```
 
-CI enforces at least 90% coverage and uploads `coverage.xml` as a GitHub Actions
-artifact. The README badge tracks that enforced threshold instead of depending
-on an external coverage service being initialized.
+CI runs against Python 3.12 and 3.14, enforces at least 90% coverage, and
+uploads `coverage.xml` as a GitHub Actions artifact for each Python version.
+The README badge tracks that enforced threshold instead of depending on an
+external coverage service being initialized.
 
 ## GitHub Action
 
@@ -164,7 +165,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.7
+- uses: agent-axiom/agent-anvil@v0.1.8
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

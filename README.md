@@ -4,7 +4,7 @@
 [![Agent Anvil](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil.yml/badge.svg)](https://github.com/agent-axiom/agent-anvil/actions/workflows/agent-anvil.yml)
 ![coverage](https://img.shields.io/badge/coverage-%E2%89%A590%25-brightgreen)
 [![release](https://img.shields.io/github/v/release/agent-axiom/agent-anvil)](https://github.com/agent-axiom/agent-anvil/releases)
-![python](https://img.shields.io/badge/python-3.14-blue)
+![python](https://img.shields.io/badge/python-%3E%3D3.12-blue)
 ![openai](https://img.shields.io/badge/OpenAI-Responses%20API-412991)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -163,7 +163,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.7
+- uses: agent-axiom/agent-anvil@v0.1.8
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -172,7 +172,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.1.7
+- uses: agent-axiom/agent-anvil@v0.1.8
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

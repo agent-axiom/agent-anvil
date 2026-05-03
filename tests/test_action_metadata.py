@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import yaml
+
+
+def test_project_metadata_supports_python_312_plus() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    assert pyproject["project"]["requires-python"] == ">=3.12"
+    assert pyproject["tool"]["ruff"]["target-version"] == "py312"
+    assert pyproject["tool"]["ty"]["environment"]["python-version"] == "3.12"
+    assert Path(".python-version").read_text(encoding="utf-8").strip() == "3.12"
 
 
 def test_composite_action_exposes_agent_anvil_inputs() -> None:
@@ -20,9 +30,34 @@ def test_composite_action_exposes_agent_anvil_inputs() -> None:
         "github-summary",
         "uv-cache",
     }
+    assert action["inputs"]["python-version"]["default"] == "3.12"
     setup_uv = action["runs"]["steps"][0]
     assert setup_uv["uses"] == "astral-sh/setup-uv@v8.1.0"
     assert setup_uv["with"]["enable-cache"] == "${{ inputs.uv-cache }}"
+    assert setup_uv["with"]["python-version"] == "${{ inputs.python-version }}"
+
+
+def test_ci_runs_against_python_312_and_314() -> None:
+    workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    job = workflow["jobs"]["test"]
+
+    assert job["strategy"]["fail-fast"] is False
+    assert job["strategy"]["matrix"]["python-version"] == ["3.12", "3.14"]
+
+    setup_python = next(
+        step for step in job["steps"] if step.get("uses") == "actions/setup-python@v6"
+    )
+    assert setup_python["with"]["python-version"] == "${{ matrix.python-version }}"
+
+    setup_uv = next(
+        step for step in job["steps"] if step.get("uses") == "astral-sh/setup-uv@v8.1.0"
+    )
+    assert setup_uv["with"]["python-version"] == "${{ matrix.python-version }}"
+
+    upload = next(
+        step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7.0.1"
+    )
+    assert upload["with"]["name"] == "coverage-xml-${{ matrix.python-version }}"
 
 
 def test_agent_anvil_workflow_uses_local_composite_action() -> None:

@@ -6,7 +6,7 @@
 
 **Architecture:** The CLI loads a YAML suite into Pydantic models, invokes a pluggable example or external agent for each scenario trial, records trace JSON, runs deterministic checks plus an OpenAI semantic grader, aggregates failures, and persists run artifacts under `runs/<run_id>/`. The demo agent is deterministic by default so tests and local demos do not require credentials, while OpenAI mode uses the official SDK for tool calling and semantic grading when `OPENAI_API_KEY` is available.
 
-**Tech Stack:** Python 3.14 runtime target with `requires-python >=3.12`, `uv` for environment and locking, Typer for CLI, Pydantic for schemas, PyYAML for scenario loading, OpenAI Python SDK Responses API for semantic grading, Ruff for lint/format, ty for type checking, pytest with fixtures, parametrization, coverage, mock, asyncio, randomly, and sugar plugins.
+**Tech Stack:** Python 3.12+ runtime target, `uv` for environment and locking, Typer for CLI, Pydantic for schemas, PyYAML for scenario loading, OpenAI Python SDK Responses API for semantic grading, Ruff for lint/format, ty for type checking, pytest with fixtures, parametrization, coverage, mock, asyncio, randomly, and sugar plugins.
 
 ---
 
