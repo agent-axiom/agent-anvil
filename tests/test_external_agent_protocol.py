@@ -211,8 +211,9 @@ scenarios:
     assert result.passed_trials == 0
     assert trace_payload["status"] == "failed"
     assert trace_payload["steps"][0]["type"] == "agent_protocol_error"
-    assert "tool_call event on line 1 missing required fields: arguments, result, tool_name" in (
-        trace_payload["final_output"]
+    assert (
+        "tool_call event on line 1 missing required fields: arguments, result, tool_name"
+        in (trace_payload["final_output"])
     )
 
 
