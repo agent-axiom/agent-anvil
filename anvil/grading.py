@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from enum import StrEnum
 from typing import Any, Protocol
 
@@ -7,6 +8,7 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from anvil.config import DEFAULT_OPENAI_MODEL
+from anvil.redaction import redact_payload
 from anvil.scenario import ScenarioCase, ScenarioDefaults
 from anvil.trace import TraceRun
 
@@ -268,11 +270,18 @@ class HeuristicSemanticGrader:
 
 
 class OpenAISemanticGrader:
-    def __init__(self, *, client: Any | None = None, model: str = DEFAULT_OPENAI_MODEL) -> None:
+    def __init__(
+        self,
+        *,
+        client: Any | None = None,
+        model: str = DEFAULT_OPENAI_MODEL,
+        redact: bool = True,
+    ) -> None:
         if client is None:
             client = OpenAI()
         self.client = client
         self.model = model
+        self.redact = redact
 
     def grade(self, scenario: ScenarioCase, trace: TraceRun) -> SemanticGrade:
         response = self.client.responses.parse(
@@ -286,12 +295,14 @@ class OpenAISemanticGrader:
                         "tool choice, tool ordering, argument validity, clarification behavior, "
                         "looping, and instruction violations. For passing traces, use "
                         "failure_type='none', severity='none', an empty reason, and empty "
-                        "strings for all suggested_fix fields."
+                        "strings for all suggested_fix fields. For failing traces, fill every "
+                        "suggested_fix field with a concrete prompt, tool description, or "
+                        "guardrail patch."
                     ),
                 },
                 {
                     "role": "user",
-                    "content": _grader_payload(scenario, trace),
+                    "content": _grader_payload(scenario, trace, redact=self.redact),
                 },
             ],
             text_format=OpenAISemanticGrade,
@@ -299,11 +310,17 @@ class OpenAISemanticGrader:
         return OpenAISemanticGrade.model_validate(response.output_parsed).to_semantic_grade()
 
 
-def _grader_payload(scenario: ScenarioCase, trace: TraceRun) -> str:
+def _grader_payload(scenario: ScenarioCase, trace: TraceRun, *, redact: bool = True) -> str:
+    scenario_payload: Any = scenario.model_dump(mode="json")
+    trace_payload: Any = trace.model_dump(mode="json")
+    if redact:
+        scenario_payload = redact_payload(scenario_payload)
+        trace_payload = redact_payload(trace_payload)
+
     return (
         "Scenario:\n"
-        f"{scenario.model_dump_json(indent=2)}\n\n"
+        f"{json.dumps(scenario_payload, indent=2)}\n\n"
         "Trace:\n"
-        f"{trace.model_dump_json(indent=2)}\n\n"
+        f"{json.dumps(trace_payload, indent=2)}\n\n"
         "Grade the trace against deterministic expectations and semantic success criteria."
     )

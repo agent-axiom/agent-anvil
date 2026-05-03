@@ -5,7 +5,13 @@ from pathlib import Path
 import typer
 
 from anvil.repair import generate_repair_plan
-from anvil.runner import compare_runs, default_semantic_grader, regenerate_report, run_suite
+from anvil.runner import (
+    FailureDelta,
+    compare_runs,
+    default_semantic_grader,
+    regenerate_report,
+    run_suite,
+)
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
 
@@ -14,6 +20,11 @@ PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
 OFFLINE_OPTION = typer.Option(False, "--offline", help="Use local heuristic grading only.")
+REDACT_OPTION = typer.Option(
+    None,
+    "--redact/--no-redact",
+    help="Redact sensitive scenario and trace values before OpenAI semantic grading.",
+)
 GITHUB_SUMMARY_OPTION = typer.Option(
     False,
     "--github",
@@ -32,13 +43,14 @@ def run(
     trials: int | None = TRIALS_OPTION,
     runs_dir: Path = RUNS_DIR_OPTION,
     offline: bool = OFFLINE_OPTION,
+    redact: bool | None = REDACT_OPTION,
     agent_mode: str | None = AGENT_MODE_OPTION,
 ) -> None:
     result = run_suite(
         scenario_file,
         runs_dir=runs_dir,
         trials_override=trials,
-        semantic_grader=default_semantic_grader(offline=offline),
+        semantic_grader=default_semantic_grader(offline=offline, redact=redact),
         agent_mode=agent_mode,
     )
     print_run_summary(
@@ -48,6 +60,7 @@ def run(
             runs_dir=runs_dir,
             trials=trials,
             offline=offline,
+            redact=redact,
             agent_mode=agent_mode,
             failed=result.pass_rate < PASSING_RATE,
         ),
@@ -78,9 +91,42 @@ def summary(run_dir: Path, github: bool = GITHUB_SUMMARY_OPTION) -> None:
 @app.command()
 def compare(baseline_dir: Path, latest_dir: Path) -> None:
     result = compare_runs(baseline_dir, latest_dir)
-    typer.echo(f"Baseline pass rate: {result['baseline_pass_rate']:.1f}%")
-    typer.echo(f"Latest pass rate: {result['latest_pass_rate']:.1f}%")
-    typer.echo(f"Delta: {result['delta']:+.1f}%")
+    typer.echo(f"Baseline pass rate: {result.baseline_pass_rate:.1f}%")
+    typer.echo(f"Latest pass rate: {result.latest_pass_rate:.1f}%")
+    typer.echo(f"Delta: {result.delta:+.1f}%")
+    _print_failure_deltas("New failures", result.new_failures)
+    _print_failure_deltas("Resolved failures", result.resolved_failures)
+
+    if result.severity_changes:
+        typer.echo("Severity changes:")
+        for change in result.severity_changes:
+            typer.echo(
+                f"- {change.failure_type}: {change.baseline_severity} -> {change.latest_severity}"
+            )
+    else:
+        typer.echo("Severity changes: none")
+
+    if result.scenario_regressions:
+        typer.echo("Scenario regressions:")
+        for regression in result.scenario_regressions:
+            typer.echo(
+                f"- {regression.scenario_id}: {regression.baseline_pass_rate:.1f}% -> "
+                f"{regression.latest_pass_rate:.1f}% ({regression.delta:+.1f}%)"
+            )
+    else:
+        typer.echo("Scenario regressions: none")
+
+
+def _print_failure_deltas(title: str, deltas: list[FailureDelta]) -> None:
+    if not deltas:
+        typer.echo(f"{title}: none")
+        return
+    typer.echo(f"{title}:")
+    for delta in deltas:
+        typer.echo(
+            f"- {delta.failure_type} / {delta.severity}: "
+            f"{delta.baseline_count} -> {delta.latest_count}"
+        )
 
 
 def _run_command(
@@ -89,6 +135,7 @@ def _run_command(
     runs_dir: Path,
     trials: int | None,
     offline: bool,
+    redact: bool | None,
     agent_mode: str | None,
     failed: bool,
 ) -> str:
@@ -97,6 +144,10 @@ def _run_command(
         parts.extend(["--runs-dir", str(_display_path(runs_dir))])
     if offline:
         parts.append("--offline")
+    if redact is True:
+        parts.append("--redact")
+    elif redact is False:
+        parts.append("--no-redact")
     if agent_mode:
         parts.extend(["--agent-mode", agent_mode])
     if trials is not None:

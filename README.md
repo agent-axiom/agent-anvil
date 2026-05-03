@@ -58,6 +58,9 @@ That gives a concrete eval loop:
 - [OpenAI clarification trace](docs/openai-demo-trace.json)
 - [OpenAI tool-call trace](docs/openai-demo-tool-trace.json)
 - [OpenAI demo repair plan](docs/openai-demo-repair-plan.md)
+- [OpenAI-graded regression report](docs/openai-graded-regression-report.md)
+- [OpenAI-graded regression repair plan](docs/openai-graded-regression-repair-plan.md)
+- [OpenAI-graded regression trace](docs/openai-graded-regression-trace.json)
 - [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
 
@@ -115,6 +118,12 @@ uv run --env-file .env anvil run scenarios/refund_agent.yaml --agent-mode openai
 uv run --env-file .env anvil repair runs/latest
 ```
 
+Run the intentionally failing offline agent with the OpenAI semantic grader:
+
+```bash
+uv run --env-file .env anvil run scenarios/refund_agent.yaml --agent-mode offline --trials 1 || true
+```
+
 For GitHub Actions, add `OPENAI_API_KEY` as a repository secret. The regular
 CI workflows stay offline; the `OpenAI Demo` workflow is manual so API usage is
 explicit.
@@ -144,6 +153,7 @@ uv run anvil run scenarios/refund_agent.yaml
 uv run anvil run scenarios/refund_agent.yaml --trials 5
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
 uv run anvil run scenarios/refund_agent.yaml --agent-mode openai
+uv run anvil run scenarios/refund_agent.yaml --no-redact
 uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
 uv run anvil report runs/latest
 uv run anvil repair runs/latest
@@ -163,7 +173,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.8
+- uses: agent-axiom/agent-anvil@v0.1.9
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -172,7 +182,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.1.8
+- uses: agent-axiom/agent-anvil@v0.1.9
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
@@ -187,6 +197,13 @@ Tool-call regressions are workflow failures, not just text-output mismatches.
 Agent Anvil uses deterministic checks for exact invariants and OpenAI structured
 grading for semantic criteria such as clarification behavior, invalid tool
 ordering, instruction violations, and repair suggestions.
+
+## Data Privacy
+
+OpenAI semantic grading redacts email addresses, phone numbers, order IDs, and
+customer IDs from scenario and trace payloads by default. Use `--no-redact` or
+`ANVIL_REDACT=false` only when debugging exact grader payloads. Local run
+artifacts keep raw traces, so review them before sharing outside your team.
 
 ## More
 

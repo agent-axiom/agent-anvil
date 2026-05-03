@@ -1,0 +1,76 @@
+{
+  "run_id": "run_20260503_045431",
+  "scenario_id": "refund_valid_order",
+  "trial": 1,
+  "input": "Please refund order ORD-123. It arrived broken.",
+  "started_at": "2026-05-03T04:54:35.331187Z",
+  "ended_at": "2026-05-03T04:54:35.331204Z",
+  "status": "completed",
+  "steps": [
+    {
+      "type": "model_call",
+      "model": "offline-demo-agent",
+      "input": "Please refund order ORD-123. It arrived broken.",
+      "output_text": "I will look up the order before issuing a refund.",
+      "tool_calls": [
+        {
+          "name": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-123"
+          }
+        }
+      ]
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-123"
+      },
+      "result": {
+        "status": "found",
+        "order_id": "ORD-123",
+        "customer_id": "cus_123",
+        "eligible_for_refund": true
+      }
+    },
+    {
+      "type": "model_call",
+      "model": "offline-demo-agent",
+      "input": "{'status': 'found', 'order_id': 'ORD-123', 'customer_id': 'cus_123', 'eligible_for_refund': True}",
+      "output_text": "The order is eligible. I will issue the refund.",
+      "tool_calls": [
+        {
+          "name": "issue_refund",
+          "arguments": {
+            "order_id": "ORD-123",
+            "reason": "Item arrived broken"
+          }
+        }
+      ]
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-123",
+        "reason": "Item arrived broken"
+      },
+      "result": {
+        "status": "refunded",
+        "order_id": "ORD-123",
+        "reason": "Item arrived broken"
+      }
+    }
+  ],
+  "final_output": "Refund issued for ORD-123 because the item arrived broken.",
+  "metrics": {
+    "latency_ms": 0,
+    "tool_call_count": 2,
+    "model_call_count": 2,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "estimated_cost_usd": 0.0
+  }
+}

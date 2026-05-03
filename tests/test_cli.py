@@ -134,3 +134,89 @@ def test_cli_compare_reports_pass_rate_regression(
     assert compare_result.exit_code == 0
     assert "Baseline pass rate: 50.0%" in compare_result.stdout
     assert "Latest pass rate: 50.0%" in compare_result.stdout
+
+
+def test_cli_compare_reports_resolved_failures(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    baseline_dir = tmp_path / "baseline"
+    latest_dir = tmp_path / "latest"
+    runner.invoke(
+        app,
+        [
+            "run",
+            str(scenario_file),
+            "--runs-dir",
+            str(baseline_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+    runner.invoke(
+        app,
+        [
+            "run",
+            "scenarios/refund_agent_patched.yaml",
+            "--runs-dir",
+            str(latest_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+
+    compare_result = runner.invoke(
+        app,
+        ["compare", str(baseline_dir / "latest"), str(latest_dir / "latest")],
+    )
+
+    assert compare_result.exit_code == 0
+    assert "Latest pass rate: 100.0%" in compare_result.stdout
+    assert "Resolved failures:" in compare_result.stdout
+    assert "- premature_tool_execution / high: 1 -> 0" in compare_result.stdout
+
+
+def test_cli_compare_reports_new_failures_and_scenario_regressions(tmp_path: Path) -> None:
+    runner = CliRunner()
+    baseline_dir = tmp_path / "baseline"
+    latest_dir = tmp_path / "latest"
+    runner.invoke(
+        app,
+        [
+            "run",
+            "scenarios/refund_agent_patched.yaml",
+            "--runs-dir",
+            str(baseline_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+    runner.invoke(
+        app,
+        [
+            "run",
+            "scenarios/refund_agent.yaml",
+            "--runs-dir",
+            str(latest_dir),
+            "--trials",
+            "1",
+            "--offline",
+            "--agent-mode",
+            "offline",
+        ],
+    )
+
+    compare_result = runner.invoke(
+        app,
+        ["compare", str(baseline_dir / "latest"), str(latest_dir / "latest")],
+    )
+
+    assert compare_result.exit_code == 0
+    assert "New failures:" in compare_result.stdout
+    assert "- premature_tool_execution / high: 0 -> 1" in compare_result.stdout
+    assert "Scenario regressions:" in compare_result.stdout
+    assert "- refund_missing_order_id: 100.0% -> 0.0% (-100.0%)" in compare_result.stdout

@@ -75,6 +75,89 @@ def test_openai_semantic_grader_uses_responses_parse_with_semantic_schema() -> N
     assert grade.suggested_fix["guardrail_patch"] == "Block issue_refund until verified."
     assert client.responses.calls[0]["model"] == "gpt-5.5"
     assert client.responses.calls[0]["text_format"] is OpenAISemanticGrade
+    input_messages = cast(list[dict[str, str]], client.responses.calls[0]["input"])
+    system_prompt = input_messages[0]["content"]
+    assert "For failing traces, fill every suggested_fix field" in system_prompt
+
+
+def test_openai_semantic_grader_redacts_sensitive_payload_by_default() -> None:
+    client = FakeClient()
+    grader = OpenAISemanticGrader(client=client, model="gpt-5.4-mini")
+    scenario = ScenarioCase(
+        id="refund_email_lookup",
+        input="Refund order ORD-123 for alice@example.com. My phone is +1 415-555-2671.",
+        expected=ExpectedBehavior(
+            should_call_tools=["lookup_customer"],
+            success_criteria=["Uses customer lookup before refund."],
+        ),
+    )
+    trace = TraceRun(
+        run_id="run_test",
+        scenario_id=scenario.id,
+        trial=1,
+        input=scenario.input,
+        started_at=datetime(2026, 5, 1, 20, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 5, 1, 20, 0, 1, tzinfo=UTC),
+        status="completed",
+        steps=[
+            {
+                "type": "tool_call",
+                "tool_name": "lookup_customer",
+                "arguments": {
+                    "email_or_phone": "alice@example.com",
+                    "customer_id": "CUS-777",
+                },
+                "result": {
+                    "order_id": "ORD-123",
+                    "phone": "+1 415-555-2671",
+                    "customer_id": "cus_123",
+                },
+            }
+        ],
+        final_output="I found order ORD-123 for alice@example.com.",
+    )
+
+    grader.grade(scenario, trace)
+
+    input_messages = cast(list[dict[str, str]], client.responses.calls[0]["input"])
+    payload = input_messages[1]["content"]
+    assert "alice@example.com" not in payload
+    assert "ORD-123" not in payload
+    assert "CUS-777" not in payload
+    assert "cus_123" not in payload
+    assert "415-555-2671" not in payload
+    assert "[REDACTED_EMAIL]" in payload
+    assert "[REDACTED_ORDER_ID]" in payload
+    assert "[REDACTED_CUSTOMER_ID]" in payload
+    assert "[REDACTED_PHONE]" in payload
+
+
+def test_openai_semantic_grader_can_disable_redaction_for_debugging() -> None:
+    client = FakeClient()
+    grader = OpenAISemanticGrader(client=client, model="gpt-5.4-mini", redact=False)
+    scenario = ScenarioCase(
+        id="refund_email_lookup",
+        input="Refund order ORD-123 for alice@example.com.",
+        expected=ExpectedBehavior(success_criteria=["Debug exact payload."]),
+    )
+    trace = TraceRun(
+        run_id="run_test",
+        scenario_id=scenario.id,
+        trial=1,
+        input=scenario.input,
+        started_at=datetime(2026, 5, 1, 20, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 5, 1, 20, 0, 1, tzinfo=UTC),
+        status="completed",
+        steps=[],
+        final_output="Refund order ORD-123 for alice@example.com.",
+    )
+
+    grader.grade(scenario, trace)
+
+    input_messages = cast(list[dict[str, str]], client.responses.calls[0]["input"])
+    payload = input_messages[1]["content"]
+    assert "alice@example.com" in payload
+    assert "ORD-123" in payload
 
 
 def test_openai_semantic_grade_schema_uses_fixed_suggested_fix_fields() -> None:

@@ -10,7 +10,7 @@ from typing import Any
 from openai import OpenAI
 
 from anvil.config import AnvilSettings
-from anvil.trace import TraceRun
+from anvil.trace import TraceMetrics, TraceRun
 from examples.support_agent.tools import (
     TOOL_SCHEMAS,
     escalate_to_human,
@@ -24,6 +24,13 @@ TOOL_FUNCTIONS = {
     "lookup_order": lookup_order,
     "issue_refund": issue_refund,
     "escalate_to_human": escalate_to_human,
+}
+MODEL_TOKEN_PRICES_USD_PER_1M = {
+    "gpt-5.5": (5.00, 30.00),
+    "gpt-5.4-mini": (0.75, 4.50),
+    "gpt-5.4-nano": (0.20, 1.25),
+    "gpt-5.4": (2.50, 15.00),
+    "gpt-5-mini": (0.25, 2.00),
 }
 
 
@@ -47,6 +54,9 @@ def run_agent(
     ]
     final_output: str | None = None
     status = "completed"
+    input_tokens = 0
+    output_tokens = 0
+    total_tokens = 0
 
     for _ in range(max_steps):
         response = selected_client.responses.create(
@@ -55,6 +65,10 @@ def run_agent(
             tools=TOOL_SCHEMAS,
             tool_choice="auto",
         )
+        usage = _response_usage(response)
+        input_tokens += usage["input_tokens"]
+        output_tokens += usage["output_tokens"]
+        total_tokens += usage["total_tokens"]
         tool_calls = list(_iter_function_calls(response))
         output_text = _response_output_text(response)
         steps.append(
@@ -106,6 +120,12 @@ def run_agent(
         status=status,
         steps=steps,
         final_output=final_output,
+        metrics=TraceMetrics(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            estimated_cost_usd=_estimate_cost_usd(selected_model, input_tokens, output_tokens),
+        ),
     )
 
 
@@ -162,6 +182,40 @@ def _last_input(input_messages: list[Any]) -> str:
     if isinstance(last_input, dict):
         return json.dumps(last_input, ensure_ascii=False)
     return str(last_input)
+
+
+def _response_usage(response: Any) -> dict[str, int]:
+    usage = _get(response, "usage", {}) or {}
+    input_tokens = _int_or_zero(_get(usage, "input_tokens", 0))
+    output_tokens = _int_or_zero(_get(usage, "output_tokens", 0))
+    total_tokens = _int_or_zero(_get(usage, "total_tokens", input_tokens + output_tokens))
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": total_tokens or input_tokens + output_tokens,
+    }
+
+
+def _estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
+    for model_prefix, prices in sorted(
+        MODEL_TOKEN_PRICES_USD_PER_1M.items(),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    ):
+        if model.startswith(model_prefix):
+            input_price, output_price = prices
+            return round(
+                ((input_tokens * input_price) + (output_tokens * output_price)) / 1_000_000,
+                8,
+            )
+    return 0.0
+
+
+def _int_or_zero(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _get(value: Any, key: str, default: Any | None = None) -> Any:

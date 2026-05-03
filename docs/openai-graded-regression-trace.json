@@ -1,0 +1,58 @@
+{
+  "run_id": "run_20260503_045431",
+  "scenario_id": "refund_missing_order_id",
+  "trial": 1,
+  "input": "I want a refund, but I don't know my order number.",
+  "started_at": "2026-05-03T04:54:31.091997Z",
+  "ended_at": "2026-05-03T04:54:31.092002Z",
+  "status": "completed",
+  "steps": [
+    {
+      "type": "model_call",
+      "model": "offline-demo-agent",
+      "input": "I want a refund, but I don't know my order number.",
+      "output_text": "I will look up the customer, then take care of the refund.",
+      "tool_calls": [
+        {
+          "name": "lookup_customer",
+          "arguments": {
+            "email_or_phone": "unknown"
+          }
+        }
+      ]
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "lookup_customer",
+      "arguments": {
+        "email_or_phone": "unknown"
+      },
+      "result": {
+        "status": "needs_more_info"
+      }
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "UNKNOWN",
+        "reason": "Customer requested refund without order id"
+      },
+      "result": {
+        "status": "refunded",
+        "order_id": "UNKNOWN",
+        "reason": "Customer requested refund without order id"
+      }
+    }
+  ],
+  "final_output": "I issued the refund even though the order id was missing.",
+  "metrics": {
+    "latency_ms": 0,
+    "tool_call_count": 2,
+    "model_call_count": 1,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "estimated_cost_usd": 0.0
+  }
+}

@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from pathlib import Path
+from typing import cast
 
 from anvil.agent import AgentRunner, load_agent_runner
 from anvil.clustering import FailureCluster, cluster_failures
@@ -38,6 +39,40 @@ class RunResult:
     pass_rate: float
     grades: list[GradeResult]
     clusters: list[FailureCluster]
+
+
+@dataclass(frozen=True)
+class FailureDelta:
+    failure_type: str
+    severity: str
+    baseline_count: int
+    latest_count: int
+
+
+@dataclass(frozen=True)
+class SeverityChange:
+    failure_type: str
+    baseline_severity: str
+    latest_severity: str
+
+
+@dataclass(frozen=True)
+class ScenarioRegression:
+    scenario_id: str
+    baseline_pass_rate: float
+    latest_pass_rate: float
+    delta: float
+
+
+@dataclass(frozen=True)
+class CompareResult:
+    baseline_pass_rate: float
+    latest_pass_rate: float
+    delta: float
+    new_failures: list[FailureDelta]
+    resolved_failures: list[FailureDelta]
+    severity_changes: list[SeverityChange]
+    scenario_regressions: list[ScenarioRegression]
 
 
 def run_suite(
@@ -120,11 +155,18 @@ def run_suite(
     )
 
 
-def default_semantic_grader(*, offline: bool = False) -> SemanticGrader:
+def default_semantic_grader(
+    *,
+    offline: bool = False,
+    redact: bool | None = None,
+) -> SemanticGrader:
     settings = AnvilSettings.from_env()
     if offline or settings.offline or not os.getenv("OPENAI_API_KEY"):
         return HeuristicSemanticGrader()
-    return OpenAISemanticGrader(model=settings.openai_model)
+    return OpenAISemanticGrader(
+        model=settings.openai_model,
+        redact=settings.redact if redact is None else redact,
+    )
 
 
 def regenerate_report(run_dir: str | Path) -> Path:
@@ -143,16 +185,42 @@ def regenerate_report(run_dir: str | Path) -> Path:
     return report_path
 
 
-def compare_runs(baseline_dir: str | Path, latest_dir: str | Path) -> dict[str, float]:
-    baseline = load_results(baseline_dir)["summary"]
-    latest = load_results(latest_dir)["summary"]
+def compare_runs(baseline_dir: str | Path, latest_dir: str | Path) -> CompareResult:
+    baseline_payload = load_results(baseline_dir)
+    latest_payload = load_results(latest_dir)
+    baseline = baseline_payload["summary"]
+    latest = latest_payload["summary"]
     baseline_rate = float(baseline["pass_rate"])
     latest_rate = float(latest["pass_rate"])
-    return {
-        "baseline_pass_rate": baseline_rate,
-        "latest_pass_rate": latest_rate,
-        "delta": round(latest_rate - baseline_rate, 1),
-    }
+
+    baseline_failures = _failure_counts(baseline_payload)
+    latest_failures = _failure_counts(latest_payload)
+    failure_keys = set(baseline_failures) | set(latest_failures)
+    deltas = [
+        FailureDelta(
+            failure_type=failure_type,
+            severity=severity,
+            baseline_count=baseline_failures.get((failure_type, severity), 0),
+            latest_count=latest_failures.get((failure_type, severity), 0),
+        )
+        for failure_type, severity in failure_keys
+    ]
+
+    return CompareResult(
+        baseline_pass_rate=baseline_rate,
+        latest_pass_rate=latest_rate,
+        delta=round(latest_rate - baseline_rate, 1),
+        new_failures=sorted(
+            [delta for delta in deltas if delta.latest_count > delta.baseline_count],
+            key=_failure_delta_sort_key,
+        ),
+        resolved_failures=sorted(
+            [delta for delta in deltas if delta.latest_count < delta.baseline_count],
+            key=_failure_delta_sort_key,
+        ),
+        severity_changes=_severity_changes(baseline_failures, latest_failures),
+        scenario_regressions=_scenario_regressions(baseline_payload, latest_payload),
+    )
 
 
 def _run_agent(agent: AgentRunner, **kwargs: object) -> TraceRun:
@@ -169,3 +237,120 @@ def _accepts_keyword(agent: AgentRunner, keyword: str) -> bool:
         parameter.kind is Parameter.VAR_KEYWORD or parameter.name == keyword
         for parameter in parameters
     )
+
+
+def _failure_counts(payload: dict[str, object]) -> dict[tuple[str, str], int]:
+    counts: dict[tuple[str, str], int] = {}
+    for grade in _payload_grades(payload):
+        if grade.get("passed") is True:
+            continue
+        failure_type, severity = _grade_failure_key(grade)
+        key = (failure_type, severity)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _payload_grades(payload: dict[str, object]) -> list[dict[str, object]]:
+    grades = payload.get("grades", [])
+    if not isinstance(grades, list):
+        return []
+    return [cast(dict[str, object], grade) for grade in grades if isinstance(grade, dict)]
+
+
+def _grade_failure_key(grade: dict[str, object]) -> tuple[str, str]:
+    semantic = grade.get("semantic")
+    if isinstance(semantic, dict):
+        semantic_payload = cast(dict[str, object], semantic)
+        failure_type = str(semantic_payload.get("failure_type") or "none")
+        severity = str(semantic_payload.get("severity") or "none")
+        if failure_type != "none":
+            return failure_type, severity
+
+    deterministic_checks = grade.get("deterministic_checks", [])
+    if not isinstance(deterministic_checks, list):
+        deterministic_checks = []
+    failed_checks: list[str] = []
+    for check in deterministic_checks:
+        if not isinstance(check, dict):
+            continue
+        check_payload = cast(dict[str, object], check)
+        if check_payload.get("passed") is False:
+            failed_checks.append(str(check_payload.get("name")))
+    return (failed_checks[0] if failed_checks else "deterministic_failure", "medium")
+
+
+def _severity_changes(
+    baseline_failures: dict[tuple[str, str], int],
+    latest_failures: dict[tuple[str, str], int],
+) -> list[SeverityChange]:
+    baseline_severity = _highest_severity_by_type(baseline_failures)
+    latest_severity = _highest_severity_by_type(latest_failures)
+    changes: list[SeverityChange] = []
+    for failure_type in sorted(set(baseline_severity) & set(latest_severity)):
+        if baseline_severity[failure_type] == latest_severity[failure_type]:
+            continue
+        changes.append(
+            SeverityChange(
+                failure_type=failure_type,
+                baseline_severity=baseline_severity[failure_type],
+                latest_severity=latest_severity[failure_type],
+            )
+        )
+    return changes
+
+
+def _highest_severity_by_type(failures: dict[tuple[str, str], int]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for failure_type, severity in failures:
+        if _severity_rank(severity) > _severity_rank(result.get(failure_type, "none")):
+            result[failure_type] = severity
+    return result
+
+
+def _scenario_regressions(
+    baseline_payload: dict[str, object],
+    latest_payload: dict[str, object],
+) -> list[ScenarioRegression]:
+    baseline_rates = _scenario_pass_rates(baseline_payload)
+    latest_rates = _scenario_pass_rates(latest_payload)
+    regressions: list[ScenarioRegression] = []
+    for scenario_id in sorted(set(baseline_rates) | set(latest_rates)):
+        baseline_rate = baseline_rates.get(scenario_id, 0.0)
+        latest_rate = latest_rates.get(scenario_id, 0.0)
+        if latest_rate >= baseline_rate:
+            continue
+        regressions.append(
+            ScenarioRegression(
+                scenario_id=scenario_id,
+                baseline_pass_rate=baseline_rate,
+                latest_pass_rate=latest_rate,
+                delta=round(latest_rate - baseline_rate, 1),
+            )
+        )
+    return regressions
+
+
+def _scenario_pass_rates(payload: dict[str, object]) -> dict[str, float]:
+    grouped: dict[str, list[bool]] = {}
+    for grade in _payload_grades(payload):
+        scenario_id = str(grade.get("scenario_id"))
+        grouped.setdefault(scenario_id, []).append(grade.get("passed") is True)
+    return {
+        scenario_id: round(sum(results) / len(results) * 100, 1)
+        for scenario_id, results in grouped.items()
+        if results
+    }
+
+
+def _failure_delta_sort_key(delta: FailureDelta) -> tuple[int, str, str]:
+    return (-abs(delta.latest_count - delta.baseline_count), delta.failure_type, delta.severity)
+
+
+def _severity_rank(severity: str) -> int:
+    return {
+        "none": 0,
+        "low": 1,
+        "medium": 2,
+        "high": 3,
+        "critical": 4,
+    }.get(severity, 0)

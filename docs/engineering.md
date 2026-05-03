@@ -111,8 +111,14 @@ Agent Anvil has:
 
 - The OpenAI demo agent uses the Responses API with strict function/tool schemas
   and executes returned `function_call` items as local Python tools.
+- The OpenAI demo agent records Responses API usage into trace metrics:
+  `input_tokens`, `output_tokens`, `total_tokens`, latency, and best-effort
+  `estimated_cost_usd`.
 - The semantic grader uses the OpenAI Python SDK Responses API with
   `responses.parse` and a Pydantic schema.
+- Before semantic grading, Agent Anvil redacts email addresses, phone numbers,
+  order IDs, and customer IDs from scenario and trace payloads by default.
+  Disable with `--no-redact` or `ANVIL_REDACT=false` only for local debugging.
 - The default semantic grader model is `gpt-5.4-mini`. Override it with
   `ANVIL_OPENAI_MODEL` when you want cheaper (`gpt-5.4-nano`) or deeper
   (`gpt-5.5`) grading.
@@ -133,6 +139,8 @@ See OpenAI's model catalog for current guidance:
 [`gpt-5.4-nano`](https://developers.openai.com/api/docs/models/gpt-5.4-nano),
 [`gpt-5-mini`](https://developers.openai.com/api/docs/models/gpt-5-mini), and
 [`gpt-5-nano`](https://developers.openai.com/api/docs/models/gpt-5-nano).
+Token-cost estimates use OpenAI's standard per-1M token pricing for the known
+model families listed in the local estimator.
 
 ## Development
 
@@ -165,7 +173,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.1.8
+- uses: agent-axiom/agent-anvil@v0.1.9
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

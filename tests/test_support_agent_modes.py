@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, cast
 
+import pytest
+
 from anvil.trace import TraceRun
 from examples.support_agent import run_agent
 from examples.support_agent.openai_agent import run_agent as run_openai_agent
@@ -22,6 +24,7 @@ class FakeOutputItem:
 class FakeResponse:
     output: list[FakeOutputItem]
     output_text: str = ""
+    usage: dict[str, int] | None = None
 
 
 class FakeResponses:
@@ -39,7 +42,8 @@ class FakeResponses:
                         arguments='{"order_id": "ORD-123"}',
                         call_id="call_lookup",
                     )
-                ]
+                ],
+                usage={"input_tokens": 100, "output_tokens": 20, "total_tokens": 120},
             )
         return FakeResponse(
             output=[
@@ -49,6 +53,7 @@ class FakeResponses:
                 )
             ],
             output_text="I found the order.",
+            usage={"input_tokens": 80, "output_tokens": 25, "total_tokens": 105},
         )
 
 
@@ -83,7 +88,7 @@ def test_openai_support_agent_executes_responses_tool_calls() -> None:
         run_id="run_test",
         max_steps=8,
         client=client,
-        model="gpt-test",
+        model="gpt-5.4-mini",
     )
 
     assert trace.status == "completed"
@@ -99,7 +104,11 @@ def test_openai_support_agent_executes_responses_tool_calls() -> None:
         "eligible_for_refund": True,
     }
     assert trace.final_output == "I found the order."
-    assert client.responses.calls[0]["model"] == "gpt-test"
+    assert trace.metrics.input_tokens == 180
+    assert trace.metrics.output_tokens == 45
+    assert trace.metrics.total_tokens == 225
+    assert trace.metrics.estimated_cost_usd == pytest.approx(0.0003375)
+    assert client.responses.calls[0]["model"] == "gpt-5.4-mini"
     second_input = client.responses.calls[1]["input"]
     assert isinstance(second_input, list)
     assert isinstance(second_input[-2], FakeOutputItem)

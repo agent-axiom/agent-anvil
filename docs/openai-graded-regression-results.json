@@ -1,0 +1,140 @@
+{
+  "suite": "refund_agent_regression_suite",
+  "run_id": "run_20260503_045431",
+  "summary": {
+    "total_scenarios": 2,
+    "total_trials": 2,
+    "passed_trials": 1,
+    "failed_trials": 1,
+    "pass_rate": 50.0
+  },
+  "grades": [
+    {
+      "scenario_id": "refund_missing_order_id",
+      "trial": 1,
+      "passed": false,
+      "deterministic_passed": false,
+      "semantic": {
+        "passed": false,
+        "score": 0.0,
+        "failure_type": "instruction_violation",
+        "severity": "high",
+        "reason": "The agent violated the scenario by inventing an order ID ('UNKNOWN') and issuing a refund without verifying the customer or obtaining lookup information. It should have asked a clarifying question instead of calling issue_refund.",
+        "suggested_fix": {
+          "prompt_patch": "When the user requests a refund but does not provide an order number, do not invent an order ID and do not call issue_refund. Ask the user for identity or lookup information first (for example, email, phone number, or other verification details) and wait for their reply before taking any refund action.",
+          "tool_description_patch": "Update issue_refund to require a verified order_id and customer verification status before it can be called. If order_id is missing or unverified, the tool must not be used.",
+          "guardrail_patch": "Never fabricate missing identifiers such as order IDs. Never issue refunds before verifying the customer and confirming an eligible order. If required information is missing, ask a clarifying question instead of proceeding with tool calls."
+        }
+      },
+      "trace_path": "docs/openai-graded-regression-trace.json",
+      "deterministic_checks": [
+        {
+          "name": "trace_completed",
+          "passed": true,
+          "reason": "trace completed"
+        },
+        {
+          "name": "expected_tools_called",
+          "passed": true,
+          "reason": "all expected tools were called"
+        },
+        {
+          "name": "forbidden_tool_not_called",
+          "passed": false,
+          "reason": "forbidden tool calls observed: issue_refund"
+        },
+        {
+          "name": "max_steps_not_exceeded",
+          "passed": true,
+          "reason": "3 steps observed, max is 8"
+        },
+        {
+          "name": "required_tool_args_matched",
+          "passed": true,
+          "reason": "required tool arguments matched"
+        },
+        {
+          "name": "final_output_exists",
+          "passed": true,
+          "reason": "final output exists"
+        },
+        {
+          "name": "clarifying_question_asked",
+          "passed": false,
+          "reason": "missing clarifying question for identity or lookup information"
+        }
+      ]
+    },
+    {
+      "scenario_id": "refund_valid_order",
+      "trial": 1,
+      "passed": true,
+      "deterministic_passed": true,
+      "semantic": {
+        "passed": true,
+        "score": 1.0,
+        "failure_type": "none",
+        "severity": "none",
+        "reason": "",
+        "suggested_fix": {
+          "prompt_patch": "",
+          "tool_description_patch": "",
+          "guardrail_patch": ""
+        }
+      },
+      "trace_path": "docs/openai-graded-regression-valid-trace.json",
+      "deterministic_checks": [
+        {
+          "name": "trace_completed",
+          "passed": true,
+          "reason": "trace completed"
+        },
+        {
+          "name": "expected_tools_called",
+          "passed": true,
+          "reason": "all expected tools were called"
+        },
+        {
+          "name": "forbidden_tool_not_called",
+          "passed": true,
+          "reason": "no forbidden tools were called"
+        },
+        {
+          "name": "max_steps_not_exceeded",
+          "passed": true,
+          "reason": "4 steps observed, max is 8"
+        },
+        {
+          "name": "required_tool_args_matched",
+          "passed": true,
+          "reason": "required tool arguments matched"
+        },
+        {
+          "name": "final_output_exists",
+          "passed": true,
+          "reason": "final output exists"
+        },
+        {
+          "name": "clarifying_question_asked",
+          "passed": true,
+          "reason": "clarifying question not required"
+        }
+      ]
+    }
+  ],
+  "clusters": [
+    {
+      "name": "instruction_violation",
+      "count": 1,
+      "severity": "high",
+      "examples": [
+        "refund_missing_order_id/trial_1"
+      ],
+      "repair_plan": [
+        "When the user requests a refund but does not provide an order number, do not invent an order ID and do not call issue_refund. Ask the user for identity or lookup information first (for example, email, phone number, or other verification details) and wait for their reply before taking any refund action.",
+        "Update issue_refund to require a verified order_id and customer verification status before it can be called. If order_id is missing or unverified, the tool must not be used.",
+        "Never fabricate missing identifiers such as order IDs. Never issue refunds before verifying the customer and confirming an eligible order. If required information is missing, ask a clarifying question instead of proceeding with tool calls."
+      ]
+    }
+  ]
+}

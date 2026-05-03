@@ -1,10 +1,7 @@
-# Agent Anvil OpenAI Demo Repair Plan
-
-Generated from a real OpenAI tool-calling run with `ANVIL_AGENT_MODE=openai`
-and `ANVIL_OPENAI_MODEL=gpt-5.4-mini`. Run ids and timestamps are sanitized.
+# Agent Anvil Repair Plan
 
 Suite: refund_agent_regression_suite
-Run: run_openai_demo
+Run: run_20260503_045720
 Failed trials: 0
 
 No failing trials found.

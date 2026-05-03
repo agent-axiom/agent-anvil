@@ -1,10 +1,10 @@
 {
-  "run_id": "run_openai_demo",
+  "run_id": "run_20260503_045720",
   "scenario_id": "refund_valid_order",
   "trial": 1,
   "input": "Please refund order ORD-123. It arrived broken.",
-  "started_at": "2026-05-02T20:45:38Z",
-  "ended_at": "2026-05-02T20:45:45Z",
+  "started_at": "2026-05-03T04:57:26.480295Z",
+  "ended_at": "2026-05-03T04:57:30.843620Z",
   "status": "completed",
   "steps": [
     {
@@ -37,7 +37,7 @@
     {
       "type": "model_call",
       "model": "gpt-5.4-mini",
-      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_lookup_order\", \"output\": \"{\\\"status\\\": \\\"found\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"customer_id\\\": \\\"cus_123\\\", \\\"eligible_for_refund\\\": true}\"}",
+      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_mANXfRsdP95ewlIh21PGipeA\", \"output\": \"{\\\"status\\\": \\\"found\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"customer_id\\\": \\\"cus_123\\\", \\\"eligible_for_refund\\\": true}\"}",
       "output_text": "",
       "tool_calls": [
         {
@@ -65,16 +65,19 @@
     {
       "type": "model_call",
       "model": "gpt-5.4-mini",
-      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_issue_refund\", \"output\": \"{\\\"status\\\": \\\"refunded\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"reason\\\": \\\"Item arrived broken\\\"}\"}",
-      "output_text": "Refund issued for order ORD-123 because it arrived broken.",
+      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_qdexJEO5hsbC0EoQgqPrscb7\", \"output\": \"{\\\"status\\\": \\\"refunded\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"reason\\\": \\\"Item arrived broken\\\"}\"}",
+      "output_text": "Your refund for order ORD-123 has been issued successfully.",
       "tool_calls": []
     }
   ],
-  "final_output": "Refund issued for order ORD-123 because it arrived broken.",
+  "final_output": "Your refund for order ORD-123 has been issued successfully.",
   "metrics": {
-    "latency_ms": 6204,
+    "latency_ms": 4363,
     "tool_call_count": 2,
     "model_call_count": 3,
-    "estimated_cost_usd": 0.0
+    "input_tokens": 858,
+    "output_tokens": 65,
+    "total_tokens": 923,
+    "estimated_cost_usd": 0.000936
   }
 }

@@ -84,6 +84,45 @@ def test_cluster_failures_falls_back_to_failed_deterministic_check() -> None:
     ]
 
 
+def test_cluster_failures_uses_deterministic_repairs_when_semantic_fix_is_empty() -> None:
+    failures = [
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=1,
+            passed=False,
+            deterministic_passed=False,
+            semantic=SemanticGrade(
+                passed=False,
+                score=0.0,
+                failure_type="instruction_violation",
+                severity="high",
+                reason="Issued refund with unknown order.",
+                suggested_fix={
+                    "prompt_patch": "",
+                    "tool_description_patch": "",
+                    "guardrail_patch": "",
+                },
+            ),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_1.json",
+            deterministic_checks=[
+                CheckOutcome(
+                    name=DeterministicCheck.FORBIDDEN_TOOL_NOT_CALLED,
+                    passed=False,
+                    reason="forbidden tool calls observed: issue_refund",
+                )
+            ],
+        )
+    ]
+
+    clusters = cluster_failures(failures)
+
+    assert clusters[0].name == "instruction_violation"
+    assert clusters[0].repair_plan == [
+        "Add a guardrail before forbidden or destructive tool calls: "
+        "forbidden tool calls observed: issue_refund"
+    ]
+
+
 def test_render_markdown_report_includes_suite_summary_and_trace_links() -> None:
     grades = [
         GradeResult(

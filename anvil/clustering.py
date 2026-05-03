@@ -66,11 +66,14 @@ def _repair_plan(items: list[GradeResult]) -> list[str]:
     seen: set[str] = set()
     plan: list[str] = []
     for item in items:
+        has_semantic_patch = False
         for patch in item.semantic.suggested_fix.values():
+            if patch:
+                has_semantic_patch = True
             if patch and patch not in seen:
                 seen.add(patch)
                 plan.append(patch)
-        if not item.semantic.passed:
+        if not item.semantic.passed and has_semantic_patch:
             continue
         for check in _failed_deterministic_checks(item):
             patch = _deterministic_repair(check)
