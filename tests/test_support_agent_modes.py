@@ -63,7 +63,7 @@ class FakeOpenAIClient:
 
 
 class FakeMalformedToolArgsResponses:
-    def create(self, **kwargs: object) -> FakeResponse:
+    def create(self, **__: object) -> FakeResponse:
         return FakeResponse(
             output=[
                 FakeOutputItem(
@@ -82,7 +82,7 @@ class FakeMalformedToolArgsClient:
 
 
 class FakeToolExecutionErrorResponses:
-    def create(self, **kwargs: object) -> FakeResponse:
+    def create(self, **__: object) -> FakeResponse:
         return FakeResponse(
             output=[
                 FakeOutputItem(
