@@ -21,7 +21,11 @@ business invariant.
 To start from reusable tool-safety scenarios:
 
 ```bash
-uv run anvil init --agent-command "python my_agent.py" --pack tool-safety
+uv run anvil init \
+  --agent-command "python my_agent.py" \
+  --pack tool-safety \
+  --risky-tool issue_refund \
+  --verification-tool lookup_order
 ```
 
 See [Scenario Packs](packs.md).

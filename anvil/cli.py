@@ -89,6 +89,21 @@ INIT_PACK_OPTION = typer.Option(
     help="Use a built-in starter scenario pack, such as tool-safety.",
 )
 PACK_OUT_OPTION = typer.Option(DEFAULT_PACK_OUT, "--out", help="Write the scenario pack here.")
+RISKY_TOOL_OPTION = typer.Option(
+    None,
+    "--risky-tool",
+    help="Risky/destructive tool to include in a generated scenario pack. Repeatable.",
+)
+VERIFICATION_TOOL_OPTION = typer.Option(
+    None,
+    "--verification-tool",
+    help="Verification tool required before risky tools. Repeatable.",
+)
+APPROVAL_TOOL_OPTION = typer.Option(
+    None,
+    "--approval-required-tool",
+    help="Risky tool that should require human approval. Repeatable.",
+)
 
 
 @app.command()
@@ -99,6 +114,9 @@ def init(
     force: bool = INIT_FORCE_OPTION,
     post_pr_comment: bool = INIT_POST_PR_COMMENT_OPTION,
     pack: str | None = INIT_PACK_OPTION,
+    risky_tools: list[str] | None = RISKY_TOOL_OPTION,
+    verification_tools: list[str] | None = VERIFICATION_TOOL_OPTION,
+    approval_required_tools: list[str] | None = APPROVAL_TOOL_OPTION,
 ) -> None:
     try:
         written_paths = initialize_project(
@@ -108,6 +126,9 @@ def init(
             force=force,
             post_pr_comment=post_pr_comment,
             pack=pack,
+            risky_tools=risky_tools,
+            verification_tools=verification_tools,
+            approval_required_tools=approval_required_tools,
         )
     except (FileExistsError, ValueError) as error:
         typer.echo(str(error), err=True)
@@ -132,9 +153,20 @@ def pack_add(
     agent_command: str = INIT_AGENT_COMMAND_OPTION,
     out: Path = PACK_OUT_OPTION,
     force: bool = INIT_FORCE_OPTION,
+    risky_tools: list[str] | None = RISKY_TOOL_OPTION,
+    verification_tools: list[str] | None = VERIFICATION_TOOL_OPTION,
+    approval_required_tools: list[str] | None = APPROVAL_TOOL_OPTION,
 ) -> None:
     try:
-        pack_path = write_pack(pack_name, agent_command=agent_command, out_path=out, force=force)
+        pack_path = write_pack(
+            pack_name,
+            agent_command=agent_command,
+            out_path=out,
+            force=force,
+            risky_tools=risky_tools,
+            verification_tools=verification_tools,
+            approval_required_tools=approval_required_tools,
+        )
     except (FileExistsError, ValueError) as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error

@@ -71,6 +71,41 @@ def test_pack_add_refuses_unknown_pack(tmp_path: Path) -> None:
     assert "Unknown pack" in result.stderr
 
 
+def test_pack_add_customizes_tool_safety_tools(tmp_path: Path) -> None:
+    out = tmp_path / "scenarios" / "custom_tool_safety.yaml"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "pack",
+            "add",
+            "tool-safety",
+            "--agent-command",
+            "python my_agent.py",
+            "--risky-tool",
+            "issue_refund",
+            "--risky-tool",
+            "delete_workspace",
+            "--verification-tool",
+            "lookup_order",
+            "--approval-required-tool",
+            "delete_workspace",
+            "--out",
+            str(out),
+        ],
+    )
+
+    suite = load_scenario_file(out)
+    text = out.read_text(encoding="utf-8")
+    assert result.exit_code == 0
+    assert suite.policies.destructive_tools == ["issue_refund", "delete_workspace"]
+    assert suite.policies.require_human_approval == ["delete_workspace"]
+    assert sorted(suite.policies.require_before) == ["delete_workspace", "issue_refund"]
+    assert suite.policies.require_before["issue_refund"][0].tool == "lookup_order"
+    assert "delete_project" not in text
+    assert "transfer_money" not in text
+
+
 def test_init_can_include_tool_safety_pack(tmp_path: Path) -> None:
     scenario_path = tmp_path / "scenarios" / "starter.yaml"
     workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
@@ -94,3 +129,35 @@ def test_init_can_include_tool_safety_pack(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert suite.name == "tool_safety_starter_suite"
     assert "delete_project" in suite.policies.destructive_tools
+
+
+def test_init_can_customize_tool_safety_pack(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python my_agent.py",
+            "--scenario",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+            "--pack",
+            "tool-safety",
+            "--risky-tool",
+            "send_wire",
+            "--verification-tool",
+            "verify_account",
+            "--approval-required-tool",
+            "send_wire",
+        ],
+    )
+
+    suite = load_scenario_file(scenario_path)
+    assert result.exit_code == 0
+    assert suite.policies.destructive_tools == ["send_wire"]
+    assert suite.policies.require_before["send_wire"][0].tool == "verify_account"
+    assert suite.policies.require_human_approval == ["send_wire"]

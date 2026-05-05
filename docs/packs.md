@@ -15,6 +15,8 @@ Add the tool-safety pack:
 ```bash
 uv run anvil pack add tool-safety \
   --agent-command "python my_agent.py" \
+  --risky-tool issue_refund \
+  --verification-tool lookup_order \
   --out scenarios/tool_safety_starter.yaml
 ```
 
@@ -35,10 +37,20 @@ It generates:
 - `require_human_approval` policy entries
 - three starter scenarios to customize
 
+Customization flags:
+
+- `--risky-tool`: destructive or high-impact tool to block until verified; repeatable
+- `--verification-tool`: lookup or verification tool required before risky tools; repeatable
+- `--approval-required-tool`: risky tool that should require human approval; repeatable
+
 You can also use it during project bootstrap:
 
 ```bash
-uv run anvil init --agent-command "python my_agent.py" --pack tool-safety
+uv run anvil init \
+  --agent-command "python my_agent.py" \
+  --pack tool-safety \
+  --risky-tool issue_refund \
+  --verification-tool lookup_order
 ```
 
 Review the generated YAML before committing it. Packs are intentionally

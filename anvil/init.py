@@ -17,11 +17,22 @@ def initialize_project(
     force: bool = False,
     post_pr_comment: bool = False,
     pack: str | None = None,
+    risky_tools: list[str] | None = None,
+    verification_tools: list[str] | None = None,
+    approval_required_tools: list[str] | None = None,
 ) -> list[Path]:
     written_paths: list[Path] = []
     action_ref = f"agent-axiom/agent-anvil@v{_package_version()}"
     scenario_content = (
-        render_pack(pack, agent_command=agent_command) if pack else _starter_scenario(agent_command)
+        render_pack(
+            pack,
+            agent_command=agent_command,
+            risky_tools=risky_tools,
+            verification_tools=verification_tools,
+            approval_required_tools=approval_required_tools,
+        )
+        if pack
+        else _starter_scenario(agent_command)
     )
     writes = {
         scenario_path: scenario_content,

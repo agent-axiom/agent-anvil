@@ -43,6 +43,8 @@ def test_packs_doc_is_linked_from_readme() -> None:
     assert "uv run anvil pack list" in doc
     assert "tool-safety" in doc
     assert "destructive_tools" in doc
+    assert "--risky-tool" in doc
+    assert "--verification-tool" in doc
 
 
 def test_issue_templates_cover_bug_feature_and_scenario_requests() -> None:
