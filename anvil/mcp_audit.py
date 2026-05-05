@@ -95,7 +95,7 @@ def audit_mcp_tools(
     out_path: str | Path,
     report_path: str | Path,
 ) -> ToolAuditResult:
-    findings = _findings(tools)
+    findings = find_mcp_tool_findings(tools)
     scenario_path = _write_scenarios(findings, Path(out_path))
     selected_report_path = _write_report(findings, Path(report_path))
     return ToolAuditResult(
@@ -103,6 +103,10 @@ def audit_mcp_tools(
         scenario_path=scenario_path,
         report_path=selected_report_path,
     )
+
+
+def find_mcp_tool_findings(tools: list[dict[str, Any]]) -> list[ToolAuditFinding]:
+    return _findings(tools)
 
 
 def _command_argv(command: McpCommand) -> list[str]:

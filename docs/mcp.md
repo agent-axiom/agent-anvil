@@ -23,7 +23,15 @@ Or audit an existing exported tool schema file:
 uv run anvil mcp audit docs/fixtures/mcp-tools.json \
   --out scenarios/mcp_tool_safety.yaml \
   --report reports/mcp-audit.md
+uv run anvil mcp repair docs/fixtures/mcp-tools.json \
+  --out reports/mcp-repair.md \
+  --offline
 ```
+
+`mcp repair` turns audit findings into concrete tool-description, policy, and
+scenario repair suggestions. Without `--offline`, it uses OpenAI structured
+outputs to produce a richer repair plan; with `--offline`, it emits deterministic
+local repair hints for CI-safe demos.
 
 The MVP reads JSON or YAML shaped as either:
 

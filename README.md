@@ -100,6 +100,7 @@ That gives a concrete eval loop:
 - [Scenario packs](docs/packs.md)
 - [Trace ingest](docs/ingest.md)
 - [MCP tool audit](docs/mcp-audit.md)
+- [MCP tool repair plan](docs/mcp-repair.md)
 - [MCP audit guide](docs/mcp.md)
 - [Generated MCP safety scenarios](docs/mcp-tool-safety.yaml)
 - [Fuzzed refund scenarios](docs/refund-agent-fuzzed.yaml)
@@ -227,6 +228,9 @@ Audit exported MCP tool schemas before giving them to an agent:
 uv run anvil mcp audit docs/fixtures/mcp-tools.json \
   --out scenarios/mcp_tool_safety.yaml \
   --report reports/mcp-audit.md
+uv run anvil mcp repair docs/fixtures/mcp-tools.json \
+  --out reports/mcp-repair.md \
+  --offline
 ```
 
 Bridge Anvil traces to an OpenAI-style trace JSON shape:
@@ -300,7 +304,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.12
+- uses: agent-axiom/agent-anvil@v0.2.13
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -309,7 +313,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.12
+- uses: agent-axiom/agent-anvil@v0.2.13
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
