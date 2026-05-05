@@ -23,6 +23,7 @@ destructive tools called too early, missing clarifying questions, loops, and
 violated business invariants.
 
 ```bash
+uv run anvil init --agent-command "python my_agent.py"
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 uv run anvil report runs/latest
 uv run anvil summary runs/latest --github
@@ -91,6 +92,7 @@ That gives a concrete eval loop:
 - [OpenAI-graded regression trace](docs/openai-graded-regression-trace.json)
 - [Tool-safety report](docs/tool-safety-report.md)
 - [Tool-safety repair plan](docs/tool-safety-repair-plan.md)
+- [Project bootstrap guide](docs/init.md)
 - [MCP tool audit](docs/mcp-audit.md)
 - [MCP audit guide](docs/mcp.md)
 - [Generated MCP safety scenarios](docs/mcp-tool-safety.yaml)
@@ -255,6 +257,7 @@ docker compose run --rm anvil-regression-demo || true
 ## CLI
 
 ```bash
+uv run anvil init --agent-command "python my_agent.py"
 uv run anvil run scenarios/refund_agent.yaml
 uv run anvil run scenarios/refund_agent.yaml --trials 5
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
@@ -285,7 +288,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.5
+- uses: agent-axiom/agent-anvil@v0.2.6
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -294,7 +297,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.5
+- uses: agent-axiom/agent-anvil@v0.2.6
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

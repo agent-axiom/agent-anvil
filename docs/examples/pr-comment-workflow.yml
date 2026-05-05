@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run Agent Anvil regression eval
-        uses: agent-axiom/agent-anvil@v0.2.5
+        uses: agent-axiom/agent-anvil@v0.2.6
         with:
           scenario: scenarios/refund_agent.yaml
           offline: "true"

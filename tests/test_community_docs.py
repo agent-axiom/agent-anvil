@@ -24,6 +24,16 @@ def test_scenario_authoring_doc_is_linked_from_readme() -> None:
     assert "policies:" in doc
 
 
+def test_init_doc_is_linked_from_readme() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    doc = Path("docs/init.md").read_text(encoding="utf-8")
+
+    assert "docs/init.md" in readme
+    assert "uv run anvil init --agent-command" in readme
+    assert "post-pr-comment" in doc
+    assert "--force" in doc
+
+
 def test_issue_templates_cover_bug_feature_and_scenario_requests() -> None:
     template_paths = {
         ".github/ISSUE_TEMPLATE/bug_report.yml",

@@ -6,6 +6,7 @@ import typer
 
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
+from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools
 from anvil.pr_comment import write_pr_comment
@@ -58,6 +59,54 @@ FUZZ_OUT_OPTION = typer.Option(..., "--out", help="Write the fuzzed scenario YAM
 FUZZ_MUTATIONS_OPTION = typer.Option(10, "--mutations", min=1, help="Number of mutations.")
 FUZZ_FOCUS_OPTION = typer.Option("tool_safety", "--focus", help="Mutation focus.")
 PR_COMMENT_OUT_OPTION = typer.Option(..., "--out", help="Write PR-ready Markdown here.")
+INIT_AGENT_COMMAND_OPTION = typer.Option(
+    ...,
+    "--agent-command",
+    help="Command Agent Anvil should run for your external JSONL agent.",
+)
+INIT_SCENARIO_OPTION = typer.Option(
+    DEFAULT_SCENARIO_PATH,
+    "--scenario",
+    help="Starter scenario path to create.",
+)
+INIT_WORKFLOW_OPTION = typer.Option(
+    DEFAULT_WORKFLOW_PATH,
+    "--workflow",
+    help="GitHub Actions workflow path to create.",
+)
+INIT_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite existing generated files.")
+INIT_POST_PR_COMMENT_OPTION = typer.Option(
+    False,
+    "--post-pr-comment",
+    help="Configure the generated workflow to publish Agent Anvil PR comments.",
+)
+
+
+@app.command()
+def init(
+    agent_command: str = INIT_AGENT_COMMAND_OPTION,
+    scenario_path: Path = INIT_SCENARIO_OPTION,
+    workflow_path: Path = INIT_WORKFLOW_OPTION,
+    force: bool = INIT_FORCE_OPTION,
+    post_pr_comment: bool = INIT_POST_PR_COMMENT_OPTION,
+) -> None:
+    try:
+        written_paths = initialize_project(
+            agent_command=agent_command,
+            scenario_path=scenario_path,
+            workflow_path=workflow_path,
+            force=force,
+            post_pr_comment=post_pr_comment,
+        )
+    except FileExistsError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    for path in written_paths:
+        typer.echo(f"Wrote {path}")
+    typer.echo(
+        f"Next: edit the starter scenario, then run `uv run anvil run {scenario_path} --offline`."
+    )
 
 
 @app.command()

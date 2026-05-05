@@ -7,6 +7,86 @@ from typer.testing import CliRunner
 from anvil.cli import app
 
 
+def test_cli_init_writes_starter_scenario_and_workflow(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python my_agent.py",
+            "--scenario",
+            str(tmp_path / "scenarios" / "starter.yaml"),
+            "--workflow",
+            str(tmp_path / ".github" / "workflows" / "agent-anvil.yml"),
+            "--post-pr-comment",
+        ],
+    )
+
+    scenario_text = (tmp_path / "scenarios" / "starter.yaml").read_text(encoding="utf-8")
+    workflow_text = (tmp_path / ".github" / "workflows" / "agent-anvil.yml").read_text(
+        encoding="utf-8"
+    )
+    assert result.exit_code == 0
+    assert "Wrote" in result.stdout
+    assert 'command: "python my_agent.py"' in scenario_text
+    assert "protocol: jsonl" in scenario_text
+    assert "starter_tool_safety" in scenario_text
+    assert "agent-axiom/agent-anvil@v" in workflow_text
+    assert "pull-requests: write" in workflow_text
+    assert 'post-pr-comment: "true"' in workflow_text
+
+
+def test_cli_init_refuses_to_overwrite_without_force(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+    runner = CliRunner()
+    first = runner.invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python old_agent.py",
+            "--scenario",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+        ],
+    )
+    second = runner.invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python new_agent.py",
+            "--scenario",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+        ],
+    )
+    forced = runner.invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python new_agent.py",
+            "--scenario",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+            "--force",
+        ],
+    )
+
+    assert first.exit_code == 0
+    assert second.exit_code == 1
+    assert "already exists" in second.stderr
+    assert forced.exit_code == 0
+    assert 'command: "python new_agent.py"' in scenario_path.read_text(encoding="utf-8")
+
+
 def test_cli_requires_explicit_offline_without_openai_key(
     tmp_path: Path,
     monkeypatch,
