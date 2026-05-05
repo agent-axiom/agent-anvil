@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import difflib
 from pathlib import Path
+from typing import Any, cast
 
 from anvil.storage import load_results
 
@@ -45,10 +46,13 @@ def _has_premature_tool_failure(payload: dict[str, object]) -> bool:
     clusters = payload.get("clusters", [])
     if not isinstance(clusters, list):
         return False
-    return any(
-        isinstance(cluster, dict) and cluster.get("name") == "premature_tool_execution"
-        for cluster in clusters
-    )
+    for cluster in clusters:
+        if not isinstance(cluster, dict):
+            continue
+        cluster_payload = cast("dict[str, Any]", cluster)
+        if cluster_payload.get("name") == "premature_tool_execution":
+            return True
+    return False
 
 
 def _prompt_patch(path: Path) -> str:

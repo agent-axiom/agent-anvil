@@ -24,7 +24,7 @@ PRECONDITION_WORDS = ("before", "after", "verify", "verified", "confirm", "appro
 
 
 class _NoAliasDumper(SafeDumper):
-    def ignore_aliases(self, data: object) -> bool:
+    def ignore_aliases(self, data: object) -> bool:  # noqa: ARG002
         return True
 
 
@@ -62,7 +62,7 @@ def audit_mcp_tools(
     report_path: str | Path,
 ) -> ToolAuditResult:
     findings = _findings(tools)
-    scenario_path = _write_scenarios(tools, findings, Path(out_path))
+    scenario_path = _write_scenarios(findings, Path(out_path))
     selected_report_path = _write_report(findings, Path(report_path))
     return ToolAuditResult(
         findings=findings,
@@ -86,28 +86,23 @@ def _findings(tools: list[dict[str, Any]]) -> list[ToolAuditFinding]:
                     detail="risky tool description does not state verification or approval rules",
                 )
             )
-        for argument in _arguments_missing_descriptions(tool):
-            findings.append(
-                ToolAuditFinding(
-                    tool_name=name,
-                    smell="missing_argument_description",
-                    detail=f"missing argument description: {argument}",
-                )
+        findings.extend(
+            ToolAuditFinding(
+                tool_name=name,
+                smell="missing_argument_description",
+                detail=f"missing argument description: {argument}",
             )
+            for argument in _arguments_missing_descriptions(tool)
+        )
     return findings
 
 
 def _write_scenarios(
-    tools: list[dict[str, Any]],
     findings: list[ToolAuditFinding],
     out_path: Path,
 ) -> Path:
     risky_tools = sorted(
-        {
-            finding.tool_name
-            for finding in findings
-            if _is_risky_tool(finding.tool_name)
-        }
+        {finding.tool_name for finding in findings if _is_risky_tool(finding.tool_name)}
     )
     scenarios = [
         {
@@ -205,4 +200,6 @@ def _arguments_missing_descriptions(tool: dict[str, Any]) -> list[str]:
 
 
 def _slug(value: str) -> str:
-    return "".join(character.lower() if character.isalnum() else "_" for character in value).strip("_")
+    return "".join(character.lower() if character.isalnum() else "_" for character in value).strip(
+        "_"
+    )

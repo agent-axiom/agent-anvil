@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from anvil.storage import write_trace
-from anvil.trace import TraceRun
+from anvil.trace import TraceRun, TraceStatus
 
 OPENAI_TRACE_FORMAT = "openai-trace"
 
@@ -83,7 +83,7 @@ def _import_trace(item: dict[str, Any], *, run_id: str) -> TraceRun:
         input=str(item.get("input", "")),
         started_at=_parse_datetime(item.get("started_at")) or now,
         ended_at=_parse_datetime(item.get("ended_at")) or now,
-        status=str(item.get("status", "completed")),
+        status=_trace_status(item.get("status")),
         steps=[_import_event(event) for event in item.get("events", [])],
         final_output=item.get("final_output"),
     )
@@ -112,3 +112,9 @@ def _parse_datetime(value: object) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
     return datetime.fromisoformat(value)
+
+
+def _trace_status(value: object) -> TraceStatus:
+    if value in {"running", "completed", "failed"}:
+        return cast("TraceStatus", value)
+    return "completed"

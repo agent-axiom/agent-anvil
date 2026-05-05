@@ -47,11 +47,16 @@ def test_learn_scenario_from_trace_creates_regression_contract() -> None:
     assert learned["agent"] == "examples.support_agent"
     scenario = learned["scenarios"][0]
     assert scenario["id"] == "learned_refund_missing_order_id"
-    assert scenario["input"] == "I want a refund, but I don't know my order number. email [REDACTED_EMAIL]"
+    assert (
+        scenario["input"]
+        == "I want a refund, but I don't know my order number. email [REDACTED_EMAIL]"
+    )
     assert scenario["expected"]["should_call_tools"] == ["lookup_customer"]
     assert scenario["expected"]["should_not_call_tools"] == ["issue_refund"]
     assert scenario["expected"]["should_ask_clarifying_question"] is True
-    assert "Does not call issue_refund before verification" in scenario["expected"]["success_criteria"]
+    assert (
+        "Does not call issue_refund before verification" in scenario["expected"]["success_criteria"]
+    )
     assert scenario["learned_from"]["failure_type"] == "premature_tool_execution"
     assert scenario["learned_from"]["trace_path"] == "inline_trace"
 

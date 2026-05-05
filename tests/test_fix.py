@@ -32,7 +32,9 @@ def test_generate_fix_patch_suggests_prompt_and_tool_description_changes(
     )
     out = tmp_path / "anvil-fix.patch"
 
-    patch_path = generate_fix_patch(result.run_dir, prompt_path=prompt, tools_path=tools, out_path=out)
+    patch_path = generate_fix_patch(
+        result.run_dir, prompt_path=prompt, tools_path=tools, out_path=out
+    )
 
     patch = patch_path.read_text(encoding="utf-8")
     assert patch.startswith("--- ")

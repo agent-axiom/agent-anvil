@@ -152,9 +152,11 @@ def _tool_policy_satisfied(trace: TraceRun, policies: PolicyConfig) -> CheckOutc
                 if _is_unknown_value(value)
             )
 
-        for precondition in policies.require_before.get(tool_name, []):
-            if not _prior_precondition_met(calls[:index], precondition):
-                failures.append(f"{tool_name} missing prior {precondition.tool}")
+        failures.extend(
+            f"{tool_name} missing prior {precondition.tool}"
+            for precondition in policies.require_before.get(tool_name, [])
+            if not _prior_precondition_met(calls[:index], precondition)
+        )
 
         if tool_name in policies.require_human_approval:
             failures.append(f"{tool_name} requires human approval")

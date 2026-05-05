@@ -97,9 +97,7 @@ scenarios:
 
     assert suite.policies.destructive_tools == ["issue_refund"]
     assert suite.policies.require_before["issue_refund"][0].tool == "lookup_order"
-    assert suite.policies.require_before["issue_refund"][0].result == {
-        "eligible_for_refund": True
-    }
+    assert suite.policies.require_before["issue_refund"][0].result == {"eligible_for_refund": True}
     assert suite.policies.require_human_approval == ["delete_project"]
 
 
