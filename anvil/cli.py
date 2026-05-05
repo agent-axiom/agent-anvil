@@ -6,6 +6,7 @@ import typer
 
 from anvil.fix import generate_fix_patch
 from anvil.learning import load_trace, write_learned_scenario
+from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools
 from anvil.repair import generate_repair_plan
 from anvil.runner import (
     FailureDelta,
@@ -19,6 +20,8 @@ from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
+mcp_app = typer.Typer(help="Audit MCP tools and generate safety scenarios.")
+app.add_typer(mcp_app, name="mcp")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -40,6 +43,7 @@ AGENT_MODE_OPTION = typer.Option(
 )
 LEARN_OUT_OPTION = typer.Option(..., "--out", help="Write the learned scenario YAML here.")
 FIX_OUT_OPTION = typer.Option(..., "--out", help="Write the generated patch diff here.")
+MCP_REPORT_OPTION = typer.Option(..., "--report", help="Write the MCP audit Markdown report here.")
 
 
 @app.command()
@@ -155,6 +159,17 @@ def compare(baseline_dir: Path, latest_dir: Path) -> None:
             )
     else:
         typer.echo("Scenario regressions: none")
+
+
+@mcp_app.command("audit")
+def mcp_audit(
+    tools_file: Path,
+    out: Path = LEARN_OUT_OPTION,
+    report_path: Path = MCP_REPORT_OPTION,
+) -> None:
+    result = audit_mcp_tools(load_mcp_tools(tools_file), out_path=out, report_path=report_path)
+    typer.echo(f"Wrote {result.scenario_path}")
+    typer.echo(f"Wrote {result.report_path}")
 
 
 def _print_failure_deltas(title: str, deltas: list[FailureDelta]) -> None:

@@ -158,6 +158,22 @@ destructive tools. The generated diff is intentionally conservative: humans
 review it, apply it, and rerun Anvil to compare the repaired agent against the
 baseline.
 
+## MCP Tool Audit
+
+`anvil mcp audit` accepts an exported MCP tool list as JSON or YAML and turns
+tool-description smells into an Anvil scenario suite:
+
+```bash
+uv run anvil mcp audit docs/fixtures/mcp-tools.json \
+  --out scenarios/mcp_tool_safety.yaml \
+  --report reports/mcp-audit.md
+```
+
+The MVP is deliberately static: it audits names, descriptions, and input schemas
+without starting an MCP server. It flags destructive-looking tool names, missing
+verification or approval language, and missing argument descriptions. The output
+is a safety scenario file with policy guardrails plus a Markdown report.
+
 ## Why This Is A System, Not A Prompt
 
 Agent Anvil has:
@@ -174,6 +190,7 @@ Agent Anvil has:
 - reviewable fix-patch generation
 - trace-to-regression learning
 - external-agent JSONL protocol
+- MCP tool schema audit
 - CI-compatible exit codes
 
 ## How It Uses OpenAI APIs

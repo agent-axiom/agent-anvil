@@ -68,6 +68,8 @@ That gives a concrete eval loop:
 - [OpenAI-graded regression trace](docs/openai-graded-regression-trace.json)
 - [Tool-safety report](docs/tool-safety-report.md)
 - [Tool-safety repair plan](docs/tool-safety-repair-plan.md)
+- [MCP tool audit](docs/mcp-audit.md)
+- [Generated MCP safety scenarios](docs/mcp-tool-safety.yaml)
 - [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
 
@@ -183,6 +185,14 @@ uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 
 Agent Anvil executes configured external agent commands. Do not run untrusted
 scenario files or agent commands outside a sandboxed environment.
+
+Audit exported MCP tool schemas before giving them to an agent:
+
+```bash
+uv run anvil mcp audit docs/fixtures/mcp-tools.json \
+  --out scenarios/mcp_tool_safety.yaml \
+  --report reports/mcp-audit.md
+```
 
 Run with Docker:
 

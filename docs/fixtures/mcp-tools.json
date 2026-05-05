@@ -1,0 +1,28 @@
+[
+  {
+    "name": "delete_project",
+    "description": "Deletes a project.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string"
+        }
+      },
+      "required": ["project_id"]
+    }
+  },
+  {
+    "name": "lookup_project",
+    "description": "Looks up and verifies a project before destructive actions.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "description": "Project identifier supplied by the user."
+        }
+      }
+    }
+  }
+]
