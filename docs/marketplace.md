@@ -3,7 +3,7 @@
 Agent Anvil ships as a composite GitHub Action from this repository:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.14
+- uses: agent-axiom/agent-anvil@v0.2.15
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -27,3 +27,8 @@ Before listing it in GitHub Marketplace:
 
 The current repository is already usable as an action by tag. A separate wrapper
 repo is optional polish, not a blocker for the challenge submission.
+
+For CI hardening of MCP servers, use
+[`docs/examples/mcp-harden-workflow.yml`](examples/mcp-harden-workflow.yml). It
+runs `anvil mcp harden` and uploads snapshot, audit, generated scenarios, and
+repair artifacts.

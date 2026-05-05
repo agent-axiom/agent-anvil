@@ -1,0 +1,39 @@
+name: Agent Anvil MCP Harden
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-harden:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Harden MCP tool surface
+        run: |
+          uv run --frozen anvil mcp harden \
+            --command-json '["python", "docs/examples/fake_mcp_server.py"]' \
+            --snapshot-out reports/mcp/mcp-tools.json \
+            --audit-out reports/mcp/mcp_tool_safety.yaml \
+            --audit-report reports/mcp/mcp-audit.md \
+            --repair-out reports/mcp/mcp-repair.md \
+            --offline
+
+      - name: Upload MCP hardening artifacts
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: agent-anvil-mcp-hardening
+          path: reports/mcp/
+          if-no-files-found: error

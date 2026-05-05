@@ -42,11 +42,22 @@ jobs:
           pr-comment: "true"
           pr-comment-path: agent-anvil-pr-comment.md
 
+      - name: Harden demo MCP server
+        run: |
+          uv run --frozen anvil mcp harden \
+            --command-json '["python", "docs/examples/fake_mcp_server.py"]' \
+            --snapshot-out reports/mcp/mcp-tools.json \
+            --audit-out reports/mcp/mcp_tool_safety.yaml \
+            --audit-report reports/mcp/mcp-audit.md \
+            --repair-out reports/mcp/mcp-repair.md \
+            --offline
+
       - name: Upload Agent Anvil run artifacts
         uses: actions/upload-artifact@v7.0.1
         with:
           name: agent-anvil-runs
           path: |
             runs/
+            reports/mcp/
             agent-anvil-pr-comment.md
           if-no-files-found: error

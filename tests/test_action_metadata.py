@@ -117,6 +117,19 @@ def test_agent_anvil_workflow_uses_local_composite_action() -> None:
     )
 
 
+def test_agent_anvil_workflow_runs_mcp_harden_demo() -> None:
+    workflow = yaml.safe_load(Path(".github/workflows/agent-anvil.yml").read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["demo-eval"]["steps"]
+    harden_step = next(step for step in steps if step.get("name") == "Harden demo MCP server")
+    upload_step = next(
+        step for step in steps if step.get("uses") == "actions/upload-artifact@v7.0.1"
+    )
+
+    assert "anvil mcp harden" in harden_step["run"]
+    assert "docs/examples/fake_mcp_server.py" in harden_step["run"]
+    assert "reports/mcp/" in upload_step["with"]["path"]
+
+
 def test_workflows_use_node24_artifact_upload_action() -> None:
     workflow_paths = [
         Path(".github/workflows/ci.yml"),
@@ -252,6 +265,22 @@ def test_mcp_and_marketplace_docs_are_linked() -> None:
     assert "GitHub Marketplace" in Path("docs/marketplace.md").read_text(encoding="utf-8")
 
 
+def test_mcp_harden_example_workflow_is_copy_paste_ready() -> None:
+    workflow_path = Path("docs/examples/mcp-harden-workflow.yml")
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["mcp-harden"]["steps"]
+    harden_step = next(step for step in steps if step.get("name") == "Harden MCP tool surface")
+    upload_step = next(
+        step for step in steps if step.get("uses") == "actions/upload-artifact@v7.0.1"
+    )
+
+    assert "pull_request" in workflow.get("on", workflow.get(True))
+    assert "anvil mcp harden" in harden_step["run"]
+    assert "--command-json" in harden_step["run"]
+    assert upload_step["with"]["name"] == "agent-anvil-mcp-hardening"
+    assert "docs/examples/mcp-harden-workflow.yml" in Path("README.md").read_text(encoding="utf-8")
+
+
 def test_pr_comment_workflow_is_documented_and_wired() -> None:
     workflow = yaml.safe_load(Path(".github/workflows/agent-anvil.yml").read_text(encoding="utf-8"))
     steps = workflow["jobs"]["demo-eval"]["steps"]
@@ -261,11 +290,13 @@ def test_pr_comment_workflow_is_documented_and_wired() -> None:
     )
     assert regression_step["with"]["pr-comment"] == "true"
     assert regression_step["with"]["pr-comment-path"] == "agent-anvil-pr-comment.md"
-    assert any(
-        step.get("with", {}).get("path") == "runs/\nagent-anvil-pr-comment.md\n"
+    upload_path = next(
+        step["with"]["path"]
         for step in steps
         if step.get("uses") == "actions/upload-artifact@v7.0.1"
     )
+    assert "runs/" in upload_path
+    assert "agent-anvil-pr-comment.md" in upload_path
 
 
 def test_pr_comment_example_workflow_is_copy_paste_ready() -> None:
@@ -274,7 +305,7 @@ def test_pr_comment_example_workflow_is_copy_paste_ready() -> None:
     job = workflow["jobs"]["agent-anvil"]["steps"]
 
     assert workflow["permissions"] == {"contents": "read", "pull-requests": "write"}
-    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.14" for step in job)
+    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.15" for step in job)
     action_step = next(step for step in job if step.get("uses", "").startswith("agent-axiom/"))
     assert action_step["with"]["post-pr-comment"] == "true"
     assert "docs/examples/pr-comment-workflow.yml" in Path("README.md").read_text(encoding="utf-8")

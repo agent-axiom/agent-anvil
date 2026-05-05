@@ -312,7 +312,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.14
+- uses: agent-axiom/agent-anvil@v0.2.15
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -321,7 +321,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.14
+- uses: agent-axiom/agent-anvil@v0.2.15
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
@@ -336,6 +336,10 @@ The action writes `agent-anvil-pr-comment.md` when `pr-comment: "true"`. In
 `pull_request` workflows with `pull-requests: write`, `post-pr-comment: "true"`
 publishes the same summary directly to the PR.
 See the copy-paste [PR comment workflow](docs/examples/pr-comment-workflow.yml).
+For MCP servers, see the copy-paste
+[MCP harden workflow](docs/examples/mcp-harden-workflow.yml), which snapshots a
+stdio MCP server, generates safety scenarios, writes an audit report, and uploads
+a repair plan as GitHub Actions artifacts.
 
 ## Why AI Was Necessary
 
