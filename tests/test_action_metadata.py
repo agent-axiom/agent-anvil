@@ -31,6 +31,7 @@ def test_composite_action_exposes_agent_anvil_inputs() -> None:
         "expected-exit-code",
         "github-summary",
         "pr-comment",
+        "post-pr-comment",
         "pr-comment-path",
         "uv-cache",
     }
@@ -54,6 +55,7 @@ def test_composite_action_fails_when_expected_failure_passes(tmp_path: Path) -> 
         .replace("${{ inputs.expected-exit-code }}", "1")
         .replace("${{ inputs.github-summary }}", "false")
         .replace("${{ inputs.pr-comment }}", "false")
+        .replace("${{ inputs.post-pr-comment }}", "false")
         .replace("${{ inputs.pr-comment-path }}", "agent-anvil-pr-comment.md")
     )
     fake_bin = tmp_path / "bin"
@@ -165,8 +167,65 @@ def test_composite_action_can_generate_pr_comment_file() -> None:
     run_step = next(step for step in action["runs"]["steps"] if step["name"] == "Run Agent Anvil")
 
     assert action["inputs"]["pr-comment"]["default"] == "false"
+    assert action["inputs"]["post-pr-comment"]["default"] == "false"
     assert action["inputs"]["pr-comment-path"]["default"] == "agent-anvil-pr-comment.md"
     assert 'anvil pr-comment "$runs_dir/latest" --out "$comment_path"' in run_step["run"]
+    assert 'gh pr comment "$pr_number" --body-file "$comment_path"' in run_step["run"]
+
+
+def test_composite_action_skips_pr_comment_publish_outside_pull_request(tmp_path: Path) -> None:
+    action = yaml.safe_load(Path("action.yml").read_text(encoding="utf-8"))
+    run_step = next(step for step in action["runs"]["steps"] if step["name"] == "Run Agent Anvil")
+    script = (
+        run_step["run"]
+        .replace("${{ inputs.scenario }}", "scenario.yaml")
+        .replace("${{ inputs.runs-dir }}", "runs/action-test")
+        .replace("${{ inputs.offline }}", "true")
+        .replace("${{ inputs.agent-mode }}", "")
+        .replace("${{ inputs.trials }}", "")
+        .replace("${{ inputs.expected-exit-code }}", "0")
+        .replace("${{ inputs.github-summary }}", "false")
+        .replace("${{ inputs.pr-comment }}", "false")
+        .replace("${{ inputs.post-pr-comment }}", "true")
+        .replace("${{ inputs.pr-comment-path }}", "agent-anvil-pr-comment.md")
+        .replace("${{ github.event_name }}", "push")
+        .replace("${{ github.event.pull_request.number }}", "")
+    )
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "$*" == *"pr-comment"* ]]; then\n'
+        "  while [[ $# -gt 0 ]]; do\n"
+        '    if [[ "$1" == "--out" ]]; then\n'
+        "      printf 'comment generated\\n' > \"$2\"\n"
+        "      break\n"
+        "    fi\n"
+        "    shift\n"
+        "  done\n"
+        "fi\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    fake_uv.chmod(0o755)
+
+    completed = subprocess.run(
+        ["bash", "-c", script],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}",
+            "GITHUB_ACTION_PATH": str(tmp_path),
+            "GITHUB_WORKSPACE": str(tmp_path),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0
+    assert "Skipping PR comment publish outside pull_request event." in completed.stdout
 
 
 def test_composite_action_has_marketplace_branding() -> None:
@@ -214,8 +273,9 @@ def test_pr_comment_example_workflow_is_copy_paste_ready() -> None:
     job = workflow["jobs"]["agent-anvil"]["steps"]
 
     assert workflow["permissions"] == {"contents": "read", "pull-requests": "write"}
-    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.4" for step in job)
-    assert any("gh pr comment" in step.get("run", "") for step in job)
+    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.5" for step in job)
+    action_step = next(step for step in job if step.get("uses", "").startswith("agent-axiom/"))
+    assert action_step["with"]["post-pr-comment"] == "true"
     assert "docs/examples/pr-comment-workflow.yml" in Path("README.md").read_text(encoding="utf-8")
 
 

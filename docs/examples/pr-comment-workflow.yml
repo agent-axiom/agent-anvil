@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run Agent Anvil regression eval
-        uses: agent-axiom/agent-anvil@v0.2.4
+        uses: agent-axiom/agent-anvil@v0.2.5
         with:
           scenario: scenarios/refund_agent.yaml
           offline: "true"
@@ -25,8 +25,4 @@ jobs:
           trials: "1"
           expected-exit-code: "1"
           pr-comment: "true"
-
-      - name: Publish Agent Anvil PR comment
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file agent-anvil-pr-comment.md
+          post-pr-comment: "true"

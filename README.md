@@ -285,7 +285,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.4
+- uses: agent-axiom/agent-anvil@v0.2.5
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -294,7 +294,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.4
+- uses: agent-axiom/agent-anvil@v0.2.5
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
@@ -302,10 +302,12 @@ Intentional regression demos can assert the expected failing exit code:
     trials: "1"
     expected-exit-code: "1"
     pr-comment: "true"
+    post-pr-comment: "true"
 ```
 
-The action writes `agent-anvil-pr-comment.md` when `pr-comment: "true"`. You can
-publish that file with `gh pr comment` in workflows that grant write access.
+The action writes `agent-anvil-pr-comment.md` when `pr-comment: "true"`. In
+`pull_request` workflows with `pull-requests: write`, `post-pr-comment: "true"`
+publishes the same summary directly to the PR.
 See the copy-paste [PR comment workflow](docs/examples/pr-comment-workflow.yml).
 
 ## Why AI Was Necessary

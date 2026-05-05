@@ -36,6 +36,10 @@ inputs:
     description: Write PR-ready Markdown for optional gh pr comment publishing.
     required: false
     default: "false"
+  post-pr-comment:
+    description: Publish the generated PR comment with gh pr comment during pull_request workflows.
+    required: false
+    default: "false"
   pr-comment-path:
     description: Path for the generated PR comment Markdown file.
     required: false
@@ -60,6 +64,8 @@ runs:
 
     - name: Run Agent Anvil
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         scenario="${{ inputs.scenario }}"
         runs_dir="${{ inputs.runs-dir }}"
@@ -102,10 +108,23 @@ runs:
           uv run --project "$GITHUB_ACTION_PATH" --frozen anvil summary "$runs_dir/latest" --github >> "$GITHUB_STEP_SUMMARY"
         fi
 
-        if [[ "${{ inputs.pr-comment }}" == "true" ]]; then
+        if [[ "${{ inputs.pr-comment }}" == "true" || "${{ inputs.post-pr-comment }}" == "true" ]]; then
           comment_path="${{ inputs.pr-comment-path }}"
           if [[ "$comment_path" != /* ]]; then
             comment_path="$GITHUB_WORKSPACE/$comment_path"
           fi
           uv run --project "$GITHUB_ACTION_PATH" --frozen anvil pr-comment "$runs_dir/latest" --out "$comment_path"
+        fi
+
+        if [[ "${{ inputs.post-pr-comment }}" == "true" ]]; then
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "Skipping PR comment publish outside pull_request event."
+          else
+            pr_number="${{ github.event.pull_request.number }}"
+            if [[ -z "$pr_number" ]]; then
+              echo "Skipping PR comment publish because pull request number is unavailable."
+            else
+              gh pr comment "$pr_number" --body-file "$comment_path"
+            fi
+          fi
         fi

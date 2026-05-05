@@ -213,8 +213,8 @@ uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
 
 It includes pass rate, top failure cluster, examples, repair hints, and the first
 failing trace path. The composite action can generate this file with
-`pr-comment: "true"`; workflows with repository write permission can publish it
-with `gh pr comment`.
+`pr-comment: "true"`. In `pull_request` workflows with `pull-requests: write`,
+`post-pr-comment: "true"` publishes it directly with `gh pr comment`.
 
 ## Why This Is A System, Not A Prompt
 
@@ -307,7 +307,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.4
+- uses: agent-axiom/agent-anvil@v0.2.5
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
