@@ -61,6 +61,11 @@ FIX_PROMPT_OPTION = typer.Option(None, "--prompt", help="Prompt file to patch in
 FIX_TOOLS_OPTION = typer.Option(None, "--tools", help="Tool definition file to patch in the diff.")
 TRACE_EXPORT_OUT_OPTION = typer.Option(..., "--out", help="Write exported trace JSON here.")
 TRACE_IMPORT_OUT_OPTION = typer.Option(..., "--out", help="Write imported Anvil trace run here.")
+LEARN_JSONL_RUNS_DIR_OPTION = typer.Option(
+    Path("runs/learned"),
+    "--runs-dir",
+    help="Write intermediate traces here when learning from JSONL.",
+)
 FUZZ_OUT_OPTION = typer.Option(..., "--out", help="Write the fuzzed scenario YAML here.")
 FUZZ_MUTATIONS_OPTION = typer.Option(10, "--mutations", min=1, help="Number of mutations.")
 FUZZ_FOCUS_OPTION = typer.Option("tool_safety", "--focus", help="Mutation focus.")
@@ -111,6 +116,7 @@ INGEST_SCENARIO_ID_OPTION = typer.Option(..., "--scenario-id", help="Scenario id
 INGEST_INPUT_OPTION = typer.Option(..., "--input", help="Original user input for the trace.")
 INGEST_OUT_OPTION = typer.Option(..., "--out", help="Write imported run artifacts here.")
 INGEST_TRIAL_OPTION = typer.Option(1, "--trial", min=1, help="Trial number for the trace.")
+LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
 
 @app.command()
@@ -243,16 +249,52 @@ def fix(
 
 @app.command()
 def learn(
-    trace_file: Path,
+    trace_file: str,
+    jsonl_file: Path | None = LEARN_JSONL_FILE_ARGUMENT,
     out: Path = LEARN_OUT_OPTION,
     name: str = typer.Option("learned_regression_suite", "--name", help="Generated suite name."),
     scenario_id: str | None = typer.Option(None, "--scenario-id", help="Generated scenario id."),
+    user_input: str | None = typer.Option(None, "--input", help="Original user input for JSONL."),
+    runs_dir: Path = LEARN_JSONL_RUNS_DIR_OPTION,
 ) -> None:
-    trace = load_trace(trace_file)
+    if trace_file == "jsonl":
+        if jsonl_file is None:
+            typer.echo("JSONL source file is required.", err=True)
+            raise typer.Exit(2)
+        if scenario_id is None:
+            typer.echo("--scenario-id is required when learning from JSONL.", err=True)
+            raise typer.Exit(2)
+        if user_input is None:
+            typer.echo("--input is required when learning from JSONL.", err=True)
+            raise typer.Exit(2)
+        try:
+            imported_trace_path = ingest_jsonl_trace(
+                jsonl_file,
+                out_dir=runs_dir,
+                scenario_id=scenario_id,
+                user_input=user_input,
+            )
+        except ValueError as error:
+            typer.echo(str(error), err=True)
+            raise typer.Exit(1) from error
+        trace = load_trace(imported_trace_path)
+        learned_path = write_learned_scenario(
+            trace,
+            out_path=out,
+            trace_path=imported_trace_path,
+            suite_name=name,
+            scenario_id=scenario_id,
+        )
+        typer.echo(f"Wrote {imported_trace_path}")
+        typer.echo(f"Wrote {learned_path}")
+        return
+
+    trace_path = Path(trace_file)
+    trace = load_trace(trace_path)
     learned_path = write_learned_scenario(
         trace,
         out_path=out,
-        trace_path=trace_file,
+        trace_path=trace_path,
         suite_name=name,
         scenario_id=scenario_id,
     )

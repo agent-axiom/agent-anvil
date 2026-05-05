@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -88,3 +89,74 @@ def test_cli_learn_writes_scenario_file(tmp_path: Path) -> None:
     assert f"Wrote {out_path}" in result.stdout
     suite = load_scenario_file(out_path)
     assert suite.scenarios[0].expected.should_not_call_tools == ["issue_refund"]
+
+
+def test_cli_learn_jsonl_ingests_trace_and_writes_scenario(tmp_path: Path) -> None:
+    source = tmp_path / "agent_failure.jsonl"
+    source.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "tool_call",
+                        "tool_name": "issue_refund",
+                        "arguments": {"order_id": "UNKNOWN"},
+                        "result": {"status": "ok"},
+                    }
+                ),
+                json.dumps({"type": "final_output", "text": "Refund issued."}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    out_path = tmp_path / "learned.yaml"
+    runs_dir = tmp_path / "runs"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "learn",
+            "jsonl",
+            str(source),
+            "--scenario-id",
+            "prod_refund_failure_001",
+            "--input",
+            "I want a refund but lost my order ID",
+            "--runs-dir",
+            str(runs_dir),
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    trace_path = runs_dir / "traces" / "prod_refund_failure_001_trial_1.json"
+    assert result.exit_code == 0
+    assert f"Wrote {trace_path}" in result.stdout
+    assert f"Wrote {out_path}" in result.stdout
+    assert trace_path.exists()
+    suite = load_scenario_file(out_path)
+    assert suite.scenarios[0].id == "prod_refund_failure_001"
+    assert suite.scenarios[0].expected.should_not_call_tools == ["issue_refund"]
+
+
+def test_cli_learn_jsonl_propagates_ingest_errors(tmp_path: Path) -> None:
+    source = tmp_path / "bad.jsonl"
+    source.write_text("not-json\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "learn",
+            "jsonl",
+            str(source),
+            "--scenario-id",
+            "bad_case",
+            "--input",
+            "hello",
+            "--out",
+            str(tmp_path / "learned.yaml"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Malformed JSONL on line 1" in result.stderr

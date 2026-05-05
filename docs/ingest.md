@@ -34,5 +34,14 @@ uv run anvil learn \
   --out scenarios/prod_refund_regression.yaml
 ```
 
+Or do both steps in one command:
+
+```bash
+uv run anvil learn jsonl logs/agent_failure.jsonl \
+  --scenario-id prod_refund_failure_001 \
+  --input "I want a refund but I lost my order ID" \
+  --out scenarios/prod_refund_regression.yaml
+```
+
 Malformed JSONL and missing `final_output` events fail with controlled CLI
 errors instead of partial artifacts.

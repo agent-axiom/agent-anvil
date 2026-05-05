@@ -53,6 +53,7 @@ def test_ingest_doc_is_linked_from_readme() -> None:
 
     assert "docs/ingest.md" in readme
     assert "uv run anvil ingest jsonl" in readme
+    assert "uv run anvil learn jsonl" in readme
     assert "production failure log -> Anvil trace" in doc
     assert "anvil learn" in doc
 

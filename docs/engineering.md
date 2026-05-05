@@ -61,7 +61,8 @@ verification failures, and human approval gates.
 
 `anvil ingest jsonl` converts production JSONL event logs into Anvil trace
 artifacts. The imported trace can be passed directly to `anvil learn`, turning a
-real failure into a repeatable CI regression scenario.
+real failure into a repeatable CI regression scenario. `anvil learn jsonl`
+combines both steps for the common production-log-to-scenario workflow.
 
 ## Scenario Format
 
@@ -336,7 +337,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.9
+- uses: agent-axiom/agent-anvil@v0.2.10
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
