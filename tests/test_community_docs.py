@@ -47,6 +47,16 @@ def test_packs_doc_is_linked_from_readme() -> None:
     assert "--verification-tool" in doc
 
 
+def test_ingest_doc_is_linked_from_readme() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    doc = Path("docs/ingest.md").read_text(encoding="utf-8")
+
+    assert "docs/ingest.md" in readme
+    assert "uv run anvil ingest jsonl" in readme
+    assert "production failure log -> Anvil trace" in doc
+    assert "anvil learn" in doc
+
+
 def test_issue_templates_cover_bug_feature_and_scenario_requests() -> None:
     template_paths = {
         ".github/ISSUE_TEMPLATE/bug_report.yml",

@@ -22,6 +22,7 @@ YAML scenarios
   -> learned regression scenario
   -> generated CI bootstrap
   -> reusable scenario packs
+  -> production trace ingest
 ```
 
 It does not include a hosted dashboard. The output is designed for local
@@ -55,6 +56,12 @@ tool-safety scenario pack.
 `anvil pack list` shows built-in starter packs. `anvil pack add tool-safety`
 writes a reusable suite for destructive-tool preconditions, hallucinated IDs,
 verification failures, and human approval gates.
+
+## Trace Ingest
+
+`anvil ingest jsonl` converts production JSONL event logs into Anvil trace
+artifacts. The imported trace can be passed directly to `anvil learn`, turning a
+real failure into a repeatable CI regression scenario.
 
 ## Scenario Format
 
@@ -257,6 +264,7 @@ Agent Anvil has:
 - PR-ready regression comments
 - project bootstrap with `anvil init`
 - reusable scenario packs
+- production trace ingest
 - CI-compatible exit codes
 
 ## How It Uses OpenAI APIs
@@ -328,7 +336,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.8
+- uses: agent-axiom/agent-anvil@v0.2.9
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

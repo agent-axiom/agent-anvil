@@ -6,6 +6,7 @@ import typer
 
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
+from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools
@@ -28,9 +29,11 @@ app = typer.Typer(help="Agent Anvil CI-first eval harness.")
 mcp_app = typer.Typer(help="Audit MCP tools and generate safety scenarios.")
 trace_app = typer.Typer(help="Import and export trace formats.")
 pack_app = typer.Typer(help="List and add built-in scenario packs.")
+ingest_app = typer.Typer(help="Ingest production agent logs into Anvil traces.")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(trace_app, name="trace")
 app.add_typer(pack_app, name="pack")
+app.add_typer(ingest_app, name="ingest")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -104,6 +107,10 @@ APPROVAL_TOOL_OPTION = typer.Option(
     "--approval-required-tool",
     help="Risky tool that should require human approval. Repeatable.",
 )
+INGEST_SCENARIO_ID_OPTION = typer.Option(..., "--scenario-id", help="Scenario id for the trace.")
+INGEST_INPUT_OPTION = typer.Option(..., "--input", help="Original user input for the trace.")
+INGEST_OUT_OPTION = typer.Option(..., "--out", help="Write imported run artifacts here.")
+INGEST_TRIAL_OPTION = typer.Option(1, "--trial", min=1, help="Trial number for the trace.")
 
 
 @app.command()
@@ -345,6 +352,28 @@ def trace_import(
         raise typer.Exit(2)
     traces = import_openai_trace(source_file, out_dir=out)
     typer.echo(f"Wrote {out / 'traces'} ({len(traces)} traces)")
+
+
+@ingest_app.command("jsonl")
+def ingest_jsonl(
+    source_file: Path,
+    scenario_id: str = INGEST_SCENARIO_ID_OPTION,
+    user_input: str = INGEST_INPUT_OPTION,
+    out: Path = INGEST_OUT_OPTION,
+    trial: int = INGEST_TRIAL_OPTION,
+) -> None:
+    try:
+        trace_path = ingest_jsonl_trace(
+            source_file,
+            out_dir=out,
+            scenario_id=scenario_id,
+            user_input=user_input,
+            trial=trial,
+        )
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"Wrote {trace_path}")
 
 
 def _print_failure_deltas(title: str, deltas: list[FailureDelta]) -> None:
