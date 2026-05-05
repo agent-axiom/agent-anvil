@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
@@ -56,7 +57,12 @@ AGENT_MODE_OPTION = typer.Option(
 LEARN_OUT_OPTION = typer.Option(..., "--out", help="Write the learned scenario YAML here.")
 FIX_OUT_OPTION = typer.Option(..., "--out", help="Write the generated patch diff here.")
 MCP_REPORT_OPTION = typer.Option(..., "--report", help="Write the MCP audit Markdown report here.")
-MCP_COMMAND_OPTION = typer.Option(..., "--command", help="MCP stdio server command to snapshot.")
+MCP_COMMAND_OPTION = typer.Option(None, "--command", help="MCP stdio server command to snapshot.")
+MCP_COMMAND_JSON_OPTION = typer.Option(
+    None,
+    "--command-json",
+    help="JSON array MCP stdio server command to snapshot without shell-like parsing.",
+)
 MCP_SNAPSHOT_OUT_OPTION = typer.Option(..., "--out", help="Write MCP tools snapshot here.")
 MCP_AUDIT_OUT_OPTION = typer.Option(None, "--audit-out", help="Optionally write audit scenarios.")
 MCP_SNAPSHOT_REPORT_OPTION = typer.Option(None, "--report", help="Optionally write audit report.")
@@ -377,14 +383,19 @@ def mcp_audit(
 
 @mcp_app.command("snapshot")
 def mcp_snapshot(
-    command: str = MCP_COMMAND_OPTION,
+    command: str | None = MCP_COMMAND_OPTION,
+    command_json: str | None = MCP_COMMAND_JSON_OPTION,
     out: Path = MCP_SNAPSHOT_OUT_OPTION,
     audit_out: Path | None = MCP_AUDIT_OUT_OPTION,
     report_path: Path | None = MCP_SNAPSHOT_REPORT_OPTION,
     timeout_seconds: float = MCP_TIMEOUT_OPTION,
 ) -> None:
     try:
-        tools = snapshot_mcp_tools(command, out_path=out, timeout_seconds=timeout_seconds)
+        tools = snapshot_mcp_tools(
+            _select_mcp_command(command, command_json),
+            out_path=out,
+            timeout_seconds=timeout_seconds,
+        )
         typer.echo(f"Wrote {out}")
         if audit_out is not None:
             if report_path is None:
@@ -396,6 +407,24 @@ def mcp_snapshot(
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
+
+
+def _select_mcp_command(command: str | None, command_json: str | None) -> str | list[str]:
+    if command and command_json:
+        raise ValueError("Use either --command or --command-json, not both.")
+    if command_json:
+        try:
+            payload = json.loads(command_json)
+        except json.JSONDecodeError as error:
+            raise ValueError(f"--command-json must be a JSON array: {error.msg}") from error
+        if not isinstance(payload, list) or not payload:
+            raise ValueError("--command-json must be a non-empty JSON array.")
+        if not all(isinstance(part, str) and part for part in payload):
+            raise ValueError("--command-json entries must be non-empty strings.")
+        return payload
+    if command:
+        return command
+    raise ValueError("Either --command or --command-json is required.")
 
 
 @trace_app.command("export")

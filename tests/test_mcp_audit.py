@@ -82,7 +82,18 @@ def test_snapshot_mcp_tools_writes_tools_from_stdio_server(tmp_path: Path) -> No
 
     assert tools[0]["name"] == "delete_project"
     payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["source"]["command"][0] == sys.executable
+    assert payload["mcp"]["protocolVersion"] == "2024-11-05"
     assert payload["tools"][0]["name"] == "delete_project"
+
+
+def test_snapshot_mcp_tools_accepts_command_argv(tmp_path: Path) -> None:
+    server = _write_fake_mcp_server(tmp_path)
+    out = tmp_path / "mcp-tools.json"
+
+    tools = snapshot_mcp_tools([sys.executable, str(server)], out_path=out)
+
+    assert tools[0]["name"] == "delete_project"
 
 
 def test_cli_mcp_snapshot_can_audit_snapshot(tmp_path: Path) -> None:
@@ -112,6 +123,90 @@ def test_cli_mcp_snapshot_can_audit_snapshot(tmp_path: Path) -> None:
     assert f"Wrote {scenario}" in result.stdout
     assert f"Wrote {report}" in result.stdout
     assert load_scenario_file(scenario).policies.destructive_tools == ["delete_project"]
+
+
+def test_cli_mcp_snapshot_accepts_command_json(tmp_path: Path) -> None:
+    server = _write_fake_mcp_server(tmp_path)
+    snapshot = tmp_path / "mcp-tools.json"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "mcp",
+            "snapshot",
+            "--command-json",
+            json.dumps([sys.executable, str(server)]),
+            "--out",
+            str(snapshot),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert json.loads(snapshot.read_text(encoding="utf-8"))["tools"][0]["name"] == "delete_project"
+
+
+def test_cli_mcp_snapshot_reports_timeout(tmp_path: Path) -> None:
+    server = tmp_path / "hanging_mcp.py"
+    server.write_text("import time\ntime.sleep(30)\n", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "mcp",
+            "snapshot",
+            "--command-json",
+            json.dumps([sys.executable, str(server)]),
+            "--out",
+            str(tmp_path / "snapshot.json"),
+            "--timeout",
+            "0.1",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Timed out waiting for MCP response" in result.stderr
+
+
+def test_cli_mcp_snapshot_reports_malformed_response(tmp_path: Path) -> None:
+    server = tmp_path / "bad_mcp.py"
+    server.write_text(
+        "import sys\n"
+        "sys.stdout.buffer.write(b'Content-Length: 8\\r\\n\\r\\nnot-json')\n"
+        "sys.stdout.buffer.flush()\n",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "mcp",
+            "snapshot",
+            "--command-json",
+            json.dumps([sys.executable, str(server)]),
+            "--out",
+            str(tmp_path / "snapshot.json"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Invalid MCP JSON response" in result.stderr
+
+
+def test_cli_mcp_snapshot_reports_command_start_failure(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "mcp",
+            "snapshot",
+            "--command-json",
+            json.dumps(["/definitely/missing/mcp-server"]),
+            "--out",
+            str(tmp_path / "snapshot.json"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Failed to start MCP command" in result.stderr
 
 
 def _write_fake_mcp_server(tmp_path: Path) -> Path:

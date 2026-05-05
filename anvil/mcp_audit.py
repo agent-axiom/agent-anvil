@@ -6,6 +6,7 @@ import select
 import shlex
 import subprocess
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ RISKY_TOOL_PREFIXES = (
     "update",
 )
 PRECONDITION_WORDS = ("before", "after", "verify", "verified", "confirm", "approval", "only")
+McpCommand = str | list[str]
 
 
 class _NoAliasDumper(SafeDumper):
@@ -61,15 +63,29 @@ def load_mcp_tools(path: str | Path) -> list[dict[str, Any]]:
 
 
 def snapshot_mcp_tools(
-    command: str,
+    command: McpCommand,
     *,
     out_path: str | Path,
     timeout_seconds: float = 10.0,
 ) -> list[dict[str, Any]]:
-    tools = _list_mcp_tools(command, timeout_seconds=timeout_seconds)
+    argv = _command_argv(command)
+    tools, metadata = _list_mcp_tools(argv, timeout_seconds=timeout_seconds)
     selected_out_path = Path(out_path)
     selected_out_path.parent.mkdir(parents=True, exist_ok=True)
-    selected_out_path.write_text(json.dumps({"tools": tools}, indent=2), encoding="utf-8")
+    selected_out_path.write_text(
+        json.dumps(
+            {
+                "source": {
+                    "command": argv,
+                    "captured_at": datetime.now(UTC).isoformat(),
+                },
+                "mcp": metadata,
+                "tools": tools,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     return tools
 
 
@@ -89,10 +105,21 @@ def audit_mcp_tools(
     )
 
 
-def _list_mcp_tools(command: str, *, timeout_seconds: float) -> list[dict[str, Any]]:
+def _command_argv(command: McpCommand) -> list[str]:
+    argv = shlex.split(command) if isinstance(command, str) else [str(part) for part in command]
+    if not argv:
+        raise ValueError("MCP command cannot be empty")
+    return argv
+
+
+def _list_mcp_tools(
+    command: list[str],
+    *,
+    timeout_seconds: float,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     try:
         process = subprocess.Popen(
-            shlex.split(command),
+            command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -113,7 +140,7 @@ def _list_mcp_tools(command: str, *, timeout_seconds: float) -> list[dict[str, A
                 },
             },
         )
-        _read_mcp_response(process, timeout_seconds=timeout_seconds)
+        initialize_response = _read_mcp_response(process, timeout_seconds=timeout_seconds)
         _write_mcp_message(
             process,
             {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
@@ -130,12 +157,23 @@ def _list_mcp_tools(command: str, *, timeout_seconds: float) -> list[dict[str, A
         except subprocess.TimeoutExpired:
             process.kill()
 
+    if "error" in initialize_response:
+        raise ValueError(f"MCP initialize failed: {initialize_response['error']}")
+    initialize_result = initialize_response.get("result")
+    if not isinstance(initialize_result, dict):
+        raise ValueError("MCP initialize response did not include a result object")
+    protocol_version = initialize_result.get("protocolVersion")
+    if not isinstance(protocol_version, str):
+        protocol_version = ""
+
     if "error" in response:
         raise ValueError(f"MCP tools/list failed: {response['error']}")
     result = response.get("result")
     if not isinstance(result, dict) or not isinstance(result.get("tools"), list):
         raise ValueError("MCP tools/list response did not include a tools list")
-    return [tool for tool in result["tools"] if isinstance(tool, dict)]
+    return [tool for tool in result["tools"] if isinstance(tool, dict)], {
+        "protocolVersion": protocol_version
+    }
 
 
 def _write_mcp_message(process: subprocess.Popen[bytes], payload: dict[str, Any]) -> None:
@@ -166,12 +204,24 @@ def _read_mcp_response(
             raise ValueError(f"MCP process closed stdout. stderr: {_read_stderr(process)}")
         if line == b"\r\n":
             break
+        if b":" not in line:
+            raise ValueError("Invalid MCP response header")
         key, value = line.decode("ascii").strip().split(":", 1)
         headers[key.lower()] = value.strip()
-    content_length = int(headers.get("content-length", "0"))
+    try:
+        content_length = int(headers.get("content-length", "0"))
+    except ValueError as error:
+        raise ValueError("Invalid MCP Content-Length") from error
     if content_length <= 0:
         raise ValueError("MCP response missing Content-Length")
-    return json.loads(process.stdout.read(content_length))
+    body = process.stdout.read(content_length)
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"Invalid MCP JSON response: {error.msg}") from error
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid MCP JSON response: expected object")
+    return payload
 
 
 def _read_stderr(process: subprocess.Popen[bytes]) -> str:
