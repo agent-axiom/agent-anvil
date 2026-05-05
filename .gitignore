@@ -3,6 +3,7 @@
 .ruff_cache/
 .ty/
 .venv/
+.worktrees
 .env
 !.env.example
 __pycache__/
