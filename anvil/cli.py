@@ -18,10 +18,13 @@ from anvil.runner import (
 )
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
+from anvil.trace_bridge import export_openai_trace, import_openai_trace
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
 mcp_app = typer.Typer(help="Audit MCP tools and generate safety scenarios.")
+trace_app = typer.Typer(help="Import and export trace formats.")
 app.add_typer(mcp_app, name="mcp")
+app.add_typer(trace_app, name="trace")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -44,6 +47,11 @@ AGENT_MODE_OPTION = typer.Option(
 LEARN_OUT_OPTION = typer.Option(..., "--out", help="Write the learned scenario YAML here.")
 FIX_OUT_OPTION = typer.Option(..., "--out", help="Write the generated patch diff here.")
 MCP_REPORT_OPTION = typer.Option(..., "--report", help="Write the MCP audit Markdown report here.")
+TRACE_FORMAT_OPTION = typer.Option("openai-trace", "--format", help="Trace format.")
+FIX_PROMPT_OPTION = typer.Option(None, "--prompt", help="Prompt file to patch in the diff.")
+FIX_TOOLS_OPTION = typer.Option(None, "--tools", help="Tool definition file to patch in the diff.")
+TRACE_EXPORT_OUT_OPTION = typer.Option(..., "--out", help="Write exported trace JSON here.")
+TRACE_IMPORT_OUT_OPTION = typer.Option(..., "--out", help="Write imported Anvil trace run here.")
 
 
 @app.command()
@@ -100,8 +108,8 @@ def repair(run_dir: Path) -> None:
 def fix(
     run_dir: Path,
     out: Path = FIX_OUT_OPTION,
-    prompt: Path | None = typer.Option(None, "--prompt", help="Prompt file to patch in the diff."),
-    tools: Path | None = typer.Option(None, "--tools", help="Tool definition file to patch in the diff."),
+    prompt: Path | None = FIX_PROMPT_OPTION,
+    tools: Path | None = FIX_TOOLS_OPTION,
 ) -> None:
     patch_path = generate_fix_patch(run_dir, prompt_path=prompt, tools_path=tools, out_path=out)
     typer.echo(f"Wrote {patch_path}")
@@ -170,6 +178,32 @@ def mcp_audit(
     result = audit_mcp_tools(load_mcp_tools(tools_file), out_path=out, report_path=report_path)
     typer.echo(f"Wrote {result.scenario_path}")
     typer.echo(f"Wrote {result.report_path}")
+
+
+@trace_app.command("export")
+def trace_export(
+    run_dir: Path,
+    out: Path = TRACE_EXPORT_OUT_OPTION,
+    trace_format: str = TRACE_FORMAT_OPTION,
+) -> None:
+    if trace_format != "openai-trace":
+        typer.echo("Only --format openai-trace is supported.", err=True)
+        raise typer.Exit(2)
+    output_path = export_openai_trace(run_dir, out_path=out)
+    typer.echo(f"Wrote {output_path}")
+
+
+@trace_app.command("import")
+def trace_import(
+    source_file: Path,
+    out: Path = TRACE_IMPORT_OUT_OPTION,
+    trace_format: str = TRACE_FORMAT_OPTION,
+) -> None:
+    if trace_format != "openai-trace":
+        typer.echo("Only --format openai-trace is supported.", err=True)
+        raise typer.Exit(2)
+    traces = import_openai_trace(source_file, out_dir=out)
+    typer.echo(f"Wrote {out / 'traces'} ({len(traces)} traces)")
 
 
 def _print_failure_deltas(title: str, deltas: list[FailureDelta]) -> None:

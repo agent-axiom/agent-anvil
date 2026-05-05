@@ -194,6 +194,13 @@ uv run anvil mcp audit docs/fixtures/mcp-tools.json \
   --report reports/mcp-audit.md
 ```
 
+Bridge Anvil traces to an OpenAI-style trace JSON shape:
+
+```bash
+uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json
+uv run anvil trace import traces/openai-trace.json --format openai-trace --out runs/imported
+```
+
 Run with Docker:
 
 ```bash
@@ -220,6 +227,7 @@ uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
   --out scenarios/learned_refund_regression.yaml
 uv run anvil summary runs/latest --github
 uv run anvil compare runs/baseline runs/latest
+uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json
 ```
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent

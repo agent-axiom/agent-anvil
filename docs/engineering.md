@@ -174,6 +174,20 @@ without starting an MCP server. It flags destructive-looking tool names, missing
 verification or approval language, and missing argument descriptions. The output
 is a safety scenario file with policy guardrails plus a Markdown report.
 
+## OpenAI Trace Bridge
+
+Agent Anvil can export local traces into an OpenAI-style trace JSON shape and
+import that shape back into Anvil trace artifacts:
+
+```bash
+uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json
+uv run anvil trace import traces/openai-trace.json --format openai-trace --out runs/imported
+```
+
+The bridge maps Anvil `model_call` steps to `generation` events and `tool_call`
+steps to `tool_call` events. It is intentionally semantic rather than a claim
+of byte-for-byte compatibility with any hosted trace export format.
+
 ## Why This Is A System, Not A Prompt
 
 Agent Anvil has:
@@ -191,6 +205,7 @@ Agent Anvil has:
 - trace-to-regression learning
 - external-agent JSONL protocol
 - MCP tool schema audit
+- OpenAI-style trace import/export
 - CI-compatible exit codes
 
 ## How It Uses OpenAI APIs
