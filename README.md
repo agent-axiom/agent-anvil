@@ -38,6 +38,12 @@ Agent Anvil turns unsafe traces into a repeatable improvement loop:
 run -> repair -> fix -> learn -> CI
 ```
 
+One-command demo:
+
+```bash
+./scripts/demo.sh
+```
+
 ```bash
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
 uv run anvil repair runs/latest
@@ -278,7 +284,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.2
+- uses: agent-axiom/agent-anvil@v0.2.3
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -287,7 +293,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.2
+- uses: agent-axiom/agent-anvil@v0.2.3
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

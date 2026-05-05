@@ -214,7 +214,7 @@ def test_pr_comment_example_workflow_is_copy_paste_ready() -> None:
     job = workflow["jobs"]["agent-anvil"]["steps"]
 
     assert workflow["permissions"] == {"contents": "read", "pull-requests": "write"}
-    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.2" for step in job)
+    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.3" for step in job)
     assert any("gh pr comment" in step.get("run", "") for step in job)
     assert "docs/examples/pr-comment-workflow.yml" in Path("README.md").read_text(encoding="utf-8")
 
