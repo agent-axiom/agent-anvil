@@ -4,6 +4,7 @@ from pathlib import Path
 
 import typer
 
+from anvil.learning import load_trace, write_learned_scenario
 from anvil.repair import generate_repair_plan
 from anvil.runner import (
     FailureDelta,
@@ -36,6 +37,7 @@ AGENT_MODE_OPTION = typer.Option(
     "--agent-mode",
     help="Agent execution mode for demo agents: offline, openai, or auto.",
 )
+LEARN_OUT_OPTION = typer.Option(..., "--out", help="Write the learned scenario YAML here.")
 
 
 @app.command()
@@ -86,6 +88,24 @@ def report(run_dir: Path) -> None:
 def repair(run_dir: Path) -> None:
     repair_path = generate_repair_plan(run_dir)
     typer.echo(f"Wrote {repair_path}")
+
+
+@app.command()
+def learn(
+    trace_file: Path,
+    out: Path = LEARN_OUT_OPTION,
+    name: str = typer.Option("learned_regression_suite", "--name", help="Generated suite name."),
+    scenario_id: str | None = typer.Option(None, "--scenario-id", help="Generated scenario id."),
+) -> None:
+    trace = load_trace(trace_file)
+    learned_path = write_learned_scenario(
+        trace,
+        out_path=out,
+        trace_path=trace_file,
+        suite_name=name,
+        scenario_id=scenario_id,
+    )
+    typer.echo(f"Wrote {learned_path}")
 
 
 @app.command()

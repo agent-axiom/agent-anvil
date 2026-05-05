@@ -24,6 +24,14 @@ class ExpectedBehavior(BaseModel):
     success_criteria: list[str] = Field(default_factory=list)
 
 
+class LearnedFrom(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    trace_path: str = Field(min_length=1)
+    failure_type: str = Field(min_length=1)
+    rationale: str = Field(min_length=1)
+
+
 class ScenarioCase(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
@@ -32,6 +40,7 @@ class ScenarioCase(BaseModel):
     expected: ExpectedBehavior = Field(default_factory=ExpectedBehavior)
     trial_count: int | None = Field(default=None, alias="trials", ge=1)
     max_step_count: int | None = Field(default=None, alias="max_steps", ge=1)
+    learned_from: LearnedFrom | None = None
 
     def trials(self, defaults: ScenarioDefaults) -> int:
         return self.trial_count or defaults.trials
