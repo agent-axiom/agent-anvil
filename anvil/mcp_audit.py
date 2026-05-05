@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+import os
+import select
+import shlex
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -55,6 +60,19 @@ def load_mcp_tools(path: str | Path) -> list[dict[str, Any]]:
     raise ValueError("MCP tools file must be a JSON/YAML list or an object with a tools list")
 
 
+def snapshot_mcp_tools(
+    command: str,
+    *,
+    out_path: str | Path,
+    timeout_seconds: float = 10.0,
+) -> list[dict[str, Any]]:
+    tools = _list_mcp_tools(command, timeout_seconds=timeout_seconds)
+    selected_out_path = Path(out_path)
+    selected_out_path.parent.mkdir(parents=True, exist_ok=True)
+    selected_out_path.write_text(json.dumps({"tools": tools}, indent=2), encoding="utf-8")
+    return tools
+
+
 def audit_mcp_tools(
     tools: list[dict[str, Any]],
     *,
@@ -69,6 +87,103 @@ def audit_mcp_tools(
         scenario_path=scenario_path,
         report_path=selected_report_path,
     )
+
+
+def _list_mcp_tools(command: str, *, timeout_seconds: float) -> list[dict[str, Any]]:
+    try:
+        process = subprocess.Popen(
+            shlex.split(command),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as error:
+        raise ValueError(f"Failed to start MCP command: {error}") from error
+    try:
+        _write_mcp_message(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "agent-anvil", "version": "0"},
+                },
+            },
+        )
+        _read_mcp_response(process, timeout_seconds=timeout_seconds)
+        _write_mcp_message(
+            process,
+            {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        )
+        _write_mcp_message(
+            process,
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+        )
+        response = _read_mcp_response(process, timeout_seconds=timeout_seconds)
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+    if "error" in response:
+        raise ValueError(f"MCP tools/list failed: {response['error']}")
+    result = response.get("result")
+    if not isinstance(result, dict) or not isinstance(result.get("tools"), list):
+        raise ValueError("MCP tools/list response did not include a tools list")
+    return [tool for tool in result["tools"] if isinstance(tool, dict)]
+
+
+def _write_mcp_message(process: subprocess.Popen[bytes], payload: dict[str, Any]) -> None:
+    if process.stdin is None:
+        raise ValueError("MCP process stdin is unavailable")
+    body = json.dumps(payload).encode("utf-8")
+    process.stdin.write(f"Content-Length: {len(body)}\r\n\r\n".encode("ascii"))
+    process.stdin.write(body)
+    process.stdin.flush()
+
+
+def _read_mcp_response(
+    process: subprocess.Popen[bytes],
+    *,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    if process.stdout is None:
+        raise ValueError("MCP process stdout is unavailable")
+    stdout_fd = process.stdout.fileno()
+    if not select.select([stdout_fd], [], [], timeout_seconds)[0]:
+        stderr = _read_stderr(process)
+        raise ValueError(f"Timed out waiting for MCP response. stderr: {stderr}")
+
+    headers: dict[str, str] = {}
+    while True:
+        line = process.stdout.readline()
+        if not line:
+            raise ValueError(f"MCP process closed stdout. stderr: {_read_stderr(process)}")
+        if line == b"\r\n":
+            break
+        key, value = line.decode("ascii").strip().split(":", 1)
+        headers[key.lower()] = value.strip()
+    content_length = int(headers.get("content-length", "0"))
+    if content_length <= 0:
+        raise ValueError("MCP response missing Content-Length")
+    return json.loads(process.stdout.read(content_length))
+
+
+def _read_stderr(process: subprocess.Popen[bytes]) -> str:
+    if process.stderr is None:
+        return ""
+    stderr_fd = process.stderr.fileno()
+    if not select.select([stderr_fd], [], [], 0)[0]:
+        return ""
+    try:
+        return os.read(stderr_fd, 8192).decode("utf-8", errors="replace")
+    except OSError:
+        return ""
 
 
 def _findings(tools: list[dict[str, Any]]) -> list[ToolAuditFinding]:

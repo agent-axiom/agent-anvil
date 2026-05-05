@@ -9,7 +9,7 @@ from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.learning import load_trace, write_learned_scenario
-from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools
+from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools, snapshot_mcp_tools
 from anvil.packs import DEFAULT_PACK_OUT, list_packs, write_pack
 from anvil.pr_comment import write_pr_comment
 from anvil.repair import generate_repair_plan
@@ -56,6 +56,11 @@ AGENT_MODE_OPTION = typer.Option(
 LEARN_OUT_OPTION = typer.Option(..., "--out", help="Write the learned scenario YAML here.")
 FIX_OUT_OPTION = typer.Option(..., "--out", help="Write the generated patch diff here.")
 MCP_REPORT_OPTION = typer.Option(..., "--report", help="Write the MCP audit Markdown report here.")
+MCP_COMMAND_OPTION = typer.Option(..., "--command", help="MCP stdio server command to snapshot.")
+MCP_SNAPSHOT_OUT_OPTION = typer.Option(..., "--out", help="Write MCP tools snapshot here.")
+MCP_AUDIT_OUT_OPTION = typer.Option(None, "--audit-out", help="Optionally write audit scenarios.")
+MCP_SNAPSHOT_REPORT_OPTION = typer.Option(None, "--report", help="Optionally write audit report.")
+MCP_TIMEOUT_OPTION = typer.Option(10.0, "--timeout", min=0.1, help="MCP response timeout seconds.")
 TRACE_FORMAT_OPTION = typer.Option("openai-trace", "--format", help="Trace format.")
 FIX_PROMPT_OPTION = typer.Option(None, "--prompt", help="Prompt file to patch in the diff.")
 FIX_TOOLS_OPTION = typer.Option(None, "--tools", help="Tool definition file to patch in the diff.")
@@ -368,6 +373,29 @@ def mcp_audit(
     result = audit_mcp_tools(load_mcp_tools(tools_file), out_path=out, report_path=report_path)
     typer.echo(f"Wrote {result.scenario_path}")
     typer.echo(f"Wrote {result.report_path}")
+
+
+@mcp_app.command("snapshot")
+def mcp_snapshot(
+    command: str = MCP_COMMAND_OPTION,
+    out: Path = MCP_SNAPSHOT_OUT_OPTION,
+    audit_out: Path | None = MCP_AUDIT_OUT_OPTION,
+    report_path: Path | None = MCP_SNAPSHOT_REPORT_OPTION,
+    timeout_seconds: float = MCP_TIMEOUT_OPTION,
+) -> None:
+    try:
+        tools = snapshot_mcp_tools(command, out_path=out, timeout_seconds=timeout_seconds)
+        typer.echo(f"Wrote {out}")
+        if audit_out is not None:
+            if report_path is None:
+                typer.echo("--report is required when --audit-out is provided.", err=True)
+                raise typer.Exit(2)
+            result = audit_mcp_tools(tools, out_path=audit_out, report_path=report_path)
+            typer.echo(f"Wrote {result.scenario_path}")
+            typer.echo(f"Wrote {result.report_path}")
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
 
 
 @trace_app.command("export")

@@ -248,6 +248,7 @@ def test_mcp_and_marketplace_docs_are_linked() -> None:
     assert "docs/mcp.md" in readme
     assert "docs/marketplace.md" in readme
     assert "MCP Tool Audit" in Path("docs/mcp.md").read_text(encoding="utf-8")
+    assert "anvil mcp snapshot" in Path("docs/mcp.md").read_text(encoding="utf-8")
     assert "GitHub Marketplace" in Path("docs/marketplace.md").read_text(encoding="utf-8")
 
 
@@ -273,7 +274,7 @@ def test_pr_comment_example_workflow_is_copy_paste_ready() -> None:
     job = workflow["jobs"]["agent-anvil"]["steps"]
 
     assert workflow["permissions"] == {"contents": "read", "pull-requests": "write"}
-    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.10" for step in job)
+    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.11" for step in job)
     action_step = next(step for step in job if step.get("uses", "").startswith("agent-axiom/"))
     assert action_step["with"]["post-pr-comment"] == "true"
     assert "docs/examples/pr-comment-workflow.yml" in Path("README.md").read_text(encoding="utf-8")

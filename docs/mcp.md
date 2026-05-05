@@ -3,6 +3,18 @@
 Agent Anvil can statically audit exported MCP tool schemas before those tools
 are handed to an agent.
 
+Snapshot a live stdio MCP server and audit the captured tool schemas:
+
+```bash
+uv run anvil mcp snapshot \
+  --command "python my_mcp_server.py" \
+  --out reports/mcp-tools.json \
+  --audit-out scenarios/mcp_tool_safety.yaml \
+  --report reports/mcp-audit.md
+```
+
+Or audit an existing exported tool schema file:
+
 ```bash
 uv run anvil mcp audit docs/fixtures/mcp-tools.json \
   --out scenarios/mcp_tool_safety.yaml \
@@ -55,5 +67,7 @@ It flags:
 The generated scenario suite includes `policies` so risky tools fail
 deterministically when called without approval or verified preconditions.
 
-This is intentionally static for now. It does not start arbitrary MCP servers,
-which keeps the audit safe to run in CI and easy to review.
+`mcp snapshot` starts the configured stdio command, sends `initialize` and
+`tools/list`, saves the returned tool list, and then exits the process. Treat MCP
+commands like other local executable commands: run only servers you trust or
+execute them in a sandbox.
