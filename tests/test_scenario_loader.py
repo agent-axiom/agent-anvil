@@ -70,6 +70,39 @@ scenarios:
     assert suite.agent.env == {"AGENT_MODE": "test"}
 
 
+def test_load_scenario_file_accepts_tool_safety_policies(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "policy.yaml"
+    scenario_file.write_text(
+        """
+name: policy_suite
+agent: examples.support_agent
+policies:
+  destructive_tools:
+    - issue_refund
+  require_before:
+    issue_refund:
+      - tool: lookup_order
+        result:
+          eligible_for_refund: true
+  require_human_approval:
+    - delete_project
+scenarios:
+  - id: smoke
+    input: "refund ORD-123"
+""",
+        encoding="utf-8",
+    )
+
+    suite = load_scenario_file(scenario_file)
+
+    assert suite.policies.destructive_tools == ["issue_refund"]
+    assert suite.policies.require_before["issue_refund"][0].tool == "lookup_order"
+    assert suite.policies.require_before["issue_refund"][0].result == {
+        "eligible_for_refund": True
+    }
+    assert suite.policies.require_human_approval == ["delete_project"]
+
+
 @pytest.mark.parametrize(
     ("payload", "field"),
     [

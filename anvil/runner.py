@@ -109,7 +109,12 @@ def run_suite(
                 agent_mode=selected_agent_mode,
             )
             trace_path = write_trace(run_dir, trace)
-            deterministic = deterministic_grade_trace(scenario, trace, suite.defaults)
+            deterministic = deterministic_grade_trace(
+                scenario,
+                trace,
+                suite.defaults,
+                policies=suite.policies,
+            )
             semantic = grader.grade(scenario, trace)
             passed = deterministic.passed and semantic.passed
             grades.append(

@@ -32,6 +32,21 @@ class LearnedFrom(BaseModel):
     rationale: str = Field(min_length=1)
 
 
+class ToolPrecondition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tool: str = Field(min_length=1)
+    result: dict[str, Any] = Field(default_factory=dict)
+
+
+class PolicyConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    destructive_tools: list[str] = Field(default_factory=list)
+    require_before: dict[str, list[ToolPrecondition]] = Field(default_factory=dict)
+    require_human_approval: list[str] = Field(default_factory=list)
+
+
 class ScenarioCase(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
@@ -68,6 +83,7 @@ class ScenarioSuite(BaseModel):
     name: str = Field(min_length=1)
     agent: AgentConfig
     defaults: ScenarioDefaults = Field(default_factory=ScenarioDefaults)
+    policies: PolicyConfig = Field(default_factory=PolicyConfig)
     scenarios: list[ScenarioCase] = Field(min_length=1)
 
     @field_validator("agent")

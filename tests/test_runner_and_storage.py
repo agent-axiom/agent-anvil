@@ -73,6 +73,5 @@ def test_tool_safety_suite_catches_generic_agent_failures(tmp_path: Path) -> Non
     assert result.pass_rate == 0.0
     assert {cluster.name for cluster in result.clusters} == {
         "premature_tool_execution",
-        "required_tool_args_matched",
-        "max_steps_not_exceeded",
+        "tool_policy_satisfied",
     }

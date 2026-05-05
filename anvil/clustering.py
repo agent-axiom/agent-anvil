@@ -14,6 +14,7 @@ DETERMINISTIC_SEVERITY = {
     DeterministicCheck.EXPECTED_TOOLS_CALLED: "medium",
     DeterministicCheck.MAX_STEPS_NOT_EXCEEDED: "medium",
     DeterministicCheck.CLARIFYING_QUESTION_ASKED: "medium",
+    DeterministicCheck.TOOL_POLICY_SATISFIED: "high",
 }
 
 DETERMINISTIC_REPAIR_PREFIX = {
@@ -31,6 +32,9 @@ DETERMINISTIC_REPAIR_PREFIX = {
     DeterministicCheck.FINAL_OUTPUT_EXISTS: "Ensure the agent produces a final response",
     DeterministicCheck.CLARIFYING_QUESTION_ASKED: (
         "Ask for missing identity or lookup information before proceeding"
+    ),
+    DeterministicCheck.TOOL_POLICY_SATISFIED: (
+        "Add policy guardrails for destructive or approval-gated tool calls"
     ),
 }
 

@@ -79,8 +79,10 @@ flowchart LR
     B --> C["Demo or external agent"]
     C --> D["Trace recorder"]
     D --> E["Deterministic checks"]
+    D --> P["Policy guardrails"]
     D --> F["OpenAI semantic grader"]
     E --> G["Failure clustering"]
+    P --> G
     F --> G
     G --> H["Markdown + JSON report"]
     G --> I["Repair plan"]
@@ -133,6 +135,19 @@ Run a domain-neutral tool safety suite:
 
 ```bash
 uv run anvil run scenarios/tool_safety.yaml --offline --trials 1 || true
+```
+
+Scenarios can include policy guardrails for risky tools:
+
+```yaml
+policies:
+  destructive_tools:
+    - issue_refund
+  require_before:
+    issue_refund:
+      - tool: lookup_order
+        result:
+          eligible_for_refund: true
 ```
 
 `anvil run` prints a compact terminal report with scenario results, the top
