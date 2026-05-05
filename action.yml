@@ -29,6 +29,14 @@ inputs:
     description: Append a Markdown run summary to GITHUB_STEP_SUMMARY.
     required: false
     default: "true"
+  pr-comment:
+    description: Write PR-ready Markdown for optional gh pr comment publishing.
+    required: false
+    default: "false"
+  pr-comment-path:
+    description: Path for the generated PR comment Markdown file.
+    required: false
+    default: agent-anvil-pr-comment.md
   python-version:
     description: Python version used by uv for running Agent Anvil.
     required: false
@@ -89,4 +97,12 @@ runs:
 
         if [[ "${{ inputs.github-summary }}" == "true" && -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
           uv run --project "$GITHUB_ACTION_PATH" --frozen anvil summary "$runs_dir/latest" --github >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        if [[ "${{ inputs.pr-comment }}" == "true" ]]; then
+          comment_path="${{ inputs.pr-comment-path }}"
+          if [[ "$comment_path" != /* ]]; then
+            comment_path="$GITHUB_WORKSPACE/$comment_path"
+          fi
+          uv run --project "$GITHUB_ACTION_PATH" --frozen anvil pr-comment "$runs_dir/latest" --out "$comment_path"
         fi

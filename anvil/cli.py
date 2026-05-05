@@ -8,6 +8,7 @@ from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools
+from anvil.pr_comment import write_pr_comment
 from anvil.repair import generate_repair_plan
 from anvil.runner import (
     FailureDelta,
@@ -56,6 +57,7 @@ TRACE_IMPORT_OUT_OPTION = typer.Option(..., "--out", help="Write imported Anvil 
 FUZZ_OUT_OPTION = typer.Option(..., "--out", help="Write the fuzzed scenario YAML here.")
 FUZZ_MUTATIONS_OPTION = typer.Option(10, "--mutations", min=1, help="Number of mutations.")
 FUZZ_FOCUS_OPTION = typer.Option("tool_safety", "--focus", help="Mutation focus.")
+PR_COMMENT_OUT_OPTION = typer.Option(..., "--out", help="Write PR-ready Markdown here.")
 
 
 @app.command()
@@ -142,6 +144,12 @@ def summary(run_dir: Path, github: bool = GITHUB_SUMMARY_OPTION) -> None:
     if not github:
         typer.echo("Rendering GitHub-compatible Markdown summary.", err=True)
     typer.echo(generate_github_summary(run_dir), nl=False)
+
+
+@app.command("pr-comment")
+def pr_comment(run_dir: Path, out: Path = PR_COMMENT_OUT_OPTION) -> None:
+    comment_path = write_pr_comment(run_dir, out_path=out)
+    typer.echo(f"Wrote {comment_path}")
 
 
 @app.command()

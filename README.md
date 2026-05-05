@@ -202,6 +202,12 @@ uv run anvil trace export runs/latest --format openai-trace --out traces/openai-
 uv run anvil trace import traces/openai-trace.json --format openai-trace --out runs/imported
 ```
 
+Generate a PR-ready review comment:
+
+```bash
+uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
+```
+
 Generate tool-safety mutations from an existing scenario suite:
 
 ```bash
@@ -269,7 +275,11 @@ Intentional regression demos can assert the expected failing exit code:
     agent-mode: offline
     trials: "1"
     expected-exit-code: "1"
+    pr-comment: "true"
 ```
+
+The action writes `agent-anvil-pr-comment.md` when `pr-comment: "true"`. You can
+publish that file with `gh pr comment` in workflows that grant write access.
 
 ## Why AI Was Necessary
 

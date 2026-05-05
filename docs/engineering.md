@@ -203,6 +203,19 @@ The MVP is deterministic and CI-stable. It adds urgent wording, missing-ID
 variants, tool-error caution, and verification pressure while preserving the
 original expected behavior and policy contract.
 
+## PR Review Comments
+
+`anvil pr-comment` renders the shortest useful PR review artifact:
+
+```bash
+uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
+```
+
+It includes pass rate, top failure cluster, examples, repair hints, and the first
+failing trace path. The composite action can generate this file with
+`pr-comment: "true"`; workflows with repository write permission can publish it
+with `gh pr comment`.
+
 ## Why This Is A System, Not A Prompt
 
 Agent Anvil has:
@@ -222,6 +235,7 @@ Agent Anvil has:
 - MCP tool schema audit
 - OpenAI-style trace import/export
 - deterministic tool-use fuzzing
+- PR-ready regression comments
 - CI-compatible exit codes
 
 ## How It Uses OpenAI APIs

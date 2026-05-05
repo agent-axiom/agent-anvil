@@ -30,6 +30,8 @@ def test_composite_action_exposes_agent_anvil_inputs() -> None:
         "trials",
         "expected-exit-code",
         "github-summary",
+        "pr-comment",
+        "pr-comment-path",
         "uv-cache",
     }
     assert action["inputs"]["python-version"]["default"] == "3.12"
@@ -51,6 +53,8 @@ def test_composite_action_fails_when_expected_failure_passes(tmp_path: Path) -> 
         .replace("${{ inputs.trials }}", "")
         .replace("${{ inputs.expected-exit-code }}", "1")
         .replace("${{ inputs.github-summary }}", "false")
+        .replace("${{ inputs.pr-comment }}", "false")
+        .replace("${{ inputs.pr-comment-path }}", "agent-anvil-pr-comment.md")
     )
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
@@ -154,6 +158,15 @@ def test_readme_action_snippet_starts_with_passing_smoke_example() -> None:
 
     assert "scenario: scenarios/external_jsonl_agent.yaml" in readme
     assert 'expected-exit-code: "1"' in readme
+
+
+def test_composite_action_can_generate_pr_comment_file() -> None:
+    action = yaml.safe_load(Path("action.yml").read_text(encoding="utf-8"))
+    run_step = next(step for step in action["runs"]["steps"] if step["name"] == "Run Agent Anvil")
+
+    assert action["inputs"]["pr-comment"]["default"] == "false"
+    assert action["inputs"]["pr-comment-path"]["default"] == "agent-anvil-pr-comment.md"
+    assert 'anvil pr-comment "$runs_dir/latest" --out "$comment_path"' in run_step["run"]
 
 
 def test_readme_action_reference_matches_package_version() -> None:
