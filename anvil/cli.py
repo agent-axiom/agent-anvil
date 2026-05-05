@@ -9,6 +9,7 @@ from anvil.fuzzing import fuzz_scenario_file
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools
+from anvil.packs import DEFAULT_PACK_OUT, list_packs, write_pack
 from anvil.pr_comment import write_pr_comment
 from anvil.repair import generate_repair_plan
 from anvil.runner import (
@@ -26,8 +27,10 @@ from anvil.trace_bridge import export_openai_trace, import_openai_trace
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
 mcp_app = typer.Typer(help="Audit MCP tools and generate safety scenarios.")
 trace_app = typer.Typer(help="Import and export trace formats.")
+pack_app = typer.Typer(help="List and add built-in scenario packs.")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(trace_app, name="trace")
+app.add_typer(pack_app, name="pack")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -80,6 +83,12 @@ INIT_POST_PR_COMMENT_OPTION = typer.Option(
     "--post-pr-comment",
     help="Configure the generated workflow to publish Agent Anvil PR comments.",
 )
+INIT_PACK_OPTION = typer.Option(
+    None,
+    "--pack",
+    help="Use a built-in starter scenario pack, such as tool-safety.",
+)
+PACK_OUT_OPTION = typer.Option(DEFAULT_PACK_OUT, "--out", help="Write the scenario pack here.")
 
 
 @app.command()
@@ -89,6 +98,7 @@ def init(
     workflow_path: Path = INIT_WORKFLOW_OPTION,
     force: bool = INIT_FORCE_OPTION,
     post_pr_comment: bool = INIT_POST_PR_COMMENT_OPTION,
+    pack: str | None = INIT_PACK_OPTION,
 ) -> None:
     try:
         written_paths = initialize_project(
@@ -97,8 +107,9 @@ def init(
             workflow_path=workflow_path,
             force=force,
             post_pr_comment=post_pr_comment,
+            pack=pack,
         )
-    except FileExistsError as error:
+    except (FileExistsError, ValueError) as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
 
@@ -107,6 +118,27 @@ def init(
     typer.echo(
         f"Next: edit the starter scenario, then run `uv run anvil run {scenario_path} --offline`."
     )
+
+
+@pack_app.command("list")
+def pack_list() -> None:
+    for scenario_pack in list_packs():
+        typer.echo(f"{scenario_pack.name}: {scenario_pack.description}")
+
+
+@pack_app.command("add")
+def pack_add(
+    pack_name: str,
+    agent_command: str = INIT_AGENT_COMMAND_OPTION,
+    out: Path = PACK_OUT_OPTION,
+    force: bool = INIT_FORCE_OPTION,
+) -> None:
+    try:
+        pack_path = write_pack(pack_name, agent_command=agent_command, out_path=out, force=force)
+    except (FileExistsError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"Wrote {pack_path}")
 
 
 @app.command()

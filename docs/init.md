@@ -18,6 +18,14 @@ scenario payload on stdin and writes trace events on stdout. Edit the generated
 scenario to replace the placeholder input and risky tool name with your own
 business invariant.
 
+To start from reusable tool-safety scenarios:
+
+```bash
+uv run anvil init --agent-command "python my_agent.py" --pack tool-safety
+```
+
+See [Scenario Packs](packs.md).
+
 ## PR Comments
 
 For pull request review comments, generate a workflow with:

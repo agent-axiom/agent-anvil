@@ -21,6 +21,7 @@ YAML scenarios
   -> reviewable fix patch
   -> learned regression scenario
   -> generated CI bootstrap
+  -> reusable scenario packs
 ```
 
 It does not include a hosted dashboard. The output is designed for local
@@ -45,6 +46,15 @@ JSONL scenario and a GitHub Actions workflow. It refuses to overwrite existing
 files unless `--force` is passed. `--post-pr-comment` configures the generated
 workflow for pull request comments by adding `pull-requests: write` and
 `post-pr-comment: "true"`.
+
+`--pack tool-safety` swaps the generic starter scenario for the built-in
+tool-safety scenario pack.
+
+## Scenario Packs
+
+`anvil pack list` shows built-in starter packs. `anvil pack add tool-safety`
+writes a reusable suite for destructive-tool preconditions, hallucinated IDs,
+verification failures, and human approval gates.
 
 ## Scenario Format
 
@@ -246,6 +256,7 @@ Agent Anvil has:
 - deterministic tool-use fuzzing
 - PR-ready regression comments
 - project bootstrap with `anvil init`
+- reusable scenario packs
 - CI-compatible exit codes
 
 ## How It Uses OpenAI APIs
@@ -317,7 +328,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.6
+- uses: agent-axiom/agent-anvil@v0.2.7
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

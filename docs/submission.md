@@ -13,7 +13,7 @@ prompt/tool/guardrail repair plans.
 The demo catches a refund agent calling `issue_refund(order_id="UNKNOWN")`
 before order verification — a workflow bug final-answer evals often miss.
 
-New in `v0.2.6`, Agent Anvil also closes the improvement loop:
+New in `v0.2.7`, Agent Anvil also closes the improvement loop:
 
 - `anvil learn`: bad trace -> permanent regression scenario
 - `anvil fix`: repair plan -> reviewable prompt/tool patch diff

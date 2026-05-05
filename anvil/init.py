@@ -3,6 +3,8 @@ from __future__ import annotations
 from importlib import metadata
 from pathlib import Path
 
+from anvil.packs import render_pack
+
 DEFAULT_SCENARIO_PATH = Path("scenarios/agent_anvil_starter.yaml")
 DEFAULT_WORKFLOW_PATH = Path(".github/workflows/agent-anvil.yml")
 
@@ -14,11 +16,15 @@ def initialize_project(
     workflow_path: Path = DEFAULT_WORKFLOW_PATH,
     force: bool = False,
     post_pr_comment: bool = False,
+    pack: str | None = None,
 ) -> list[Path]:
     written_paths: list[Path] = []
     action_ref = f"agent-axiom/agent-anvil@v{_package_version()}"
+    scenario_content = (
+        render_pack(pack, agent_command=agent_command) if pack else _starter_scenario(agent_command)
+    )
     writes = {
-        scenario_path: _starter_scenario(agent_command),
+        scenario_path: scenario_content,
         workflow_path: _starter_workflow(
             scenario_path=scenario_path,
             action_ref=action_ref,
