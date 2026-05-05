@@ -10,7 +10,14 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from anvil.config import DEFAULT_OPENAI_MODEL, AnvilSettings
-from anvil.mcp_audit import ToolAuditFinding, find_mcp_tool_findings
+from anvil.mcp_audit import (
+    McpCommand,
+    ToolAuditFinding,
+    ToolAuditResult,
+    audit_mcp_tools,
+    find_mcp_tool_findings,
+    snapshot_mcp_tools,
+)
 from anvil.redaction import redact_payload
 
 MCP_REDACTION_PATTERNS = [r"\btenant-[A-Za-z0-9_-]+\b"]
@@ -38,6 +45,13 @@ class McpRepairer(Protocol):
 class McpRepairResult:
     plan: McpRepairPlan
     report_path: Path
+
+
+@dataclass(frozen=True)
+class McpHardenResult:
+    snapshot_path: Path
+    audit_result: ToolAuditResult
+    repair_result: McpRepairResult
 
 
 class OfflineMcpRepairer:
@@ -114,6 +128,36 @@ def generate_mcp_repair(
     selected_out_path.parent.mkdir(parents=True, exist_ok=True)
     selected_out_path.write_text(render_mcp_repair_markdown(plan), encoding="utf-8")
     return McpRepairResult(plan=plan, report_path=selected_out_path)
+
+
+def harden_mcp_server(
+    command: McpCommand,
+    *,
+    snapshot_path: str | Path,
+    audit_out_path: str | Path,
+    audit_report_path: str | Path,
+    repair_out_path: str | Path,
+    timeout_seconds: float = 10.0,
+    offline: bool = False,
+    redact: bool | None = None,
+) -> McpHardenResult:
+    tools = snapshot_mcp_tools(command, out_path=snapshot_path, timeout_seconds=timeout_seconds)
+    audit_result = audit_mcp_tools(
+        tools,
+        out_path=audit_out_path,
+        report_path=audit_report_path,
+    )
+    repair_result = generate_mcp_repair(
+        tools,
+        out_path=repair_out_path,
+        offline=offline,
+        redact=redact,
+    )
+    return McpHardenResult(
+        snapshot_path=Path(snapshot_path),
+        audit_result=audit_result,
+        repair_result=repair_result,
+    )
 
 
 def render_mcp_repair_markdown(plan: McpRepairPlan) -> str:

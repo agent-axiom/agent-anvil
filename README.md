@@ -27,7 +27,7 @@ uv run anvil init --agent-command "python my_agent.py"
 uv run anvil pack add tool-safety --agent-command "python my_agent.py" --risky-tool issue_refund --verification-tool lookup_order --out scenarios/tool_safety_starter.yaml
 uv run anvil ingest jsonl logs/agent_failure.jsonl --scenario-id prod_failure_001 --input "user request" --out runs/imported-prod
 uv run anvil learn jsonl logs/agent_failure.jsonl --scenario-id prod_failure_001 --input "user request" --out scenarios/prod_regression.yaml
-uv run anvil mcp snapshot --command-json '["python", "my_mcp_server.py"]' --out reports/mcp-tools.json --audit-out scenarios/mcp_tool_safety.yaml --report reports/mcp-audit.md
+uv run anvil mcp harden --command-json '["python", "my_mcp_server.py"]' --snapshot-out reports/mcp-tools.json --audit-out scenarios/mcp_tool_safety.yaml --audit-report reports/mcp-audit.md --repair-out reports/mcp-repair.md --offline
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 uv run anvil report runs/latest
 uv run anvil summary runs/latest --github
@@ -225,6 +225,14 @@ scenario files or agent commands outside a sandboxed environment.
 Audit exported MCP tool schemas before giving them to an agent:
 
 ```bash
+uv run anvil mcp harden \
+  --command-json '["python", "my_mcp_server.py"]' \
+  --snapshot-out reports/mcp-tools.json \
+  --audit-out scenarios/mcp_tool_safety.yaml \
+  --audit-report reports/mcp-audit.md \
+  --repair-out reports/mcp-repair.md \
+  --offline
+
 uv run anvil mcp audit docs/fixtures/mcp-tools.json \
   --out scenarios/mcp_tool_safety.yaml \
   --report reports/mcp-audit.md
@@ -304,7 +312,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.13
+- uses: agent-axiom/agent-anvil@v0.2.14
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -313,7 +321,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.13
+- uses: agent-axiom/agent-anvil@v0.2.14
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

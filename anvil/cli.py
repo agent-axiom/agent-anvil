@@ -11,7 +11,7 @@ from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools, snapshot_mcp_tools
-from anvil.mcp_repair import generate_mcp_repair
+from anvil.mcp_repair import generate_mcp_repair, harden_mcp_server
 from anvil.packs import DEFAULT_PACK_OUT, list_packs, write_pack
 from anvil.pr_comment import write_pr_comment
 from anvil.repair import generate_repair_plan
@@ -68,6 +68,26 @@ MCP_SNAPSHOT_OUT_OPTION = typer.Option(..., "--out", help="Write MCP tools snaps
 MCP_AUDIT_OUT_OPTION = typer.Option(None, "--audit-out", help="Optionally write audit scenarios.")
 MCP_SNAPSHOT_REPORT_OPTION = typer.Option(None, "--report", help="Optionally write audit report.")
 MCP_REPAIR_OUT_OPTION = typer.Option(..., "--out", help="Write MCP repair Markdown here.")
+MCP_HARDEN_SNAPSHOT_OUT_OPTION = typer.Option(
+    ...,
+    "--snapshot-out",
+    help="Write MCP tools snapshot here.",
+)
+MCP_HARDEN_AUDIT_OUT_OPTION = typer.Option(
+    ...,
+    "--audit-out",
+    help="Write generated MCP safety scenarios here.",
+)
+MCP_HARDEN_AUDIT_REPORT_OPTION = typer.Option(
+    ...,
+    "--audit-report",
+    help="Write MCP audit Markdown here.",
+)
+MCP_HARDEN_REPAIR_OUT_OPTION = typer.Option(
+    ...,
+    "--repair-out",
+    help="Write MCP repair Markdown here.",
+)
 MCP_TIMEOUT_OPTION = typer.Option(10.0, "--timeout", min=0.1, help="MCP response timeout seconds.")
 TRACE_FORMAT_OPTION = typer.Option("openai-trace", "--format", help="Trace format.")
 FIX_PROMPT_OPTION = typer.Option(None, "--prompt", help="Prompt file to patch in the diff.")
@@ -429,6 +449,38 @@ def mcp_repair(
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
     typer.echo(f"Wrote {result.report_path}")
+
+
+@mcp_app.command("harden")
+def mcp_harden(
+    command: str | None = MCP_COMMAND_OPTION,
+    command_json: str | None = MCP_COMMAND_JSON_OPTION,
+    snapshot_out: Path = MCP_HARDEN_SNAPSHOT_OUT_OPTION,
+    audit_out: Path = MCP_HARDEN_AUDIT_OUT_OPTION,
+    audit_report: Path = MCP_HARDEN_AUDIT_REPORT_OPTION,
+    repair_out: Path = MCP_HARDEN_REPAIR_OUT_OPTION,
+    timeout_seconds: float = MCP_TIMEOUT_OPTION,
+    offline: bool = OFFLINE_OPTION,
+    redact: bool | None = REDACT_OPTION,
+) -> None:
+    try:
+        result = harden_mcp_server(
+            _select_mcp_command(command, command_json),
+            snapshot_path=snapshot_out,
+            audit_out_path=audit_out,
+            audit_report_path=audit_report,
+            repair_out_path=repair_out,
+            timeout_seconds=timeout_seconds,
+            offline=offline,
+            redact=redact,
+        )
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"Wrote {result.snapshot_path}")
+    typer.echo(f"Wrote {result.audit_result.scenario_path}")
+    typer.echo(f"Wrote {result.audit_result.report_path}")
+    typer.echo(f"Wrote {result.repair_result.report_path}")
 
 
 def _select_mcp_command(command: str | None, command_json: str | None) -> str | list[str]:

@@ -3,7 +3,20 @@
 Agent Anvil can statically audit exported MCP tool schemas before those tools
 are handed to an agent.
 
-Snapshot a live stdio MCP server and audit the captured tool schemas:
+Snapshot a live stdio MCP server, generate safety scenarios, write an audit
+report, and produce a repair plan:
+
+```bash
+uv run anvil mcp harden \
+  --command-json '["python", "my_mcp_server.py"]' \
+  --snapshot-out reports/mcp-tools.json \
+  --audit-out scenarios/mcp_tool_safety.yaml \
+  --audit-report reports/mcp-audit.md \
+  --repair-out reports/mcp-repair.md \
+  --offline
+```
+
+Or snapshot and audit only:
 
 ```bash
 uv run anvil mcp snapshot \
@@ -16,6 +29,9 @@ uv run anvil mcp snapshot \
 `--command-json` is recommended because it passes an argv array directly to the
 local process. `--command` is still available as a shell-like convenience and is
 parsed with `shlex`.
+
+`mcp harden` is the copy-paste path for CI demos: it chains `snapshot`, `audit`,
+and `repair` so a live MCP server produces all Agent Anvil artifacts in one run.
 
 Or audit an existing exported tool schema file:
 

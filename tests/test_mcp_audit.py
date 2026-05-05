@@ -209,6 +209,45 @@ def test_cli_mcp_snapshot_reports_command_start_failure(tmp_path: Path) -> None:
     assert "Failed to start MCP command" in result.stderr
 
 
+def test_cli_mcp_harden_runs_snapshot_audit_and_repair_pipeline(tmp_path: Path) -> None:
+    server = _write_fake_mcp_server(tmp_path)
+    snapshot = tmp_path / "mcp-tools.json"
+    scenario = tmp_path / "mcp_tool_safety.yaml"
+    audit_report = tmp_path / "mcp-audit.md"
+    repair_report = tmp_path / "mcp-repair.md"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "mcp",
+            "harden",
+            "--command-json",
+            json.dumps([sys.executable, str(server)]),
+            "--snapshot-out",
+            str(snapshot),
+            "--audit-out",
+            str(scenario),
+            "--audit-report",
+            str(audit_report),
+            "--repair-out",
+            str(repair_report),
+            "--offline",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert f"Wrote {snapshot}" in result.stdout
+    assert f"Wrote {scenario}" in result.stdout
+    assert f"Wrote {audit_report}" in result.stdout
+    assert f"Wrote {repair_report}" in result.stdout
+    assert json.loads(snapshot.read_text(encoding="utf-8"))["tools"][0]["name"] == "delete_project"
+    assert load_scenario_file(scenario).policies.destructive_tools == ["delete_project"]
+    assert "missing_preconditions" in audit_report.read_text(encoding="utf-8")
+    assert "Only call `delete_project` after verification" in repair_report.read_text(
+        encoding="utf-8"
+    )
+
+
 def _write_fake_mcp_server(tmp_path: Path) -> Path:
     server = tmp_path / "fake_mcp_server.py"
     server.write_text(
