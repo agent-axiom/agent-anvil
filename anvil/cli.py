@@ -4,6 +4,7 @@ from pathlib import Path
 
 import typer
 
+from anvil.fix import generate_fix_patch
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.repair import generate_repair_plan
 from anvil.runner import (
@@ -38,6 +39,7 @@ AGENT_MODE_OPTION = typer.Option(
     help="Agent execution mode for demo agents: offline, openai, or auto.",
 )
 LEARN_OUT_OPTION = typer.Option(..., "--out", help="Write the learned scenario YAML here.")
+FIX_OUT_OPTION = typer.Option(..., "--out", help="Write the generated patch diff here.")
 
 
 @app.command()
@@ -88,6 +90,17 @@ def report(run_dir: Path) -> None:
 def repair(run_dir: Path) -> None:
     repair_path = generate_repair_plan(run_dir)
     typer.echo(f"Wrote {repair_path}")
+
+
+@app.command()
+def fix(
+    run_dir: Path,
+    out: Path = FIX_OUT_OPTION,
+    prompt: Path | None = typer.Option(None, "--prompt", help="Prompt file to patch in the diff."),
+    tools: Path | None = typer.Option(None, "--tools", help="Tool definition file to patch in the diff."),
+) -> None:
+    patch_path = generate_fix_patch(run_dir, prompt_path=prompt, tools_path=tools, out_path=out)
+    typer.echo(f"Wrote {patch_path}")
 
 
 @app.command()

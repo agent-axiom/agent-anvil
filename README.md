@@ -48,8 +48,9 @@ That gives a concrete eval loop:
 1. weak tool description: `issue_refund` issues a refund to a customer
 2. failing trace: agent calls `issue_refund(order_id="UNKNOWN")`
 3. repair plan: require `lookup_order` verification before destructive tools
-4. learned scenario: commit the failure as a repeatable regression test
-5. next run: patched prompts/tools can be compared against the baseline
+4. fix patch: generate a reviewable diff for prompt/tool descriptions
+5. learned scenario: commit the failure as a repeatable regression test
+6. next run: patched prompts/tools can be compared against the baseline
 
 - [Sample report](docs/demo-report.md)
 - [Sample trace](docs/demo-trace.json)
@@ -104,6 +105,15 @@ Run the intentional regression demo and inspect the generated repair plan:
 ```bash
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
 uv run anvil repair runs/latest
+```
+
+Generate a suggested patch without applying it:
+
+```bash
+uv run anvil fix runs/latest \
+  --prompt examples/support_agent/system_prompt.md \
+  --tools examples/support_agent/tools.py \
+  --out patches/anvil-fix.patch
 ```
 
 Turn the failing trace into a permanent regression scenario:
@@ -180,6 +190,7 @@ uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
 uv run anvil run scenarios/tool_safety.yaml --offline --trials 1
 uv run anvil report runs/latest
 uv run anvil repair runs/latest
+uv run anvil fix runs/latest --prompt examples/support_agent/system_prompt.md --tools examples/support_agent/tools.py --out patches/anvil-fix.patch
 uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
   --out scenarios/learned_refund_regression.yaml
 uv run anvil summary runs/latest --github
