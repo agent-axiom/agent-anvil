@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a crash, incorrect grade, broken trace, or CI/action problem.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Include the command, scenario, and relevant trace/report paths.
+      placeholder: |
+        uv run anvil run scenarios/refund_agent.yaml --offline --trials 1
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, OS, Agent Anvil version/tag, OpenAI/offline mode.
+    validations:
+      required: false

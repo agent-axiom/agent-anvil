@@ -95,6 +95,7 @@ That gives a concrete eval loop:
 - [MCP audit guide](docs/mcp.md)
 - [Generated MCP safety scenarios](docs/mcp-tool-safety.yaml)
 - [Fuzzed refund scenarios](docs/refund-agent-fuzzed.yaml)
+- [Scenario authoring guide](docs/scenarios.md)
 - [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
 - [GitHub Action marketplace notes](docs/marketplace.md)
@@ -284,7 +285,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.3
+- uses: agent-axiom/agent-anvil@v0.2.4
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -293,7 +294,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.3
+- uses: agent-axiom/agent-anvil@v0.2.4
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

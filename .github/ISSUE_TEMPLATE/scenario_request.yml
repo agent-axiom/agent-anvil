@@ -1,0 +1,28 @@
+name: Scenario request
+description: Propose a new regression scenario or tool-safety invariant.
+title: "[Scenario]: "
+labels:
+  - scenario
+body:
+  - type: textarea
+    id: agent
+    attributes:
+      label: Agent behavior
+      description: What kind of tool-using agent is this scenario for?
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: Failure to catch
+      description: Describe the unsafe or incorrect behavior the trace should catch.
+      placeholder: The agent calls delete_project before verifying project_id.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected checks
+      description: Suggested should_call_tools, should_not_call_tools, required args, or policies.
+    validations:
+      required: false

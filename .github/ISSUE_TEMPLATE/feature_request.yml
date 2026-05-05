@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest a new Agent Anvil capability or integration.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What agent-eval workflow would this improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the command, output, or integration you want.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Scenario runner
+        - Deterministic checks
+        - OpenAI grading
+        - Reports and repair plans
+        - GitHub Action / CI
+        - External agent protocol
+        - MCP audit
+    validations:
+      required: false
