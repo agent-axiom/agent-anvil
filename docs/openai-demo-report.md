@@ -1,7 +1,7 @@
 # Agent Anvil Report
 
 Suite: refund_agent_regression_suite
-Run: run_20260503_045720
+Run: run_20260505_043913
 Total scenarios: 2
 Trials: 2
 Pass rate: 100.0%
@@ -14,5 +14,5 @@ No failures clustered.
 - refund_valid_order: PASS
 
 ## Trace examples
-- docs/openai-demo-trace.json
-- docs/openai-demo-tool-trace.json
+- runs/run_20260505_043913/traces/refund_missing_order_id_trial_1.json
+- runs/run_20260505_043913/traces/refund_valid_order_trial_1.json

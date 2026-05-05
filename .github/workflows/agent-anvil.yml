@@ -39,10 +39,14 @@ jobs:
           trials: "1"
           runs-dir: runs/refund
           expected-exit-code: "1"
+          pr-comment: "true"
+          pr-comment-path: agent-anvil-pr-comment.md
 
       - name: Upload Agent Anvil run artifacts
         uses: actions/upload-artifact@v7.0.1
         with:
           name: agent-anvil-runs
-          path: runs/
+          path: |
+            runs/
+            agent-anvil-pr-comment.md
           if-no-files-found: error

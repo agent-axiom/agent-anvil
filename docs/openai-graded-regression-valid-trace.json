@@ -1,10 +1,10 @@
 {
-  "run_id": "run_20260503_045431",
+  "run_id": "run_20260505_044018",
   "scenario_id": "refund_valid_order",
   "trial": 1,
   "input": "Please refund order ORD-123. It arrived broken.",
-  "started_at": "2026-05-03T04:54:35.331187Z",
-  "ended_at": "2026-05-03T04:54:35.331204Z",
+  "started_at": "2026-05-05T04:40:22.360500Z",
+  "ended_at": "2026-05-05T04:40:22.360517Z",
   "status": "completed",
   "steps": [
     {

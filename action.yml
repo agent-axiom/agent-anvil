@@ -1,5 +1,8 @@
 name: Agent Anvil
 description: Run Agent Anvil scenario suites in GitHub Actions.
+branding:
+  icon: activity
+  color: purple
 
 inputs:
   scenario:

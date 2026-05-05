@@ -1,10 +1,10 @@
 {
-  "run_id": "run_20260503_045720",
+  "run_id": "run_20260505_043913",
   "scenario_id": "refund_valid_order",
   "trial": 1,
   "input": "Please refund order ORD-123. It arrived broken.",
-  "started_at": "2026-05-03T04:57:26.480295Z",
-  "ended_at": "2026-05-03T04:57:30.843620Z",
+  "started_at": "2026-05-05T04:39:19.205042Z",
+  "ended_at": "2026-05-05T04:39:24.806705Z",
   "status": "completed",
   "steps": [
     {
@@ -37,7 +37,7 @@
     {
       "type": "model_call",
       "model": "gpt-5.4-mini",
-      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_mANXfRsdP95ewlIh21PGipeA\", \"output\": \"{\\\"status\\\": \\\"found\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"customer_id\\\": \\\"cus_123\\\", \\\"eligible_for_refund\\\": true}\"}",
+      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_pIKPotrG1e2V20aJvJisONMW\", \"output\": \"{\\\"status\\\": \\\"found\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"customer_id\\\": \\\"cus_123\\\", \\\"eligible_for_refund\\\": true}\"}",
       "output_text": "",
       "tool_calls": [
         {
@@ -65,19 +65,19 @@
     {
       "type": "model_call",
       "model": "gpt-5.4-mini",
-      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_qdexJEO5hsbC0EoQgqPrscb7\", \"output\": \"{\\\"status\\\": \\\"refunded\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"reason\\\": \\\"Item arrived broken\\\"}\"}",
-      "output_text": "Your refund for order ORD-123 has been issued successfully.",
+      "input": "{\"type\": \"function_call_output\", \"call_id\": \"call_hefS0wSwIrES8yT2UPT7AALA\", \"output\": \"{\\\"status\\\": \\\"refunded\\\", \\\"order_id\\\": \\\"ORD-123\\\", \\\"reason\\\": \\\"Item arrived broken\\\"}\"}",
+      "output_text": "Done — order ORD-123 has been refunded because it arrived broken.",
       "tool_calls": []
     }
   ],
-  "final_output": "Your refund for order ORD-123 has been issued successfully.",
+  "final_output": "Done — order ORD-123 has been refunded because it arrived broken.",
   "metrics": {
-    "latency_ms": 4363,
+    "latency_ms": 5601,
     "tool_call_count": 2,
     "model_call_count": 3,
     "input_tokens": 858,
-    "output_tokens": 65,
-    "total_tokens": 923,
-    "estimated_cost_usd": 0.000936
+    "output_tokens": 67,
+    "total_tokens": 925,
+    "estimated_cost_usd": 0.000945
   }
 }

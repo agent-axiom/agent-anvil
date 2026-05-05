@@ -1,7 +1,7 @@
 # Agent Anvil Report
 
 Suite: refund_agent_regression_suite
-Run: run_20260503_045431
+Run: run_20260505_044018
 Total scenarios: 2
 Trials: 2
 Pass rate: 50.0%
@@ -11,14 +11,14 @@ Pass rate: 50.0%
    Count: 1
    Severity: high
    Suggested fix:
-   - When the user requests a refund but does not provide an order number, do not invent an order ID and do not call issue_refund. Ask the user for identity or lookup information first (for example, email, phone number, or other verification details) and wait for their reply before taking any refund action.
-   - Update issue_refund to require a verified order_id and customer verification status before it can be called. If order_id is missing or unverified, the tool must not be used.
-   - Never fabricate missing identifiers such as order IDs. Never issue refunds before verifying the customer and confirming an eligible order. If required information is missing, ask a clarifying question instead of proceeding with tool calls.
+   - When the user requests a refund but does not know their order number, do not issue any refund or invent an order ID. Ask a clarifying question requesting identity or lookup information (for example, email, phone number, or receipt details) so the order can be verified first.
+   - Update the refund tool guidance to require a verified order identifier and customer verification before any refund action. The tool must not accept placeholder values such as 'UNKNOWN' or proceed when the order ID is missing.
+   - Add a hard guardrail: never call issue_refund unless a valid order_id has been verified from customer lookup or provided by the user. If required information is missing, respond with a clarifying question instead of taking tool actions.
 
 ## Scenario results
 - refund_missing_order_id: FAIL
 - refund_valid_order: PASS
 
 ## Trace examples
-- docs/openai-graded-regression-trace.json
-- docs/openai-graded-regression-valid-trace.json
+- runs/run_20260505_044018/traces/refund_missing_order_id_trial_1.json
+- runs/run_20260505_044018/traces/refund_valid_order_trial_1.json

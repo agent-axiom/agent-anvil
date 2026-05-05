@@ -30,6 +30,23 @@ uv run anvil summary runs/latest --github
 
 ![Agent Anvil catching a premature tool call](docs/demo.svg)
 
+## 30-Second Demo
+
+Agent Anvil turns unsafe traces into a repeatable improvement loop:
+
+```text
+run -> repair -> fix -> learn -> CI
+```
+
+```bash
+uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
+uv run anvil repair runs/latest
+uv run anvil fix runs/latest --prompt examples/support_agent/system_prompt.md --tools examples/support_agent/tools.py --out patches/anvil-fix.patch
+uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json --out scenarios/learned_refund_regression.yaml
+```
+
+For the challenge post, see [submission text](docs/submission.md).
+
 ## What It Catches
 
 The bundled refund-agent demo intentionally fails one scenario:
@@ -69,10 +86,12 @@ That gives a concrete eval loop:
 - [Tool-safety report](docs/tool-safety-report.md)
 - [Tool-safety repair plan](docs/tool-safety-repair-plan.md)
 - [MCP tool audit](docs/mcp-audit.md)
+- [MCP audit guide](docs/mcp.md)
 - [Generated MCP safety scenarios](docs/mcp-tool-safety.yaml)
 - [Fuzzed refund scenarios](docs/refund-agent-fuzzed.yaml)
 - [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
+- [GitHub Action marketplace notes](docs/marketplace.md)
 
 ## How It Works
 
@@ -259,7 +278,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.0
+- uses: agent-axiom/agent-anvil@v0.2.1
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -268,7 +287,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.0
+- uses: agent-axiom/agent-anvil@v0.2.1
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"

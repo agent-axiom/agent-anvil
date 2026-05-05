@@ -169,6 +169,45 @@ def test_composite_action_can_generate_pr_comment_file() -> None:
     assert 'anvil pr-comment "$runs_dir/latest" --out "$comment_path"' in run_step["run"]
 
 
+def test_composite_action_has_marketplace_branding() -> None:
+    action = yaml.safe_load(Path("action.yml").read_text(encoding="utf-8"))
+
+    assert action["branding"] == {"icon": "activity", "color": "purple"}
+
+
+def test_readme_has_30_second_flywheel_demo() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "## 30-Second Demo" in readme
+    assert "run -> repair -> fix -> learn -> CI" in readme
+    assert "docs/submission.md" in readme
+
+
+def test_mcp_and_marketplace_docs_are_linked() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "docs/mcp.md" in readme
+    assert "docs/marketplace.md" in readme
+    assert "MCP Tool Audit" in Path("docs/mcp.md").read_text(encoding="utf-8")
+    assert "GitHub Marketplace" in Path("docs/marketplace.md").read_text(encoding="utf-8")
+
+
+def test_pr_comment_workflow_is_documented_and_wired() -> None:
+    workflow = yaml.safe_load(Path(".github/workflows/agent-anvil.yml").read_text(encoding="utf-8"))
+    steps = workflow["jobs"]["demo-eval"]["steps"]
+
+    regression_step = next(
+        step for step in steps if step.get("name") == "Run intentional refund regression demo"
+    )
+    assert regression_step["with"]["pr-comment"] == "true"
+    assert regression_step["with"]["pr-comment-path"] == "agent-anvil-pr-comment.md"
+    assert any(
+        step.get("with", {}).get("path") == "runs/\nagent-anvil-pr-comment.md\n"
+        for step in steps
+        if step.get("uses") == "actions/upload-artifact@v7.0.1"
+    )
+
+
 def test_readme_action_reference_matches_package_version() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
