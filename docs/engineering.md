@@ -307,7 +307,7 @@ The repository exposes a composite GitHub Action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.1
+- uses: agent-axiom/agent-anvil@v0.2.2
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

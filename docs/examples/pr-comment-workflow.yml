@@ -1,0 +1,32 @@
+name: Agent Anvil PR Review
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  agent-anvil:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run Agent Anvil regression eval
+        uses: agent-axiom/agent-anvil@v0.2.2
+        with:
+          scenario: scenarios/refund_agent.yaml
+          offline: "true"
+          agent-mode: offline
+          trials: "1"
+          expected-exit-code: "1"
+          pr-comment: "true"
+
+      - name: Publish Agent Anvil PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file agent-anvil-pr-comment.md

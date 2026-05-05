@@ -278,7 +278,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.1
+- uses: agent-axiom/agent-anvil@v0.2.2
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -287,7 +287,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.1
+- uses: agent-axiom/agent-anvil@v0.2.2
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
@@ -299,6 +299,7 @@ Intentional regression demos can assert the expected failing exit code:
 
 The action writes `agent-anvil-pr-comment.md` when `pr-comment: "true"`. You can
 publish that file with `gh pr comment` in workflows that grant write access.
+See the copy-paste [PR comment workflow](docs/examples/pr-comment-workflow.yml).
 
 ## Why AI Was Necessary
 

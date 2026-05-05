@@ -208,6 +208,17 @@ def test_pr_comment_workflow_is_documented_and_wired() -> None:
     )
 
 
+def test_pr_comment_example_workflow_is_copy_paste_ready() -> None:
+    workflow_path = Path("docs/examples/pr-comment-workflow.yml")
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    job = workflow["jobs"]["agent-anvil"]["steps"]
+
+    assert workflow["permissions"] == {"contents": "read", "pull-requests": "write"}
+    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.2" for step in job)
+    assert any("gh pr comment" in step.get("run", "") for step in job)
+    assert "docs/examples/pr-comment-workflow.yml" in Path("README.md").read_text(encoding="utf-8")
+
+
 def test_readme_action_reference_matches_package_version() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))

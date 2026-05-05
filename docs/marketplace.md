@@ -3,7 +3,7 @@
 Agent Anvil ships as a composite GitHub Action from this repository:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.1
+- uses: agent-axiom/agent-anvil@v0.2.2
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
