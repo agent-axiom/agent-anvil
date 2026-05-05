@@ -40,18 +40,22 @@ The bundled refund-agent demo intentionally fails one scenario:
 
 Agent Anvil flags the forbidden destructive tool call, clusters it as
 `premature_tool_execution`, and suggests patches for the prompt, tool
-description, and guardrail.
+description, and guardrail. With `anvil learn`, the same bad trace can become a
+permanent regression scenario that keeps the bug from coming back.
 
 That gives a concrete eval loop:
 
 1. weak tool description: `issue_refund` issues a refund to a customer
 2. failing trace: agent calls `issue_refund(order_id="UNKNOWN")`
 3. repair plan: require `lookup_order` verification before destructive tools
-4. next run: patched prompts/tools can be compared against the baseline
+4. learned scenario: commit the failure as a repeatable regression test
+5. next run: patched prompts/tools can be compared against the baseline
 
 - [Sample report](docs/demo-report.md)
 - [Sample trace](docs/demo-trace.json)
 - [Sample repair plan](docs/demo-repair-plan.md)
+- [Learned regression scenario](docs/learned-regression.yaml)
+- [Anvil Learn docs](docs/learn.md)
 - [Patched demo report](docs/patched-demo-report.md)
 - [Patched demo trace](docs/patched-demo-trace.json)
 - [OpenAI demo report](docs/openai-demo-report.md)
@@ -100,6 +104,13 @@ Run the intentional regression demo and inspect the generated repair plan:
 ```bash
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
 uv run anvil repair runs/latest
+```
+
+Turn the failing trace into a permanent regression scenario:
+
+```bash
+uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
+  --out scenarios/learned_refund_regression.yaml
 ```
 
 Run the patched after-demo:
@@ -169,6 +180,8 @@ uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
 uv run anvil run scenarios/tool_safety.yaml --offline --trials 1
 uv run anvil report runs/latest
 uv run anvil repair runs/latest
+uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
+  --out scenarios/learned_refund_regression.yaml
 uv run anvil summary runs/latest --github
 uv run anvil compare runs/baseline runs/latest
 ```
