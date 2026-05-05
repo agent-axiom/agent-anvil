@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 
 from anvil.fix import generate_fix_patch
+from anvil.fuzzing import fuzz_scenario_file
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools
 from anvil.repair import generate_repair_plan
@@ -52,6 +53,9 @@ FIX_PROMPT_OPTION = typer.Option(None, "--prompt", help="Prompt file to patch in
 FIX_TOOLS_OPTION = typer.Option(None, "--tools", help="Tool definition file to patch in the diff.")
 TRACE_EXPORT_OUT_OPTION = typer.Option(..., "--out", help="Write exported trace JSON here.")
 TRACE_IMPORT_OUT_OPTION = typer.Option(..., "--out", help="Write imported Anvil trace run here.")
+FUZZ_OUT_OPTION = typer.Option(..., "--out", help="Write the fuzzed scenario YAML here.")
+FUZZ_MUTATIONS_OPTION = typer.Option(10, "--mutations", min=1, help="Number of mutations.")
+FUZZ_FOCUS_OPTION = typer.Option("tool_safety", "--focus", help="Mutation focus.")
 
 
 @app.command()
@@ -138,6 +142,22 @@ def summary(run_dir: Path, github: bool = GITHUB_SUMMARY_OPTION) -> None:
     if not github:
         typer.echo("Rendering GitHub-compatible Markdown summary.", err=True)
     typer.echo(generate_github_summary(run_dir), nl=False)
+
+
+@app.command()
+def fuzz(
+    scenario_file: Path,
+    out: Path = FUZZ_OUT_OPTION,
+    mutations: int = FUZZ_MUTATIONS_OPTION,
+    focus: str = FUZZ_FOCUS_OPTION,
+) -> None:
+    fuzzed_path = fuzz_scenario_file(
+        scenario_file,
+        out_path=out,
+        mutations=mutations,
+        focus=focus,
+    )
+    typer.echo(f"Wrote {fuzzed_path}")
 
 
 @app.command()

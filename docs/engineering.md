@@ -188,6 +188,21 @@ The bridge maps Anvil `model_call` steps to `generation` events and `tool_call`
 steps to `tool_call` events. It is intentionally semantic rather than a claim
 of byte-for-byte compatibility with any hosted trace export format.
 
+## Agent Chaos Mode
+
+`anvil fuzz` expands an existing scenario suite with tool-safety mutations:
+
+```bash
+uv run anvil fuzz scenarios/refund_agent.yaml \
+  --mutations 10 \
+  --focus tool_safety \
+  --out scenarios/refund_agent_fuzzed.yaml
+```
+
+The MVP is deterministic and CI-stable. It adds urgent wording, missing-ID
+variants, tool-error caution, and verification pressure while preserving the
+original expected behavior and policy contract.
+
 ## Why This Is A System, Not A Prompt
 
 Agent Anvil has:
@@ -206,6 +221,7 @@ Agent Anvil has:
 - external-agent JSONL protocol
 - MCP tool schema audit
 - OpenAI-style trace import/export
+- deterministic tool-use fuzzing
 - CI-compatible exit codes
 
 ## How It Uses OpenAI APIs

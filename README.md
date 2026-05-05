@@ -70,6 +70,7 @@ That gives a concrete eval loop:
 - [Tool-safety repair plan](docs/tool-safety-repair-plan.md)
 - [MCP tool audit](docs/mcp-audit.md)
 - [Generated MCP safety scenarios](docs/mcp-tool-safety.yaml)
+- [Fuzzed refund scenarios](docs/refund-agent-fuzzed.yaml)
 - [External agent protocol](docs/protocol.md)
 - [Engineering details](docs/engineering.md)
 
@@ -201,6 +202,15 @@ uv run anvil trace export runs/latest --format openai-trace --out traces/openai-
 uv run anvil trace import traces/openai-trace.json --format openai-trace --out runs/imported
 ```
 
+Generate tool-safety mutations from an existing scenario suite:
+
+```bash
+uv run anvil fuzz scenarios/refund_agent.yaml \
+  --mutations 10 \
+  --focus tool_safety \
+  --out scenarios/refund_agent_fuzzed.yaml
+```
+
 Run with Docker:
 
 ```bash
@@ -228,6 +238,7 @@ uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
 uv run anvil summary runs/latest --github
 uv run anvil compare runs/baseline runs/latest
 uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json
+uv run anvil fuzz scenarios/refund_agent.yaml --mutations 10 --focus tool_safety --out scenarios/refund_agent_fuzzed.yaml
 ```
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
