@@ -1,0 +1,50 @@
+# Demo Artifacts
+
+These files show what Agent Anvil produces without requiring a hosted dashboard.
+
+## Core Regression Demo
+
+- [Sample report](demo-report.md)
+- [Sample trace](demo-trace.json)
+- [Sample repair plan](demo-repair-plan.md)
+- [Learned regression scenario](learned-regression.yaml)
+- [Anvil Learn docs](learn.md)
+
+## Before / After Demo
+
+- [Patched demo report](patched-demo-report.md)
+- [Patched demo trace](patched-demo-trace.json)
+
+## OpenAI Demo
+
+- [OpenAI demo report](openai-demo-report.md)
+- [OpenAI clarification trace](openai-demo-trace.json)
+- [OpenAI tool-call trace](openai-demo-tool-trace.json)
+- [OpenAI demo repair plan](openai-demo-repair-plan.md)
+- [OpenAI-graded regression report](openai-graded-regression-report.md)
+- [OpenAI-graded regression repair plan](openai-graded-regression-repair-plan.md)
+- [OpenAI-graded regression trace](openai-graded-regression-trace.json)
+
+## Tool Safety
+
+- [Tool-safety report](tool-safety-report.md)
+- [Tool-safety repair plan](tool-safety-repair-plan.md)
+- [Fuzzed refund scenarios](refund-agent-fuzzed.yaml)
+
+## MCP Hardening
+
+- [MCP tool audit](mcp-audit.md)
+- [MCP tool repair plan](mcp-repair.md)
+- [Generated MCP safety scenarios](mcp-tool-safety.yaml)
+- [MCP audit guide](mcp.md)
+
+## Reference Docs
+
+- [3-minute judges guide](judges-guide.md)
+- [Project bootstrap guide](init.md)
+- [Scenario packs](packs.md)
+- [Trace ingest](ingest.md)
+- [Scenario authoring guide](scenarios.md)
+- [External agent protocol](protocol.md)
+- [Engineering details](engineering.md)
+- [GitHub Action marketplace notes](marketplace.md)

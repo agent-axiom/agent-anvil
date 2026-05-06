@@ -27,8 +27,9 @@ def test_scenario_authoring_doc_is_linked_from_readme() -> None:
 def test_init_doc_is_linked_from_readme() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     doc = Path("docs/init.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
 
-    assert "docs/init.md" in readme
+    assert "init.md" in artifacts
     assert "uv run anvil init --agent-command" in readme
     assert "--pack tool-safety" in doc
     assert "post-pr-comment" in doc
@@ -36,10 +37,10 @@ def test_init_doc_is_linked_from_readme() -> None:
 
 
 def test_packs_doc_is_linked_from_readme() -> None:
-    readme = Path("README.md").read_text(encoding="utf-8")
     doc = Path("docs/packs.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
 
-    assert "docs/packs.md" in readme
+    assert "packs.md" in artifacts
     assert "uv run anvil pack list" in doc
     assert "tool-safety" in doc
     assert "destructive_tools" in doc
@@ -48,14 +49,28 @@ def test_packs_doc_is_linked_from_readme() -> None:
 
 
 def test_ingest_doc_is_linked_from_readme() -> None:
-    readme = Path("README.md").read_text(encoding="utf-8")
     doc = Path("docs/ingest.md").read_text(encoding="utf-8")
+    cli_doc = Path("docs/cli.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
 
-    assert "docs/ingest.md" in readme
-    assert "uv run anvil ingest jsonl" in readme
-    assert "uv run anvil learn jsonl" in readme
+    assert "ingest.md" in artifacts
+    assert "uv run anvil ingest jsonl" in cli_doc
+    assert "uv run anvil learn jsonl" in cli_doc
     assert "production failure log -> Anvil trace" in doc
     assert "anvil learn" in doc
+
+
+def test_artifacts_and_cli_docs_are_linked_from_readme() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    cli_doc = Path("docs/cli.md").read_text(encoding="utf-8")
+
+    assert "docs/artifacts.md" in readme
+    assert "docs/cli.md" in readme
+    assert "OpenAI-graded regression report" in artifacts
+    assert "MCP Hardening" in artifacts
+    assert "uv run anvil compare runs/baseline runs/latest" in cli_doc
+    assert "uv run anvil mcp harden" in cli_doc
 
 
 def test_judges_guide_is_linked_and_covers_eval_path() -> None:

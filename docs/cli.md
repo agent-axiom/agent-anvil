@@ -1,0 +1,103 @@
+# CLI Reference
+
+Use `uv run anvil --help` for the live command list. This page keeps the common
+copy-paste commands in one place so the README can stay short.
+
+## Run And Report
+
+```bash
+uv run anvil run scenarios/refund_agent.yaml
+uv run anvil run scenarios/refund_agent.yaml --trials 5
+uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
+uv run anvil run scenarios/refund_agent.yaml --agent-mode openai
+uv run anvil run scenarios/refund_agent.yaml --no-redact
+uv run anvil report runs/latest
+uv run anvil summary runs/latest --github
+uv run anvil compare runs/baseline runs/latest
+```
+
+`anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
+regressions.
+
+## Repair Loop
+
+```bash
+uv run anvil repair runs/latest
+uv run anvil fix runs/latest \
+  --prompt examples/support_agent/system_prompt.md \
+  --tools examples/support_agent/tools.py \
+  --out patches/anvil-fix.patch
+uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
+  --out scenarios/learned_refund_regression.yaml
+```
+
+## Project Bootstrap And Packs
+
+```bash
+uv run anvil init --agent-command "python my_agent.py"
+uv run anvil init --agent-command "python my_agent.py" \
+  --pack tool-safety \
+  --risky-tool issue_refund \
+  --verification-tool lookup_order
+uv run anvil pack list
+uv run anvil pack add tool-safety \
+  --agent-command "python my_agent.py" \
+  --risky-tool issue_refund \
+  --verification-tool lookup_order \
+  --out scenarios/tool_safety_starter.yaml
+```
+
+## Production Trace Ingest
+
+```bash
+uv run anvil ingest jsonl logs/agent_failure.jsonl \
+  --scenario-id prod_failure_001 \
+  --input "user request" \
+  --out runs/imported-prod
+uv run anvil learn jsonl logs/agent_failure.jsonl \
+  --scenario-id prod_failure_001 \
+  --input "user request" \
+  --out scenarios/prod_regression.yaml
+```
+
+## MCP Tool Hardening
+
+```bash
+uv run anvil mcp harden \
+  --command-json '["python", "my_mcp_server.py"]' \
+  --snapshot-out reports/mcp-tools.json \
+  --audit-out scenarios/mcp_tool_safety.yaml \
+  --audit-report reports/mcp-audit.md \
+  --repair-out reports/mcp-repair.md \
+  --offline \
+  --github-summary
+
+uv run anvil mcp snapshot \
+  --command-json '["python", "my_mcp_server.py"]' \
+  --out reports/mcp-tools.json \
+  --audit-out scenarios/mcp_tool_safety.yaml \
+  --report reports/mcp-audit.md
+uv run anvil mcp audit docs/fixtures/mcp-tools.json \
+  --out scenarios/mcp_tool_safety.yaml \
+  --report reports/mcp-audit.md
+uv run anvil mcp repair docs/fixtures/mcp-tools.json \
+  --out reports/mcp-repair.md \
+  --offline
+```
+
+## Trace Bridge And Fuzzing
+
+```bash
+uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json
+uv run anvil trace import traces/openai-trace.json --format openai-trace --out runs/imported
+uv run anvil fuzz scenarios/refund_agent.yaml \
+  --mutations 10 \
+  --focus tool_safety \
+  --out scenarios/refund_agent_fuzzed.yaml
+```
+
+## PR Comments
+
+```bash
+uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
+```

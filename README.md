@@ -77,35 +77,15 @@ That gives a concrete eval loop:
 5. learned scenario: commit the failure as a repeatable regression test
 6. next run: patched prompts/tools can be compared against the baseline
 
-- [Sample report](docs/demo-report.md)
+Start here:
+
 - [3-minute judges guide](docs/judges-guide.md)
-- [Sample trace](docs/demo-trace.json)
+- [Sample report](docs/demo-report.md)
 - [Sample repair plan](docs/demo-repair-plan.md)
-- [Learned regression scenario](docs/learned-regression.yaml)
-- [Anvil Learn docs](docs/learn.md)
-- [Patched demo report](docs/patched-demo-report.md)
-- [Patched demo trace](docs/patched-demo-trace.json)
-- [OpenAI demo report](docs/openai-demo-report.md)
-- [OpenAI clarification trace](docs/openai-demo-trace.json)
-- [OpenAI tool-call trace](docs/openai-demo-tool-trace.json)
-- [OpenAI demo repair plan](docs/openai-demo-repair-plan.md)
 - [OpenAI-graded regression report](docs/openai-graded-regression-report.md)
-- [OpenAI-graded regression repair plan](docs/openai-graded-regression-repair-plan.md)
-- [OpenAI-graded regression trace](docs/openai-graded-regression-trace.json)
-- [Tool-safety report](docs/tool-safety-report.md)
-- [Tool-safety repair plan](docs/tool-safety-repair-plan.md)
-- [Project bootstrap guide](docs/init.md)
-- [Scenario packs](docs/packs.md)
-- [Trace ingest](docs/ingest.md)
-- [MCP tool audit](docs/mcp-audit.md)
-- [MCP tool repair plan](docs/mcp-repair.md)
-- [MCP audit guide](docs/mcp.md)
-- [Generated MCP safety scenarios](docs/mcp-tool-safety.yaml)
-- [Fuzzed refund scenarios](docs/refund-agent-fuzzed.yaml)
-- [Scenario authoring guide](docs/scenarios.md)
-- [External agent protocol](docs/protocol.md)
-- [Engineering details](docs/engineering.md)
-- [GitHub Action marketplace notes](docs/marketplace.md)
+- [MCP hardening guide](docs/mcp.md)
+- [Full artifact index](docs/artifacts.md)
+- [CLI reference](docs/cli.md)
 
 ## How It Works
 
@@ -138,89 +118,25 @@ Run the deterministic demo without OpenAI credentials:
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 ```
 
-Run the intentional regression demo and inspect the generated repair plan:
+Run the intentional regression demo and inspect the repair plan:
 
 ```bash
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
 uv run anvil repair runs/latest
 ```
 
-Generate a suggested patch without applying it:
+Turn the failing trace into a reviewable patch and permanent regression test:
 
 ```bash
 uv run anvil fix runs/latest \
   --prompt examples/support_agent/system_prompt.md \
   --tools examples/support_agent/tools.py \
   --out patches/anvil-fix.patch
-```
-
-Turn the failing trace into a permanent regression scenario:
-
-```bash
 uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
   --out scenarios/learned_refund_regression.yaml
 ```
 
-Run the patched after-demo:
-
-```bash
-uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
-```
-
-Run a domain-neutral tool safety suite:
-
-```bash
-uv run anvil run scenarios/tool_safety.yaml --offline --trials 1 || true
-```
-
-Scenarios can include policy guardrails for risky tools:
-
-```yaml
-policies:
-  destructive_tools:
-    - issue_refund
-  require_before:
-    issue_refund:
-      - tool: lookup_order
-        result:
-          eligible_for_refund: true
-```
-
-`anvil run` prints a compact terminal report with scenario results, the top
-failure cluster, repair plan, and artifact paths.
-
-Run the real OpenAI tool-calling demo agent and OpenAI semantic grader:
-
-```bash
-cp .env.example .env
-# edit .env and set OPENAI_API_KEY
-uv run --env-file .env anvil run scenarios/refund_agent.yaml --agent-mode openai --trials 1
-uv run --env-file .env anvil repair runs/latest
-```
-
-Non-offline runs require `OPENAI_API_KEY`; use `--offline` only when you want the
-local heuristic grader for deterministic CI smoke tests.
-
-Run the intentionally failing offline agent with the OpenAI semantic grader:
-
-```bash
-uv run --env-file .env anvil run scenarios/refund_agent.yaml --agent-mode offline --trials 1 || true
-```
-
-For GitHub Actions, add `OPENAI_API_KEY` as a repository secret. The regular
-CI workflows stay offline; the `OpenAI Demo` workflow is manual so API usage is
-explicit.
-
-Evaluate an external JSONL agent:
-
-```bash
-uv run anvil run scenarios/external_jsonl_agent.yaml --offline
-```
-
-Agent Anvil executes configured external agent commands. Do not run untrusted
-scenario files or agent commands outside a sandboxed environment.
-
-Audit exported MCP tool schemas before giving them to an agent:
+Run MCP tool hardening:
 
 ```bash
 uv run anvil mcp harden \
@@ -231,76 +147,11 @@ uv run anvil mcp harden \
   --repair-out reports/mcp-repair.md \
   --offline \
   --github-summary
-
-uv run anvil mcp audit docs/fixtures/mcp-tools.json \
-  --out scenarios/mcp_tool_safety.yaml \
-  --report reports/mcp-audit.md
-uv run anvil mcp repair docs/fixtures/mcp-tools.json \
-  --out reports/mcp-repair.md \
-  --offline
-```
-
-Bridge Anvil traces to an OpenAI-style trace JSON shape:
-
-```bash
-uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json
-uv run anvil trace import traces/openai-trace.json --format openai-trace --out runs/imported
-```
-
-Generate a PR-ready review comment:
-
-```bash
-uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
-```
-
-Generate tool-safety mutations from an existing scenario suite:
-
-```bash
-uv run anvil fuzz scenarios/refund_agent.yaml \
-  --mutations 10 \
-  --focus tool_safety \
-  --out scenarios/refund_agent_fuzzed.yaml
-```
-
-Run with Docker:
-
-```bash
-docker build -t agent-anvil .
-docker run --rm -v "$PWD/runs:/app/runs" agent-anvil
-docker compose run --rm anvil-smoke
-docker compose run --rm anvil-regression-demo || true
-```
-
-## CLI
-
-```bash
-uv run anvil init --agent-command "python my_agent.py"
-uv run anvil init --agent-command "python my_agent.py" --pack tool-safety --risky-tool issue_refund --verification-tool lookup_order
-uv run anvil pack list
-uv run anvil pack add tool-safety --agent-command "python my_agent.py" --risky-tool issue_refund --verification-tool lookup_order --out scenarios/tool_safety_starter.yaml
-uv run anvil ingest jsonl logs/agent_failure.jsonl --scenario-id prod_failure_001 --input "user request" --out runs/imported-prod
-uv run anvil learn jsonl logs/agent_failure.jsonl --scenario-id prod_failure_001 --input "user request" --out scenarios/prod_regression.yaml
-uv run anvil mcp snapshot --command-json '["python", "my_mcp_server.py"]' --out reports/mcp-tools.json --audit-out scenarios/mcp_tool_safety.yaml --report reports/mcp-audit.md
-uv run anvil run scenarios/refund_agent.yaml
-uv run anvil run scenarios/refund_agent.yaml --trials 5
-uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
-uv run anvil run scenarios/refund_agent.yaml --agent-mode openai
-uv run anvil run scenarios/refund_agent.yaml --no-redact
-uv run anvil run scenarios/refund_agent_patched.yaml --offline --trials 1
-uv run anvil run scenarios/tool_safety.yaml --offline --trials 1
-uv run anvil report runs/latest
-uv run anvil repair runs/latest
-uv run anvil fix runs/latest --prompt examples/support_agent/system_prompt.md --tools examples/support_agent/tools.py --out patches/anvil-fix.patch
-uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
-  --out scenarios/learned_refund_regression.yaml
-uv run anvil summary runs/latest --github
-uv run anvil compare runs/baseline runs/latest
-uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json
-uv run anvil fuzz scenarios/refund_agent.yaml --mutations 10 --focus tool_safety --out scenarios/refund_agent_fuzzed.yaml
 ```
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
-regressions.
+regressions. For more commands, see the [CLI reference](docs/cli.md). For
+scenario syntax, see the [scenario authoring guide](docs/scenarios.md).
 
 ## GitHub Actions
 
@@ -311,7 +162,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.17
+- uses: agent-axiom/agent-anvil@v0.2.18
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -320,7 +171,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.17
+- uses: agent-axiom/agent-anvil@v0.2.18
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
