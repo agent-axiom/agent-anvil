@@ -105,15 +105,18 @@ def test_ci_runs_against_python_312_and_314() -> None:
     assert upload["with"]["name"] == "coverage-xml-${{ matrix.python-version }}"
 
 
-def test_agent_anvil_workflow_uses_local_composite_action() -> None:
+MARKETPLACE_ACTION_REF = "agent-axiom/agent-anvil-action@v1.0.0"
+
+
+def test_agent_anvil_workflow_uses_marketplace_action() -> None:
     workflow = yaml.safe_load(Path(".github/workflows/agent-anvil.yml").read_text(encoding="utf-8"))
     steps = workflow["jobs"]["demo-eval"]["steps"]
 
-    assert any(step.get("uses") == "./" for step in steps)
+    assert any(step.get("uses") == MARKETPLACE_ACTION_REF for step in steps)
     assert any(
         step.get("with", {}).get("expected-exit-code") == "1"
         for step in steps
-        if step.get("uses") == "./"
+        if step.get("uses") == MARKETPLACE_ACTION_REF
     )
 
 
@@ -163,8 +166,8 @@ def test_openai_demo_workflow_is_manual_and_uses_secret() -> None:
     assert job["env"]["ANVIL_OPENAI_MODEL"] == "gpt-5.4-mini"
     steps = job["steps"]
     assert any(step.get("name") == "Require OpenAI API key" for step in steps)
-    assert any(step.get("uses") == "./" for step in steps)
-    action_step = next(step for step in steps if step.get("uses") == "./")
+    assert any(step.get("uses") == MARKETPLACE_ACTION_REF for step in steps)
+    action_step = next(step for step in steps if step.get("uses") == MARKETPLACE_ACTION_REF)
     assert action_step["with"].get("expected-exit-code", "0") == "0"
     assert any(step.get("uses") == "actions/upload-artifact@v7.0.1" for step in steps)
 
@@ -308,15 +311,14 @@ def test_pr_comment_example_workflow_is_copy_paste_ready() -> None:
     job = workflow["jobs"]["agent-anvil"]["steps"]
 
     assert workflow["permissions"] == {"contents": "read", "pull-requests": "write"}
-    assert any(step.get("uses") == "agent-axiom/agent-anvil@v0.2.18" for step in job)
+    assert any(step.get("uses") == MARKETPLACE_ACTION_REF for step in job)
     action_step = next(step for step in job if step.get("uses", "").startswith("agent-axiom/"))
     assert action_step["with"]["post-pr-comment"] == "true"
     assert "docs/examples/pr-comment-workflow.yml" in Path("README.md").read_text(encoding="utf-8")
 
 
-def test_readme_action_reference_matches_package_version() -> None:
+def test_readme_action_reference_uses_marketplace_release() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
-    version = pyproject["project"]["version"]
-    assert f"agent-axiom/agent-anvil@v{version}" in readme
+    assert MARKETPLACE_ACTION_REF in readme
+    assert "agent-axiom/agent-anvil@v" not in readme
