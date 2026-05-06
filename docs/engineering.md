@@ -333,11 +333,11 @@ external coverage service being initialized.
 
 ## GitHub Action
 
-The repository exposes a composite GitHub Action:
+Agent Anvil publishes a dedicated GitHub Marketplace action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.18
+- uses: agent-axiom/agent-anvil-action@v1.0.0
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"

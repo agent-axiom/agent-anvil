@@ -1,32 +1,33 @@
 # GitHub Marketplace Notes
 
-Agent Anvil ships as a composite GitHub Action from this repository:
+Agent Anvil ships as a dedicated GitHub Marketplace action:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.18
+- name: Agent Anvil
+  uses: agent-axiom/agent-anvil-action@v1.0.0
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
 ```
 
-The action has Marketplace metadata in `action.yml`:
+Marketplace repository:
+
+- <https://github.com/agent-axiom/agent-anvil-action>
+
+The wrapper action has Marketplace metadata in its root `action.yml`:
 
 - `name`: Agent Anvil
-- `description`: Run Agent Anvil scenario suites in GitHub Actions.
+- `description`: Run Agent Anvil scenario suites in CI and publish trace-first eval artifacts.
 - `branding.icon`: `activity`
 - `branding.color`: `purple`
 
-Before listing it in GitHub Marketplace:
+Release tags:
 
-1. Keep README quickstart copy-paste safe.
-2. Keep the latest release tag aligned with README examples.
-3. Verify `action.yml` is at repository root.
-4. Confirm the action works from a tag, not only from `./`.
-5. Decide whether to keep the action in this repo or publish a tiny wrapper repo
-   later for a cleaner Marketplace surface.
+- `v1.0.0` for exact pinning
+- `v1` for stable major-version workflows
 
-The current repository is already usable as an action by tag. A separate wrapper
-repo is optional polish, not a blocker for the challenge submission.
+This repository uses the Marketplace action in its own `Agent Anvil` workflow so
+the published action is continuously exercised against real project scenarios.
 
 For CI hardening of MCP servers, use
 [`docs/examples/mcp-harden-workflow.yml`](examples/mcp-harden-workflow.yml). It
