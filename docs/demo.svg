@@ -13,7 +13,7 @@
 
   <rect width="1280" height="760" fill="#080d1a"/>
 
-  <rect x="38" y="30" width="1204" height="700" rx="18" fill="#111827" stroke="#334155" stroke-width="2.5" filter="url(#shadow)"/>
+  <rect x="38" y="30" width="1204" height="706" rx="18" fill="#111827" stroke="#334155" stroke-width="2.5" filter="url(#shadow)"/>
   <rect x="500" y="18" width="280" height="30" fill="#111827"/>
   <text x="640" y="40" text-anchor="middle" font-size="20" font-weight="700" fill="#a78bfa">Agent Anvil eval report</text>
 
@@ -54,18 +54,18 @@
   <text x="664" y="464" font-size="17" fill="#e5e7eb">issue_refund called before order verification</text>
   <text x="664" y="496" font-size="17" fill="#e5e7eb">argument: order_id="UNKNOWN"</text>
 
-  <rect x="70" y="562" width="710" height="118" rx="12" fill="#0f172a" stroke="#22c55e" stroke-width="2"/>
-  <text x="96" y="596" font-size="20" fill="#bbf7d0">Repair plan</text>
-  <text x="96" y="629" font-size="16" fill="#e5e7eb">Prompt: Require verification before destructive tool calls.</text>
-  <text x="96" y="657" font-size="16" fill="#e5e7eb">Tool: Only call issue_refund after lookup_order confirms eligibility.</text>
+  <rect x="70" y="548" width="710" height="112" rx="12" fill="#0f172a" stroke="#22c55e" stroke-width="2"/>
+  <text x="96" y="582" font-size="20" fill="#bbf7d0">Repair plan</text>
+  <text x="96" y="615" font-size="16" fill="#e5e7eb">Prompt: Require verification before destructive tool calls.</text>
+  <text x="96" y="643" font-size="16" fill="#e5e7eb">Tool: Only call issue_refund after lookup_order confirms eligibility.</text>
 
-  <rect x="810" y="562" width="400" height="118" rx="12" fill="#0f172a" stroke="#475569" stroke-width="2"/>
-  <text x="836" y="596" font-size="20" fill="#e5e7eb">Artifacts</text>
-  <text x="836" y="629" font-size="16" fill="#cbd5e1">runs/latest/report.md</text>
-  <text x="836" y="657" font-size="16" fill="#cbd5e1">results.json + traces</text>
+  <rect x="810" y="548" width="400" height="112" rx="12" fill="#0f172a" stroke="#475569" stroke-width="2"/>
+  <text x="836" y="582" font-size="20" fill="#e5e7eb">Artifacts</text>
+  <text x="836" y="615" font-size="16" fill="#cbd5e1">runs/latest/report.md</text>
+  <text x="836" y="643" font-size="16" fill="#cbd5e1">results.json + traces</text>
 
-  <text x="72" y="705" font-size="16" fill="#94a3b8">Final-answer evals miss this. Trace evals catch unsafe agent behavior.</text>
-  <text x="72" y="724" font-size="15" fill="#64748b">Run: runs/run_20260506_131439   Trials: 2   Pass rate: 50.0%</text>
-  <rect x="508" y="716" width="264" height="30" fill="#111827"/>
-  <text x="640" y="738" text-anchor="middle" font-size="18" font-weight="700" fill="#a78bfa">trace-first CI harness</text>
+  <text x="72" y="692" font-size="16" fill="#94a3b8">Final-answer evals miss this. Trace evals catch unsafe agent behavior.</text>
+  <text x="72" y="716" font-size="15" fill="#64748b">Run: runs/run_20260506_131439   Trials: 2   Pass rate: 50.0%</text>
+  <rect x="508" y="721" width="264" height="30" fill="#111827"/>
+  <text x="640" y="743" text-anchor="middle" font-size="18" font-weight="700" fill="#a78bfa">trace-first CI harness</text>
 </svg>
