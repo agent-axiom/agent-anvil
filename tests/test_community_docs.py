@@ -58,6 +58,18 @@ def test_ingest_doc_is_linked_from_readme() -> None:
     assert "anvil learn" in doc
 
 
+def test_judges_guide_is_linked_and_covers_eval_path() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    doc = Path("docs/judges-guide.md").read_text(encoding="utf-8")
+
+    assert "docs/judges-guide.md" in readme
+    assert "3-minute judges guide" in readme
+    assert "uv run anvil run scenarios/refund_agent.yaml" in doc
+    assert "uv run anvil mcp harden" in doc
+    assert "OpenAI is used in two ways" in doc
+    assert "Why This Is a System, Not a Prompt" in doc
+
+
 def test_issue_templates_cover_bug_feature_and_scenario_requests() -> None:
     template_paths = {
         ".github/ISSUE_TEMPLATE/bug_report.yml",

@@ -24,10 +24,6 @@ violated business invariants.
 
 ```bash
 uv run anvil init --agent-command "python my_agent.py"
-uv run anvil pack add tool-safety --agent-command "python my_agent.py" --risky-tool issue_refund --verification-tool lookup_order --out scenarios/tool_safety_starter.yaml
-uv run anvil ingest jsonl logs/agent_failure.jsonl --scenario-id prod_failure_001 --input "user request" --out runs/imported-prod
-uv run anvil learn jsonl logs/agent_failure.jsonl --scenario-id prod_failure_001 --input "user request" --out scenarios/prod_regression.yaml
-uv run anvil mcp harden --command-json '["python", "my_mcp_server.py"]' --snapshot-out reports/mcp-tools.json --audit-out scenarios/mcp_tool_safety.yaml --audit-report reports/mcp-audit.md --repair-out reports/mcp-repair.md --offline
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 uv run anvil report runs/latest
 uv run anvil summary runs/latest --github
@@ -56,7 +52,8 @@ uv run anvil fix runs/latest --prompt examples/support_agent/system_prompt.md --
 uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json --out scenarios/learned_refund_regression.yaml
 ```
 
-For the challenge post, see [submission text](docs/submission.md).
+For review, see the [3-minute judges guide](docs/judges-guide.md). For the
+challenge post, see [submission text](docs/submission.md).
 
 ## What It Catches
 
@@ -81,6 +78,7 @@ That gives a concrete eval loop:
 6. next run: patched prompts/tools can be compared against the baseline
 
 - [Sample report](docs/demo-report.md)
+- [3-minute judges guide](docs/judges-guide.md)
 - [Sample trace](docs/demo-trace.json)
 - [Sample repair plan](docs/demo-repair-plan.md)
 - [Learned regression scenario](docs/learned-regression.yaml)
@@ -313,7 +311,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.16
+- uses: agent-axiom/agent-anvil@v0.2.17
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -322,7 +320,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.16
+- uses: agent-axiom/agent-anvil@v0.2.17
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
