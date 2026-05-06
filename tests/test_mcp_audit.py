@@ -248,6 +248,39 @@ def test_cli_mcp_harden_runs_snapshot_audit_and_repair_pipeline(tmp_path: Path) 
     )
 
 
+def test_cli_mcp_harden_can_append_github_step_summary(tmp_path: Path) -> None:
+    server = _write_fake_mcp_server(tmp_path)
+    summary = tmp_path / "step-summary.md"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "mcp",
+            "harden",
+            "--command-json",
+            json.dumps([sys.executable, str(server)]),
+            "--snapshot-out",
+            str(tmp_path / "mcp-tools.json"),
+            "--audit-out",
+            str(tmp_path / "mcp_tool_safety.yaml"),
+            "--audit-report",
+            str(tmp_path / "mcp-audit.md"),
+            "--repair-out",
+            str(tmp_path / "mcp-repair.md"),
+            "--offline",
+            "--github-summary",
+        ],
+        env={"GITHUB_STEP_SUMMARY": str(summary)},
+    )
+
+    assert result.exit_code == 0
+    content = summary.read_text(encoding="utf-8")
+    assert "# Agent Anvil MCP Harden" in content
+    assert "Risky tools" in content
+    assert "`delete_project`" in content
+    assert "mcp-repair.md" in content
+
+
 def _write_fake_mcp_server(tmp_path: Path) -> Path:
     server = tmp_path / "fake_mcp_server.py"
     server.write_text(

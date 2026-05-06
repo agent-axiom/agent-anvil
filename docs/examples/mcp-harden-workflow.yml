@@ -29,7 +29,8 @@ jobs:
             --audit-out reports/mcp/mcp_tool_safety.yaml \
             --audit-report reports/mcp/mcp-audit.md \
             --repair-out reports/mcp/mcp-repair.md \
-            --offline
+            --offline \
+            --github-summary
 
       - name: Upload MCP hardening artifacts
         uses: actions/upload-artifact@v7.0.1

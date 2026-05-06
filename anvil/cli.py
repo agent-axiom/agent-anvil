@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import typer
@@ -11,7 +12,7 @@ from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools, snapshot_mcp_tools
-from anvil.mcp_repair import generate_mcp_repair, harden_mcp_server
+from anvil.mcp_repair import generate_mcp_repair, harden_mcp_server, render_mcp_harden_summary
 from anvil.packs import DEFAULT_PACK_OUT, list_packs, write_pack
 from anvil.pr_comment import write_pr_comment
 from anvil.repair import generate_repair_plan
@@ -87,6 +88,11 @@ MCP_HARDEN_REPAIR_OUT_OPTION = typer.Option(
     ...,
     "--repair-out",
     help="Write MCP repair Markdown here.",
+)
+MCP_HARDEN_GITHUB_SUMMARY_OPTION = typer.Option(
+    False,
+    "--github-summary",
+    help="Append MCP harden Markdown summary to GITHUB_STEP_SUMMARY when available.",
 )
 MCP_TIMEOUT_OPTION = typer.Option(10.0, "--timeout", min=0.1, help="MCP response timeout seconds.")
 TRACE_FORMAT_OPTION = typer.Option("openai-trace", "--format", help="Trace format.")
@@ -462,6 +468,7 @@ def mcp_harden(
     timeout_seconds: float = MCP_TIMEOUT_OPTION,
     offline: bool = OFFLINE_OPTION,
     redact: bool | None = REDACT_OPTION,
+    github_summary: bool = MCP_HARDEN_GITHUB_SUMMARY_OPTION,
 ) -> None:
     try:
         result = harden_mcp_server(
@@ -481,6 +488,8 @@ def mcp_harden(
     typer.echo(f"Wrote {result.audit_result.scenario_path}")
     typer.echo(f"Wrote {result.audit_result.report_path}")
     typer.echo(f"Wrote {result.repair_result.report_path}")
+    if github_summary:
+        _write_github_summary(render_mcp_harden_summary(result))
 
 
 def _select_mcp_command(command: str | None, command_json: str | None) -> str | list[str]:
@@ -499,6 +508,17 @@ def _select_mcp_command(command: str | None, command_json: str | None) -> str | 
     if command:
         return command
     raise ValueError("Either --command or --command-json is required.")
+
+
+def _write_github_summary(markdown: str) -> None:
+    summary_path = os.getenv("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        typer.echo(markdown, nl=False)
+        return
+    with Path(summary_path).open("a", encoding="utf-8") as summary_file:
+        summary_file.write(markdown)
+        if not markdown.endswith("\n"):
+            summary_file.write("\n")
 
 
 @trace_app.command("export")

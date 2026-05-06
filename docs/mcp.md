@@ -13,7 +13,8 @@ uv run anvil mcp harden \
   --audit-out scenarios/mcp_tool_safety.yaml \
   --audit-report reports/mcp-audit.md \
   --repair-out reports/mcp-repair.md \
-  --offline
+  --offline \
+  --github-summary
 ```
 
 Or snapshot and audit only:
@@ -32,6 +33,8 @@ parsed with `shlex`.
 
 `mcp harden` is the copy-paste path for CI demos: it chains `snapshot`, `audit`,
 and `repair` so a live MCP server produces all Agent Anvil artifacts in one run.
+With `--github-summary`, it appends a compact Markdown summary to the GitHub
+Actions run page when `GITHUB_STEP_SUMMARY` is available.
 
 Or audit an existing exported tool schema file:
 

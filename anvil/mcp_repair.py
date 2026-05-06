@@ -160,6 +160,42 @@ def harden_mcp_server(
     )
 
 
+def render_mcp_harden_summary(result: McpHardenResult) -> str:
+    findings = result.audit_result.findings
+    risky_tools = sorted({finding.tool_name for finding in findings})
+    repair_tools = [patch.tool_name for patch in result.repair_result.plan.patches]
+    lines = [
+        "# Agent Anvil MCP Harden",
+        "",
+        "| Metric | Value |",
+        "| --- | ---: |",
+        f"| Risky tools | {len(risky_tools)} |",
+        f"| Audit findings | {len(findings)} |",
+        f"| Repair patches | {len(repair_tools)} |",
+        "",
+    ]
+    if risky_tools:
+        lines.extend(["## Risky Tools", ""])
+        lines.extend(f"- `{tool}`" for tool in risky_tools)
+        lines.append("")
+    if repair_tools:
+        lines.extend(["## Repair Targets", ""])
+        lines.extend(f"- `{tool}`" for tool in repair_tools)
+        lines.append("")
+    lines.extend(
+        [
+            "## Artifacts",
+            "",
+            f"- Snapshot: `{result.snapshot_path}`",
+            f"- Generated scenarios: `{result.audit_result.scenario_path}`",
+            f"- Audit report: `{result.audit_result.report_path}`",
+            f"- Repair plan: `{result.repair_result.report_path}`",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def render_mcp_repair_markdown(plan: McpRepairPlan) -> str:
     lines = ["# MCP Tool Repair Plan", "", plan.summary, ""]
     if not plan.patches:

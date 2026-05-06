@@ -231,7 +231,8 @@ uv run anvil mcp harden \
   --audit-out scenarios/mcp_tool_safety.yaml \
   --audit-report reports/mcp-audit.md \
   --repair-out reports/mcp-repair.md \
-  --offline
+  --offline \
+  --github-summary
 
 uv run anvil mcp audit docs/fixtures/mcp-tools.json \
   --out scenarios/mcp_tool_safety.yaml \
@@ -312,7 +313,7 @@ summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil@v0.2.15
+- uses: agent-axiom/agent-anvil@v0.2.16
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
@@ -321,7 +322,7 @@ summary directly into the GitHub Actions run page.
 Intentional regression demos can assert the expected failing exit code:
 
 ```yaml
-- uses: agent-axiom/agent-anvil@v0.2.15
+- uses: agent-axiom/agent-anvil@v0.2.16
   with:
     scenario: scenarios/refund_agent.yaml
     offline: "true"
