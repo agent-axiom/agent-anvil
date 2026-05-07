@@ -1,4 +1,4 @@
-name: Agent Anvil MCP Harden
+name: Agent Anvil MCP Safety Audit
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  mcp-harden:
+  mcp-safety-audit:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Harden MCP tool surface
+      - name: Audit MCP tool surface
         run: |
           uv run --frozen anvil mcp harden \
             --command-json '["python", "docs/examples/fake_mcp_server.py"]' \
@@ -32,9 +32,9 @@ jobs:
             --offline \
             --github-summary
 
-      - name: Upload MCP hardening artifacts
+      - name: Upload MCP safety audit artifacts
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: agent-anvil-mcp-hardening
+          name: agent-anvil-mcp-safety-audit
           path: reports/mcp/
           if-no-files-found: error

@@ -1,7 +1,8 @@
 # Trace Ingest
 
 `anvil ingest` turns production agent logs into Agent Anvil trace artifacts.
-This closes the loop from a real failure to a permanent regression scenario:
+This closes the loop from a real failure to a reviewable draft regression
+scenario:
 
 ```text
 production failure log -> Anvil trace -> anvil learn -> CI scenario

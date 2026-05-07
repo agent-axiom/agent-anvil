@@ -7,8 +7,8 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Sample report](demo-report.md)
 - [Sample trace](demo-trace.json)
 - [Sample repair plan](demo-repair-plan.md)
-- [Learned regression scenario](learned-regression.yaml)
-- [Anvil Learn docs](learn.md)
+- [Draft learned regression scenario](learned-regression.yaml)
+- [Anvil Learn draft-scenario docs](learn.md)
 
 ## Before / After Demo
 
@@ -25,18 +25,19 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [OpenAI-graded regression repair plan](openai-graded-regression-repair-plan.md)
 - [OpenAI-graded regression trace](openai-graded-regression-trace.json)
 
-## Tool Safety
+## Tool Safety Helpers
 
 - [Tool-safety report](tool-safety-report.md)
 - [Tool-safety repair plan](tool-safety-repair-plan.md)
-- [Fuzzed refund scenarios](refund-agent-fuzzed.yaml)
+- [Mutated refund scenarios](refund-agent-fuzzed.yaml)
 
-## MCP Hardening
+## MCP Tool Safety Audit
 
 - [MCP tool audit](mcp-audit.md)
 - [MCP tool repair plan](mcp-repair.md)
 - [Generated MCP safety scenarios](mcp-tool-safety.yaml)
 - [MCP audit guide](mcp.md)
+- [Limits and experimental helpers](limits.md)
 
 ## Reference Docs
 

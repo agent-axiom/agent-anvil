@@ -14,9 +14,9 @@ Most evals ask: "was the final answer good?" Agent Anvil asks: "did the
 agent behave safely while getting there?"
 
 It runs YAML scenario suites, records model/tool traces, checks trace completion,
-tool choice, arguments, and clarification behavior, uses OpenAI models for
-semantic grading, clusters failures, and writes concrete prompt/tool/guardrail
-repair plans.
+tool choice, arguments, clarification behavior, and policy preconditions, uses
+OpenAI models for semantic grading, clusters failures, and writes concrete
+prompt/tool/guardrail repair plans.
 
 It catches workflow bugs final-answer evals miss: wrong tools, wrong arguments,
 destructive tools called too early, missing clarifying questions, loops, and
@@ -33,10 +33,10 @@ uv run anvil summary runs/latest --github
 
 ## 30-Second Demo
 
-Agent Anvil turns unsafe traces into a repeatable improvement loop:
+Agent Anvil's core loop is intentionally small:
 
 ```text
-run -> repair -> fix -> learn -> CI
+run -> trace -> check -> grade -> report -> CI
 ```
 
 One-command demo:
@@ -48,8 +48,6 @@ One-command demo:
 ```bash
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
 uv run anvil repair runs/latest
-uv run anvil fix runs/latest --prompt examples/support_agent/system_prompt.md --tools examples/support_agent/tools.py --out patches/anvil-fix.patch
-uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json --out scenarios/learned_refund_regression.yaml
 ```
 
 For review, see the [3-minute judges guide](docs/judges-guide.md). For the
@@ -65,17 +63,15 @@ The bundled refund-agent demo intentionally fails one scenario:
 
 Agent Anvil flags the forbidden destructive tool call, clusters it as
 `premature_tool_execution`, and suggests patches for the prompt, tool
-description, and guardrail. With `anvil learn`, the same bad trace can become a
-permanent regression scenario that keeps the bug from coming back.
+description, and guardrail.
 
 That gives a concrete eval loop:
 
 1. weak tool description: `issue_refund` issues a refund to a customer
 2. failing trace: agent calls `issue_refund(order_id="UNKNOWN")`
 3. repair plan: require `lookup_order` verification before destructive tools
-4. fix patch: generate a reviewable diff for prompt/tool descriptions
-5. learned scenario: commit the failure as a repeatable regression test
-6. next run: patched prompts/tools can be compared against the baseline
+4. CI status: fail the build and link the first bad trace
+5. next run: patched prompts/tools can be compared against the baseline
 
 Start here:
 
@@ -83,7 +79,8 @@ Start here:
 - [Sample report](docs/demo-report.md)
 - [Sample repair plan](docs/demo-repair-plan.md)
 - [OpenAI-graded regression report](docs/openai-graded-regression-report.md)
-- [MCP hardening guide](docs/mcp.md)
+- [Limits and experimental helpers](docs/limits.md)
+- [MCP tool safety audit](docs/mcp.md)
 - [Full artifact index](docs/artifacts.md)
 - [CLI reference](docs/cli.md)
 
@@ -125,7 +122,9 @@ uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --tr
 uv run anvil repair runs/latest
 ```
 
-Turn the failing trace into a reviewable patch and permanent regression test:
+Optional helper commands can turn the failing trace into a reviewable demo patch
+and a draft regression scenario. These are scaffolding tools, not a generic
+auto-fix engine or a substitute for domain review:
 
 ```bash
 uv run anvil fix runs/latest \
@@ -136,7 +135,7 @@ uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
   --out scenarios/learned_refund_regression.yaml
 ```
 
-Run MCP tool hardening:
+Run an MCP tool-safety audit:
 
 ```bash
 uv run anvil mcp harden \
@@ -187,9 +186,10 @@ The action writes `agent-anvil-pr-comment.md` when `pr-comment: "true"`. In
 publishes the same summary directly to the PR.
 See the copy-paste [PR comment workflow](docs/examples/pr-comment-workflow.yml).
 For MCP servers, see the copy-paste
-[MCP harden workflow](docs/examples/mcp-harden-workflow.yml), which snapshots a
-stdio MCP server, generates safety scenarios, writes an audit report, and uploads
-a repair plan as GitHub Actions artifacts.
+[MCP safety audit workflow](docs/examples/mcp-harden-workflow.yml), which
+snapshots a stdio MCP server, runs static tool-description checks, generates
+draft safety scenarios, writes an audit report, and uploads repair hints as
+GitHub Actions artifacts.
 
 ## Why AI Was Necessary
 
@@ -210,5 +210,6 @@ so review them before sharing outside your team.
 ## More
 
 - [Engineering details](docs/engineering.md)
+- [Limits and experimental helpers](docs/limits.md)
 - [OpenAI function calling docs](https://developers.openai.com/api/docs/guides/function-calling)
 - [OpenAI model catalog](https://developers.openai.com/api/docs/models)

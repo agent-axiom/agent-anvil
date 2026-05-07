@@ -13,14 +13,15 @@ prompt/tool/guardrail repair plans.
 The demo catches a refund agent calling `issue_refund(order_id="UNKNOWN")`
 before order verification — a workflow bug final-answer evals often miss.
 
-Current `v0.2.18` also closes the improvement loop:
+Current `v0.2.18` keeps the core product focused on trace-first CI, and includes
+several experimental workflow helpers:
 
-- `anvil learn`: bad trace -> permanent regression scenario
-- `anvil fix`: repair plan -> reviewable prompt/tool patch diff
+- `anvil learn`: bad trace -> draft regression scenario for human review
+- `anvil fix`: demo repair signal -> reviewable prompt/tool patch diff
 - `policies`: deterministic guardrails for destructive tools
-- `anvil mcp audit`: MCP tool schema audit -> safety scenarios
-- `anvil mcp harden`: live MCP server -> snapshot, safety scenarios, audit, repair plan
-- `anvil fuzz`: tool-use robustness mutations
+- `anvil mcp audit`: MCP tool schema lint -> draft safety scenarios
+- `anvil mcp harden`: live MCP server -> snapshot, static audit, repair hints
+- `anvil fuzz`: deterministic scenario mutation helper
 - `anvil pr-comment`: PR-ready regression summary
 - GitHub Action with Markdown/JSON/trace artifacts
 

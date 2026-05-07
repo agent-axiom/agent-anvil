@@ -251,11 +251,11 @@ def test_composite_action_has_marketplace_branding() -> None:
     assert action["branding"] == {"icon": "activity", "color": "purple"}
 
 
-def test_readme_has_30_second_flywheel_demo() -> None:
+def test_readme_has_30_second_core_loop_demo() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
 
     assert "## 30-Second Demo" in readme
-    assert "run -> repair -> fix -> learn -> CI" in readme
+    assert "run -> trace -> check -> grade -> report -> CI" in readme
     assert "docs/submission.md" in readme
 
 
@@ -273,8 +273,8 @@ def test_mcp_and_marketplace_docs_are_linked() -> None:
 def test_mcp_harden_example_workflow_is_copy_paste_ready() -> None:
     workflow_path = Path("docs/examples/mcp-harden-workflow.yml")
     workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
-    steps = workflow["jobs"]["mcp-harden"]["steps"]
-    harden_step = next(step for step in steps if step.get("name") == "Harden MCP tool surface")
+    steps = workflow["jobs"]["mcp-safety-audit"]["steps"]
+    harden_step = next(step for step in steps if step.get("name") == "Audit MCP tool surface")
     upload_step = next(
         step for step in steps if step.get("uses") == "actions/upload-artifact@v7.0.1"
     )
@@ -283,7 +283,7 @@ def test_mcp_harden_example_workflow_is_copy_paste_ready() -> None:
     assert "anvil mcp harden" in harden_step["run"]
     assert "--command-json" in harden_step["run"]
     assert "--github-summary" in harden_step["run"]
-    assert upload_step["with"]["name"] == "agent-anvil-mcp-hardening"
+    assert upload_step["with"]["name"] == "agent-anvil-mcp-safety-audit"
     assert "docs/examples/mcp-harden-workflow.yml" in Path("README.md").read_text(encoding="utf-8")
 
 
@@ -322,3 +322,10 @@ def test_readme_action_reference_uses_marketplace_release() -> None:
 
     assert MARKETPLACE_ACTION_REF in readme
     assert "agent-axiom/agent-anvil@v" not in readme
+
+
+def test_submission_version_matches_package_version() -> None:
+    submission = Path("docs/submission.md").read_text(encoding="utf-8")
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    assert f"Current `v{pyproject['project']['version']}`" in submission

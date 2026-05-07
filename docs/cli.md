@@ -19,7 +19,7 @@ uv run anvil compare runs/baseline runs/latest
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
 regressions.
 
-## Repair Loop
+## Repair And Draft Scenario Helpers
 
 ```bash
 uv run anvil repair runs/latest
@@ -60,7 +60,7 @@ uv run anvil learn jsonl logs/agent_failure.jsonl \
   --out scenarios/prod_regression.yaml
 ```
 
-## MCP Tool Hardening
+## MCP Tool-Safety Audit
 
 ```bash
 uv run anvil mcp harden \
@@ -85,7 +85,7 @@ uv run anvil mcp repair docs/fixtures/mcp-tools.json \
   --offline
 ```
 
-## Trace Bridge And Fuzzing
+## Trace Bridge And Scenario Mutation
 
 ```bash
 uv run anvil trace export runs/latest --format openai-trace --out traces/openai-trace.json

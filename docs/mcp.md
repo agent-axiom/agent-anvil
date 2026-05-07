@@ -3,8 +3,8 @@
 Agent Anvil can statically audit exported MCP tool schemas before those tools
 are handed to an agent.
 
-Snapshot a live stdio MCP server, generate safety scenarios, write an audit
-report, and produce a repair plan:
+Snapshot a live stdio MCP server, generate draft safety scenarios, write a
+static audit report, and produce repair hints:
 
 ```bash
 uv run anvil mcp harden \
@@ -33,6 +33,7 @@ parsed with `shlex`.
 
 `mcp harden` is the copy-paste path for CI demos: it chains `snapshot`, `audit`,
 and `repair` so a live MCP server produces all Agent Anvil artifacts in one run.
+The checks are static tool-schema heuristics, not a full MCP safety analyzer.
 With `--github-summary`, it appends a compact Markdown summary to the GitHub
 Actions run page when `GITHUB_STEP_SUMMARY` is available.
 
@@ -47,10 +48,10 @@ uv run anvil mcp repair docs/fixtures/mcp-tools.json \
   --offline
 ```
 
-`mcp repair` turns audit findings into concrete tool-description, policy, and
-scenario repair suggestions. Without `--offline`, it uses OpenAI structured
-outputs to produce a richer repair plan; with `--offline`, it emits deterministic
-local repair hints for CI-safe demos.
+`mcp repair` turns audit findings into tool-description, policy, and scenario
+repair hints. Without `--offline`, it uses OpenAI structured outputs to produce
+a richer repair plan; with `--offline`, it emits deterministic local hints for
+CI-safe demos.
 
 The MVP reads JSON or YAML shaped as either:
 

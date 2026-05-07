@@ -68,9 +68,27 @@ def test_artifacts_and_cli_docs_are_linked_from_readme() -> None:
     assert "docs/artifacts.md" in readme
     assert "docs/cli.md" in readme
     assert "OpenAI-graded regression report" in artifacts
-    assert "MCP Hardening" in artifacts
+    assert "MCP Tool Safety Audit" in artifacts
     assert "uv run anvil compare runs/baseline runs/latest" in cli_doc
     assert "uv run anvil mcp harden" in cli_doc
+
+
+def test_docs_separate_core_from_experimental_helpers() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    limits = Path("docs/limits.md").read_text(encoding="utf-8")
+
+    assert "run -> trace -> check -> grade -> report -> CI" in readme
+    assert "docs/limits.md" in readme
+    assert "experimental helpers" in readme
+    assert "Production-Useful Core" in limits
+    assert "Experimental Helpers" in limits
+    assert "do not treat it as" in limits
+    assert "generic auto-fix engine" in limits
+    assert "coverage-" in limits
+    assert "guided fuzzing" in limits
+    assert "They are not a" in limits
+    assert "full MCP safety analyzer" in limits
+    assert "run -> repair -> fix -> learn -> CI" not in readme
 
 
 def test_judges_guide_is_linked_and_covers_eval_path() -> None:

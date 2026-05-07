@@ -16,10 +16,10 @@ The system includes:
 - deterministic checks for tool choice, arguments, clarification, loops, and policies
 - OpenAI structured semantic grading
 - failure clustering
-- repair plans and patch suggestions
-- learned regression scenarios from traces
+- repair plans and reviewable patch suggestions
+- draft regression scenarios from traces
 - external JSONL agent protocol
-- MCP tool hardening
+- MCP tool-safety audit
 - GitHub Action, PR comments, and Step Summary output
 
 ## 2. Run the Fast Demo
@@ -40,7 +40,7 @@ Open:
 - `runs/latest/results.json`
 - `runs/latest/traces/`
 
-## 3. Check the Improvement Loop
+## 3. Check Optional Workflow Helpers
 
 ```bash
 uv run anvil fix runs/latest \
@@ -52,10 +52,11 @@ uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
   --out scenarios/learned_refund_regression.yaml
 ```
 
-This shows the loop: failing trace -> repair plan -> reviewable patch ->
-permanent regression scenario.
+This shows optional scaffolding: failing trace -> repair plan -> reviewable demo
+patch -> draft regression scenario. These helpers are conservative drafts and
+should be reviewed before use in a real agent repository.
 
-## 4. Check MCP Tool Hardening
+## 4. Check MCP Tool-Safety Audit
 
 ```bash
 uv run anvil mcp harden \
@@ -76,7 +77,8 @@ Open:
 - `reports/mcp/mcp-repair.md`
 
 This shows how Agent Anvil can inspect a live MCP server before agents use its
-tools, generate safety evals, and suggest safer tool descriptions.
+tools, run static tool-description checks, generate draft safety evals, and
+suggest safer tool descriptions.
 
 ## 5. Check OpenAI Usage
 
@@ -98,7 +100,7 @@ CI demos stay offline by default so contributors do not need API keys.
 Check GitHub Actions:
 
 - `CI`: pytest, ruff, ty, coverage threshold
-- `Agent Anvil`: runs Agent Anvil against itself, uploads run artifacts, runs MCP hardening
+- `Agent Anvil`: runs Agent Anvil against itself, uploads run artifacts, runs MCP safety audit
 - `OpenAI Demo`: manual workflow for real OpenAI runs with repository secrets
 
 The repository also includes copy-paste examples:
@@ -112,8 +114,8 @@ Agent Anvil persists state and artifacts across a full evaluation pipeline:
 
 ```text
 scenarios -> runner -> agent -> traces -> deterministic checks
-          -> OpenAI semantic grading -> clustering -> repair plans
-          -> learned regression scenarios -> CI artifacts
+          -> OpenAI semantic grading -> clustering -> reports
+          -> repair plans -> CI artifacts
 ```
 
 That makes it useful for regression prevention, not just one-off prompting.

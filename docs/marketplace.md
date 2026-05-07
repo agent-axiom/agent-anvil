@@ -29,7 +29,7 @@ Release tags:
 This repository uses the Marketplace action in its own `Agent Anvil` workflow so
 the published action is continuously exercised against real project scenarios.
 
-For CI hardening of MCP servers, use
+For CI safety audits of MCP servers, use
 [`docs/examples/mcp-harden-workflow.yml`](examples/mcp-harden-workflow.yml). It
 runs `anvil mcp harden`, appends a GitHub Step Summary, and uploads snapshot,
-audit, generated scenarios, and repair artifacts.
+audit, generated draft scenarios, and repair-hint artifacts.
