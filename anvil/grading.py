@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from enum import StrEnum
 from typing import Any, Protocol
 
@@ -169,7 +170,7 @@ def _tool_policy_satisfied(trace: TraceRun, policies: PolicyConfig) -> CheckOutc
 
 
 def _prior_precondition_met(
-    prior_calls: list[dict[str, Any]],
+    prior_calls: Sequence[Any],
     precondition: ToolPrecondition,
 ) -> bool:
     return any(

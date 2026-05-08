@@ -1,11 +1,100 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny, field_validator, model_validator
 
 TraceStatus = Literal["running", "completed", "failed"]
+
+
+class TraceStep(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    type: str
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.model_dump(mode="python").get(key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        return self.model_dump(mode="python")[key]
+
+    def __contains__(self, key: object) -> bool:
+        return key in self.model_dump(mode="python")
+
+    def items(self) -> Any:
+        return self.model_dump(mode="python").items()
+
+
+class ModelCallStep(TraceStep):
+    type: Literal["model_call"] = "model_call"
+    model: str | None = None
+    input: Any = None
+    output_text: str = ""
+    tool_calls: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ToolCallStep(TraceStep):
+    type: Literal["tool_call"] = "tool_call"
+    tool_name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    result: Any = None
+
+
+class FunctionCallOutputStep(TraceStep):
+    type: Literal["function_call_output"] = "function_call_output"
+    call_id: str | None = None
+    output: str | dict[str, Any] | None = None
+
+
+class ToolArgumentErrorStep(TraceStep):
+    type: Literal["tool_argument_error"] = "tool_argument_error"
+    tool_name: str | None = None
+    arguments: Any = None
+    error: str | None = None
+    message: str | None = None
+
+
+class ToolExecutionErrorStep(TraceStep):
+    type: Literal["tool_execution_error"] = "tool_execution_error"
+    tool_name: str | None = None
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+    message: str | None = None
+
+
+class AgentProtocolErrorStep(TraceStep):
+    type: Literal["agent_protocol_error"] = "agent_protocol_error"
+    error_type: str
+    message: str
+
+
+class FinalOutputStep(TraceStep):
+    type: Literal["final_output"] = "final_output"
+    text: str | None = None
+    final_output: str | None = None
+
+
+TRACE_STEP_TYPES: dict[str, type[TraceStep]] = {
+    "model_call": ModelCallStep,
+    "tool_call": ToolCallStep,
+    "function_call_output": FunctionCallOutputStep,
+    "tool_argument_error": ToolArgumentErrorStep,
+    "tool_execution_error": ToolExecutionErrorStep,
+    "agent_protocol_error": AgentProtocolErrorStep,
+    "final_output": FinalOutputStep,
+}
+
+TraceStepInput = TraceStep | Mapping[str, Any]
+
+
+def parse_trace_step(value: TraceStepInput) -> TraceStep:
+    if isinstance(value, TraceStep):
+        return value
+    step_type = value.get("type")
+    model = TRACE_STEP_TYPES.get(str(step_type), TraceStep)
+    return model.model_validate(dict(value))
 
 
 class TraceMetrics(BaseModel):
@@ -26,9 +115,19 @@ class TraceRun(BaseModel):
     started_at: datetime
     ended_at: datetime | None = None
     status: TraceStatus
-    steps: list[dict[str, Any]] = Field(default_factory=list)
+    steps: Sequence[SerializeAsAny[TraceStep] | Mapping[str, Any]] = Field(default_factory=list)
     final_output: str | None = None
     metrics: TraceMetrics = Field(default_factory=TraceMetrics)
+
+    @field_validator("steps", mode="before")
+    @classmethod
+    def validate_steps(cls, value: Any) -> list[TraceStep]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            msg = "steps must be a list"
+            raise TypeError(msg)
+        return [parse_trace_step(step) for step in value]
 
     @model_validator(mode="after")
     def refresh_metrics(self) -> TraceRun:
@@ -47,7 +146,7 @@ class TraceRun(BaseModel):
         )
         return self
 
-    def tool_calls(self) -> list[dict[str, Any]]:
+    def tool_calls(self) -> list[SerializeAsAny[TraceStep] | Mapping[str, Any]]:
         return [step for step in self.steps if step.get("type") == "tool_call"]
 
     def tool_names(self) -> list[str]:

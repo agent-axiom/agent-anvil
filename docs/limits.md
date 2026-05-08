@@ -39,10 +39,12 @@ These commands are useful scaffolding, but intentionally conservative:
 
 ## Trace Schema
 
-The current trace format keeps `steps` JSON-compatible for easy ingestion from
-external agents. A typed event schema is the next planned hardening step so
-adapters can validate `model_call`, `tool_call`, protocol-error, and final-output
-events more strictly.
+The trace format keeps `steps` JSON-compatible for easy ingestion from external
+agents, but the Python model now validates common event shapes with typed
+Pydantic step models. Supported typed events include `model_call`, `tool_call`,
+`function_call_output`, protocol errors, tool argument errors, tool execution
+errors, and final-output events. The on-disk JSON shape remains stable for
+existing artifacts.
 
 ## Assertion Language
 

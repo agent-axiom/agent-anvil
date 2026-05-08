@@ -55,7 +55,7 @@ def _export_trace(trace: TraceRun) -> dict[str, Any]:
     }
 
 
-def _export_event(step: dict[str, Any]) -> dict[str, Any]:
+def _export_event(step: Any) -> dict[str, Any]:
     if step.get("type") == "model_call":
         return {
             "type": "generation",
