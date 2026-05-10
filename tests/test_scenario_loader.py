@@ -101,6 +101,53 @@ scenarios:
     assert suite.policies.require_human_approval == ["delete_project"]
 
 
+def test_load_scenario_file_accepts_assertion_dsl(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "assertions.yaml"
+    scenario_file.write_text(
+        """
+name: assertion_suite
+agent: examples.support_agent
+scenarios:
+  - id: refund_order
+    input: "Refund ORD-123"
+    expected:
+      assertions:
+        - type: tool_called
+          tool: lookup_order
+        - type: tool_called_before
+          before: issue_refund
+          after: lookup_order
+        - type: max_tool_calls
+          tool: lookup_order
+          count: 1
+        - type: forbidden_arg_value
+          tool: issue_refund
+          path: $.order_id
+          values: ["UNKNOWN", "", null]
+        - type: tool_result_matches
+          tool: lookup_order
+          path: $.eligible_for_refund
+          equals: true
+        - type: final_output_not_contains
+          text: "guaranteed"
+""",
+        encoding="utf-8",
+    )
+
+    suite = load_scenario_file(scenario_file)
+    assertions = suite.scenarios[0].expected.assertions
+
+    assert [assertion.type for assertion in assertions] == [
+        "tool_called",
+        "tool_called_before",
+        "max_tool_calls",
+        "forbidden_arg_value",
+        "tool_result_matches",
+        "final_output_not_contains",
+    ]
+    assert assertions[3].values == ["UNKNOWN", "", None]
+
+
 @pytest.mark.parametrize(
     ("payload", "field"),
     [
@@ -173,6 +220,20 @@ def test_scenario_suite_rejects_invalid_payloads(payload: dict[str, object], fie
                 "scenarios": [{"id": "smoke", "input": "hello", "timeout": 10}],
             },
             "timeout",
+        ),
+        (
+            {
+                "name": "suite",
+                "agent": "examples.support_agent",
+                "scenarios": [
+                    {
+                        "id": "smoke",
+                        "input": "hello",
+                        "expected": {"assertions": [{"type": "tool_called"}]},
+                    }
+                ],
+            },
+            "tool",
         ),
     ],
 )

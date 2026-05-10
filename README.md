@@ -22,6 +22,10 @@ It catches workflow bugs final-answer evals miss: wrong tools, wrong arguments,
 destructive tools called too early, missing clarifying questions, loops, and
 violated business invariants.
 
+Scenarios can use a deterministic assertion DSL for trace invariants such as
+ordered tool calls, max call counts, forbidden argument values, tool-result
+checks, and final-output text checks.
+
 ```bash
 uv run anvil init --agent-command "python my_agent.py"
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline

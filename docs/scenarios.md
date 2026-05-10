@@ -31,6 +31,53 @@ scenarios:
 - `required_tool_args`: exact argument key/value pairs required for a tool call
 - `should_ask_clarifying_question`: simple deterministic clarification check
 - `success_criteria`: semantic criteria for OpenAI grading
+- `assertions`: trace-level deterministic assertion DSL
+
+## Assertion DSL
+
+Use `expected.assertions` when you need explicit trace invariants beyond the
+legacy shorthand fields:
+
+```yaml
+expected:
+  assertions:
+    - type: tool_called
+      tool: lookup_order
+    - type: tool_not_called
+      tool: issue_refund
+    - type: tool_called_before
+      before: issue_refund
+      after: lookup_order
+    - type: max_tool_calls
+      tool: lookup_order
+      count: 1
+    - type: forbidden_arg_value
+      tool: issue_refund
+      path: $.order_id
+      values: ["UNKNOWN", "", null]
+    - type: tool_result_matches
+      tool: lookup_order
+      path: $.eligible_for_refund
+      equals: true
+    - type: final_output_contains
+      text: "refund"
+    - type: final_output_not_contains
+      text: "guaranteed"
+```
+
+Supported assertion types:
+
+- `tool_called`
+- `tool_not_called`
+- `tool_called_before`
+- `max_tool_calls`
+- `forbidden_arg_value`
+- `tool_result_matches`
+- `final_output_contains`
+- `final_output_not_contains`
+
+`path` currently supports simple JSON paths such as `$.order_id` or
+`$.eligible_for_refund` over tool arguments/results.
 
 ## Policies
 

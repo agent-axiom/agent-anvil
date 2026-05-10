@@ -23,6 +23,7 @@ class DeterministicCheck(StrEnum):
     FINAL_OUTPUT_EXISTS = "final_output_exists"
     CLARIFYING_QUESTION_ASKED = "clarifying_question_asked"
     TOOL_POLICY_SATISFIED = "tool_policy_satisfied"
+    ASSERTIONS_SATISFIED = "assertions_satisfied"
 
 
 class CheckOutcome(BaseModel):
@@ -97,6 +98,7 @@ def deterministic_grade_trace(
         _tool_policy_satisfied(trace, policies or PolicyConfig()),
         _max_steps_not_exceeded(scenario, trace, defaults),
         _required_tool_args_matched(scenario, trace),
+        _assertions_satisfied(scenario, trace),
         _final_output_exists(trace),
         _clarifying_question_asked(scenario, trace),
     ]
@@ -218,6 +220,156 @@ def _required_tool_args_matched(scenario: ScenarioCase, trace: TraceRun) -> Chec
         passed=not failures,
         reason="required tool arguments matched" if not failures else "; ".join(failures),
     )
+
+
+def _assertions_satisfied(scenario: ScenarioCase, trace: TraceRun) -> CheckOutcome:
+    failures: list[str] = []
+    calls = trace.tool_calls()
+    tool_names = trace.tool_names()
+    final_output = trace.final_output or ""
+
+    for assertion in scenario.expected.assertions:
+        failure = _assertion_failure(assertion, calls, tool_names, final_output)
+        if failure:
+            failures.append(failure)
+
+    return CheckOutcome(
+        name=DeterministicCheck.ASSERTIONS_SATISFIED,
+        passed=not failures,
+        reason="assertion passed" if not failures else "; ".join(failures),
+    )
+
+
+def _assertion_failure(
+    assertion: Any,
+    calls: Sequence[Any],
+    tool_names: list[str],
+    final_output: str,
+) -> str | None:
+    handlers = {
+        "tool_called": lambda: _assert_tool_called(assertion.tool, tool_names),
+        "tool_not_called": lambda: _assert_tool_not_called(assertion.tool, tool_names),
+        "tool_called_before": lambda: _assert_tool_called_before(
+            assertion.before,
+            assertion.after,
+            tool_names,
+        ),
+        "max_tool_calls": lambda: _assert_max_tool_calls(
+            assertion.tool,
+            assertion.count,
+            tool_names,
+        ),
+        "forbidden_arg_value": lambda: _assert_forbidden_arg_value(assertion, calls),
+        "tool_result_matches": lambda: _assert_tool_result_matches(assertion, calls),
+        "final_output_contains": lambda: _assert_final_output_contains(
+            assertion.text,
+            final_output,
+        ),
+        "final_output_not_contains": lambda: _assert_final_output_not_contains(
+            assertion.text,
+            final_output,
+        ),
+    }
+    return handlers[assertion.type]()
+
+
+def _assert_tool_called(tool_name: str | None, tool_names: list[str]) -> str | None:
+    if tool_name not in tool_names:
+        return f"{tool_name} was not called"
+    return None
+
+
+def _assert_tool_not_called(tool_name: str | None, tool_names: list[str]) -> str | None:
+    if tool_name in tool_names:
+        return f"{tool_name} was called"
+    return None
+
+
+def _assert_tool_called_before(
+    before: str | None,
+    after: str | None,
+    tool_names: list[str],
+) -> str | None:
+    before_index = _first_tool_index(tool_names, before)
+    after_index = _first_tool_index(tool_names, after)
+    if before_index is None:
+        return f"{before} was not called"
+    if after_index is None:
+        return f"{after} was not called"
+    if after_index >= before_index:
+        return f"{after} was not called before {before}"
+    return None
+
+
+def _assert_max_tool_calls(
+    tool_name: str | None,
+    count: int | None,
+    tool_names: list[str],
+) -> str | None:
+    observed = sum(1 for observed_tool in tool_names if observed_tool == tool_name)
+    if count is not None and observed > count:
+        return f"{tool_name} called {observed} times, max is {count}"
+    return None
+
+
+def _assert_forbidden_arg_value(assertion: Any, calls: Sequence[Any]) -> str | None:
+    for call in calls:
+        if call.get("tool_name") != assertion.tool:
+            continue
+        value = _json_path_get(call.get("arguments"), assertion.path or "$")
+        if value in assertion.values:
+            return f"{assertion.tool} argument {assertion.path} had forbidden value {value!r}"
+    return None
+
+
+def _assert_tool_result_matches(assertion: Any, calls: Sequence[Any]) -> str | None:
+    matching_call = next((call for call in calls if call.get("tool_name") == assertion.tool), None)
+    value = (
+        _json_path_get(matching_call.get("result"), assertion.path or "$")
+        if matching_call is not None
+        else None
+    )
+    if value != assertion.equals:
+        return (
+            f"{assertion.tool} result {assertion.path} expected {assertion.equals!r}, got {value!r}"
+        )
+    return None
+
+
+def _assert_final_output_contains(text: str | None, final_output: str) -> str | None:
+    expected_text = text or ""
+    if expected_text.lower() not in final_output.lower():
+        return f"final output does not contain {expected_text!r}"
+    return None
+
+
+def _assert_final_output_not_contains(text: str | None, final_output: str) -> str | None:
+    forbidden_text = text or ""
+    if forbidden_text.lower() in final_output.lower():
+        return f"final output contains forbidden text {forbidden_text!r}"
+    return None
+
+
+def _first_tool_index(tool_names: list[str], tool_name: str | None) -> int | None:
+    if tool_name is None:
+        return None
+    try:
+        return tool_names.index(tool_name)
+    except ValueError:
+        return None
+
+
+def _json_path_get(value: Any, path: str) -> Any:
+    if path == "$":
+        return value
+    if not path.startswith("$."):
+        return None
+    selected = value
+    for part in path[2:].split("."):
+        if not isinstance(selected, dict):
+            return None
+        selected = selected.get(part)
+    return selected
 
 
 def _final_output_exists(trace: TraceRun) -> CheckOutcome:

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ScenarioDefaults(BaseModel):
@@ -22,6 +22,53 @@ class ExpectedBehavior(BaseModel):
     required_tool_args: dict[str, dict[str, Any]] = Field(default_factory=dict)
     should_ask_clarifying_question: bool = False
     success_criteria: list[str] = Field(default_factory=list)
+    assertions: list[AssertionCheck] = Field(default_factory=list)
+
+
+AssertionType = Literal[
+    "tool_called",
+    "tool_not_called",
+    "tool_called_before",
+    "max_tool_calls",
+    "forbidden_arg_value",
+    "tool_result_matches",
+    "final_output_contains",
+    "final_output_not_contains",
+]
+
+
+class AssertionCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: AssertionType
+    tool: str | None = None
+    before: str | None = None
+    after: str | None = None
+    count: int | None = Field(default=None, ge=0)
+    path: str | None = None
+    values: list[Any] = Field(default_factory=list)
+    equals: Any = None
+    text: str | None = None
+
+    @model_validator(mode="after")
+    def validate_required_fields(self) -> AssertionCheck:
+        required_by_type = {
+            "tool_called": ("tool",),
+            "tool_not_called": ("tool",),
+            "tool_called_before": ("before", "after"),
+            "max_tool_calls": ("tool", "count"),
+            "forbidden_arg_value": ("tool", "path"),
+            "tool_result_matches": ("tool", "path"),
+            "final_output_contains": ("text",),
+            "final_output_not_contains": ("text",),
+        }
+        missing = [
+            field for field in required_by_type[self.type] if getattr(self, field) in (None, "")
+        ]
+        if missing:
+            joined = ", ".join(missing)
+            raise ValueError(f"{self.type} assertion missing required fields: {joined}")
+        return self
 
 
 class LearnedFrom(BaseModel):
