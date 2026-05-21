@@ -31,6 +31,12 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Tool-safety repair plan](tool-safety-repair-plan.md)
 - [Mutated refund scenarios](refund-agent-fuzzed.yaml)
 
+## Paper Benchmark
+
+- [Paper benchmark artifact](paper/artifact.md)
+- [Paper benchmark results](paper/results.md)
+- [Paper benchmark limitations](paper/limitations.md)
+
 ## MCP Tool Safety Audit
 
 - [MCP tool audit](mcp-audit.md)
