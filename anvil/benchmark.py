@@ -241,10 +241,7 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
         ]
     )
     lines.extend(
-        [
-            f"| {outcome} | {count} |"
-            for outcome, count in sorted(result.outcome_counts.items())
-        ]
+        [f"| {outcome} | {count} |" for outcome, count in sorted(result.outcome_counts.items())]
     )
     lines.extend(
         [

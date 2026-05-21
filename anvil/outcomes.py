@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
-from anvil.grading import DeterministicCheck, GradeResult
+from anvil.grading import CheckOutcome, DeterministicCheck, GradeResult
 
 
 class OutcomeCategory(StrEnum):
@@ -36,18 +37,9 @@ def classify_grade(grade: GradeResult) -> OutcomeClassification:
         )
 
     failed_checks = [check for check in grade.deterministic_checks if not check.passed]
-    failed_check_names = {check.name for check in failed_checks}
-    if DeterministicCheck.TRACE_COMPLETED in failed_check_names:
-        check = _first_check(failed_checks, DeterministicCheck.TRACE_COMPLETED)
-        return _from_check(OutcomeCategory.PROTOCOL_ERROR, check)
-    if DeterministicCheck.TOOL_POLICY_SATISFIED in failed_check_names:
-        check = _first_check(failed_checks, DeterministicCheck.TOOL_POLICY_SATISFIED)
-        return _from_check(OutcomeCategory.POLICY_VIOLATION, check)
-    if DeterministicCheck.ASSERTIONS_SATISFIED in failed_check_names:
-        check = _first_check(failed_checks, DeterministicCheck.ASSERTIONS_SATISFIED)
-        return _from_check(OutcomeCategory.ASSERTION_FAILURE, check)
-    if failed_checks:
-        return _from_check(OutcomeCategory.DETERMINISTIC_FAILURE, failed_checks[0])
+    deterministic_outcome = _deterministic_outcome(failed_checks)
+    if deterministic_outcome is not None:
+        return deterministic_outcome
 
     if not grade.semantic.passed:
         return OutcomeClassification(
@@ -78,16 +70,31 @@ def deterministic_severity(check: DeterministicCheck) -> str:
     return "medium"
 
 
-def _from_check(category: OutcomeCategory, check: object) -> OutcomeClassification:
-    name = getattr(check, "name")
-    reason = getattr(check, "reason")
+def _deterministic_outcome(
+    failed_checks: Sequence[CheckOutcome],
+) -> OutcomeClassification | None:
+    priority = (
+        (DeterministicCheck.TRACE_COMPLETED, OutcomeCategory.PROTOCOL_ERROR),
+        (DeterministicCheck.TOOL_POLICY_SATISFIED, OutcomeCategory.POLICY_VIOLATION),
+        (DeterministicCheck.ASSERTIONS_SATISFIED, OutcomeCategory.ASSERTION_FAILURE),
+    )
+    failed_check_names = {check.name for check in failed_checks}
+    for check_name, category in priority:
+        if check_name in failed_check_names:
+            return _from_check(category, _first_check(failed_checks, check_name))
+    if failed_checks:
+        return _from_check(OutcomeCategory.DETERMINISTIC_FAILURE, failed_checks[0])
+    return None
+
+
+def _from_check(category: OutcomeCategory, check: CheckOutcome) -> OutcomeClassification:
     return OutcomeClassification(
         category=category,
-        failure_type=name.value,
-        severity=deterministic_severity(name),
-        reason=reason,
+        failure_type=check.name.value,
+        severity=deterministic_severity(check.name),
+        reason=check.reason,
     )
 
 
-def _first_check(checks: list[object], name: DeterministicCheck) -> object:
-    return next(check for check in checks if getattr(check, "name") == name)
+def _first_check(checks: Sequence[CheckOutcome], name: DeterministicCheck) -> CheckOutcome:
+    return next(check for check in checks if check.name == name)
