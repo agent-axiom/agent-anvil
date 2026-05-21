@@ -1,7 +1,7 @@
 name: paper_refund_trace_suite
 agent: examples.support_agent
 defaults:
-  trials: 5
+  trials: 10
   max_steps: 8
 policies:
   destructive_tools:
