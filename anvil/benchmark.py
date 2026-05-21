@@ -190,7 +190,11 @@ def run_benchmark(
     selected_markdown_path = (
         Path(out_markdown) if out_markdown is not None else manifest.output.markdown
     )
-    write_benchmark_result(result, json_path=selected_json_path, markdown_path=selected_markdown_path)
+    write_benchmark_result(
+        result,
+        json_path=selected_json_path,
+        markdown_path=selected_markdown_path,
+    )
     return result
 
 
@@ -231,12 +235,14 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
             "| --- | ---: | ---: | ---: | --- |",
         ]
     )
-    for suite in result.suites:
-        lines.append(
+    lines.extend(
+        [
             f"| {suite.suite} | {suite.total_trials} | "
             f"{suite.final_answer_pass_rate:.1f}% | {suite.trace_aware_pass_rate:.1f}% | "
             f"`{suite.run_dir}` |"
-        )
+            for suite in result.suites
+        ]
+    )
     lines.extend(
         [
             "",
@@ -245,16 +251,20 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
         ]
     )
     missed = [
-        trial for trial in result.trials if trial.final_answer_passed and not trial.trace_aware_passed
+        trial
+        for trial in result.trials
+        if trial.final_answer_passed and not trial.trace_aware_passed
     ]
     if not missed:
         lines.append("None.")
     else:
-        for trial in missed:
-            lines.append(
+        lines.extend(
+            [
                 f"- `{trial.scenario_id}` trial {trial.trial}: "
                 f"{trial.failure_type} / {trial.severity}; trace `{trial.trace_path}`"
-            )
+                for trial in missed
+            ]
+        )
     lines.append("")
     return "\n".join(lines)
 
@@ -266,9 +276,17 @@ def load_benchmark_manifest(path: str | Path) -> BenchmarkManifest:
     return manifest.model_copy(
         update={
             "suites": [_resolve_manifest_path(manifest_path, suite) for suite in manifest.suites],
-            "output": BenchmarkOutput(
-                json_path=_resolve_manifest_path(manifest_path, manifest.output.json_path),
-                markdown=_resolve_manifest_path(manifest_path, manifest.output.markdown),
+            "output": manifest.output.model_copy(
+                update={
+                    "json_path": _resolve_manifest_path(
+                        manifest_path,
+                        manifest.output.json_path,
+                    ),
+                    "markdown": _resolve_manifest_path(
+                        manifest_path,
+                        manifest.output.markdown,
+                    ),
+                },
             ),
         },
     )
