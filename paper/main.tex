@@ -1,0 +1,178 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{url}
+
+\title{Agent Anvil: Trace-Centric CI Evaluation for Tool-Using AI Agents}
+\author{Agent Axiom}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Tool-using AI agents fail in ways that are often invisible to final-answer
+evaluation: an agent may produce a plausible response while calling the wrong
+tool, passing hallucinated arguments, retrying unsafe operations, or invoking a
+destructive tool before verification. We present Agent Anvil, a local,
+CI-first evaluation harness for trace-centric agent regression testing. Agent
+Anvil runs YAML scenario suites, captures model and tool traces, applies
+deterministic assertions and policy checks, optionally uses OpenAI structured
+semantic grading, clusters failures, and emits Markdown and JSON artifacts for
+continuous integration. In a compact offline benchmark of 30 trials across
+refund, tool-safety, and external-agent protocol scenarios, a final-answer
+baseline marks 100.0\% of trials as passing, while Agent Anvil's trace-aware
+checks mark 33.3\% as passing and expose 20 failures that answer-only
+evaluation misses. These results are not a universal leaderboard; they are a
+reproducible systems case study showing why agent evaluation should inspect the
+behavioral path, not only the final response.
+\end{abstract}
+
+\section{Introduction}
+
+Large language model agents increasingly call tools that read data, mutate
+state, or trigger real-world side effects. Prior work has shown the importance
+of interleaving reasoning and action in language-model agents
+\cite{yao2023react} and of teaching models when and how to call tools
+\cite{schick2023toolformer}. In production settings, however, the evaluation
+problem shifts from ``did the answer sound correct?'' to ``did the agent behave
+safely while getting there?''
+
+Answer-only evaluation can miss workflow failures. A refund agent can issue a
+refund with a synthetic order identifier and then respond fluently. An
+operations agent can retry a locked job or scale a service before verifying its
+identity. These are trace-level bugs: they live in the sequence of model calls,
+tool calls, arguments, and tool results.
+
+Agent Anvil targets this gap. It is not a hosted observability platform and not
+a replacement for human domain review. It is a small, local harness intended to
+turn tool-use behavior into regression tests that run in developer workflows and
+CI.
+
+\section{Design Goals}
+
+Agent Anvil is built around five design goals.
+
+\textbf{Trace-first evaluation.} Scenarios are evaluated against persisted
+traces containing model calls, tool calls, tool arguments, tool results,
+protocol errors, and final output.
+
+\textbf{Deterministic invariants before model judgment.} Exact safety and
+business invariants are encoded as deterministic checks: expected tools,
+forbidden tools, required arguments, ordered calls, maximum tool-call counts,
+forbidden argument values, tool-result checks, clarification behavior, and
+policy preconditions.
+
+\textbf{Optional semantic grading.} When OpenAI credentials are available,
+Agent Anvil can apply structured semantic grading to criteria that are less
+suited to exact checks, such as whether a clarification is meaningful or
+whether a repair suggestion is appropriate.
+
+\textbf{CI-compatible artifacts.} Runs write JSON traces, JSON results,
+Markdown reports, failure clusters, and repair plans. The CLI returns a
+non-zero exit code when an eval fails.
+
+\textbf{Bring-your-own-agent protocol.} Agents can be imported as Python
+modules or run as external commands that exchange a JSON scenario payload and
+JSONL trace events. This keeps the harness independent of a single agent
+framework.
+
+\section{System Overview}
+
+Agent Anvil takes a YAML scenario suite as input. A runner executes the target
+agent for one or more trials per scenario. The trace recorder persists a
+versioned trace artifact with schema version \texttt{anvil.trace.v1}. The
+deterministic grader evaluates trace completion, tool choice, tool arguments,
+assertions, and policy checks. The optional OpenAI grader evaluates semantic
+criteria and emits a structured grade with failure type, severity, reason, and
+repair suggestions. The report layer clusters failures and writes Markdown and
+JSON artifacts.
+
+\section{Benchmark}
+
+We include a compact offline benchmark under \texttt{experiments/paper.yaml}.
+The benchmark compares a weak final-answer baseline against Agent Anvil's
+trace-aware checks over the same traces. The baseline passes a trial when the
+final response exists and does not contain obvious runtime failure terms. This
+baseline is intentionally simple: it represents a common insufficient
+evaluation pattern, not the strongest possible answer-only judge.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Suite & Trials & Final-answer pass & Trace-aware pass \\
+\midrule
+Refund trace suite & 10 & 100.0\% & 50.0\% \\
+Tool-safety trace suite & 15 & 100.0\% & 0.0\% \\
+External protocol trace suite & 5 & 100.0\% & 100.0\% \\
+\midrule
+Total & 30 & 100.0\% & 33.3\% \\
+\bottomrule
+\end{tabular}
+\caption{Offline benchmark results generated by \texttt{uv run anvil bench experiments/paper.yaml --offline}.}
+\label{tab:benchmark}
+\end{table}
+
+Across 30 trials, the final-answer baseline marks every trial as passing.
+Agent Anvil's trace-aware checks expose 20 answer-only missed failures, all
+classified as policy violations in the current benchmark artifact. The result
+demonstrates the intended gap: final text can look acceptable while the agent's
+intermediate behavior violates tool-use safety contracts.
+
+\section{Artifact}
+
+The artifact is public and reproducible. From a clean checkout:
+
+\begin{verbatim}
+uv sync --group dev
+uv run anvil bench experiments/paper.yaml --offline --runs-dir runs/paper-benchmark
+\end{verbatim}
+
+The command writes \texttt{docs/paper/results.json},
+\texttt{docs/paper/results.md}, and local trace artifacts under
+\texttt{runs/paper-benchmark/}. The generated benchmark summary reports 30
+total trials, 100.0\% final-answer pass rate, 33.3\% trace-aware pass rate, and
+20 answer-only missed failures.
+
+\section{Limitations}
+
+This work is an early systems artifact. The benchmark is small and uses
+deterministic demo agents for offline reproducibility. The final-answer baseline
+is deliberately weak. Offline semantic grading is heuristic. The repair,
+learning, fuzzing, and MCP-audit helpers are scaffolding tools rather than
+proof-generating systems. The trace schema is versioned, but broader
+cross-framework trace compatibility remains future work. These limitations are
+documented in the artifact and should be considered when interpreting the
+benchmark result.
+
+\section{Related Work}
+
+ReAct studies interleaved reasoning and acting in language-model agents
+\cite{yao2023react}. Toolformer studies how language models can learn when to
+call tools and how to incorporate tool outputs \cite{schick2023toolformer}.
+NeMo Guardrails presents programmable runtime rails for controllable LLM
+applications \cite{rebedea2023nemo}. OpenAI's agent-evaluation and tracing
+documentation emphasizes trace grading for workflow-level agent issues and
+tracing of model calls, tool calls, guardrails, handoffs, and custom events
+\cite{openaiAgentEvals,openaiAgentsTracing}. Agent Anvil complements these
+directions by packaging local trace assertions, semantic grading, failure
+clustering, and CI-compatible artifacts into a small developer workflow.
+
+\section{Conclusion}
+
+Agent Anvil argues for evaluating tool-using agents by their execution traces,
+not only by their final answers. The current system is intentionally small:
+scenario suites, trace capture, deterministic assertions, optional OpenAI
+semantic grading, failure clustering, and CI artifacts. The benchmark result
+shows that even a compact trace-aware harness catches workflow failures that a
+final-answer baseline misses. Future work should expand the benchmark domains,
+add richer assertion semantics, calibrate semantic graders, and provide
+adapters for common agent frameworks.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
