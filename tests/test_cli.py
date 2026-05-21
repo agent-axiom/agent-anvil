@@ -170,6 +170,46 @@ def test_cli_report_regenerates_markdown_from_results(
     assert "# Agent Anvil Report" in (runs_dir / "latest" / "report.md").read_text(encoding="utf-8")
 
 
+def test_cli_bench_writes_benchmark_outputs(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "paper.yaml"
+    json_path = tmp_path / "paper-results.json"
+    markdown_path = tmp_path / "paper-results.md"
+    manifest_path.write_text(
+        f"""
+name: paper_benchmark
+suites:
+  - {scenario_file}
+output:
+  json: {json_path}
+  markdown: {markdown_path}
+""",
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "bench",
+            str(manifest_path),
+            "--runs-dir",
+            str(tmp_path / "runs"),
+            "--offline",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Benchmark: paper_benchmark" in result.stdout
+    assert "Final-answer baseline pass rate: 100.0%" in result.stdout
+    assert "Trace-aware Agent Anvil pass rate: 50.0%" in result.stdout
+    assert "Answer-only missed failures: 3" in result.stdout
+    assert json_path.exists()
+    assert markdown_path.exists()
+
+
 def test_cli_summary_prints_github_summary(
     scenario_file: Path,
     tmp_path: Path,

@@ -84,6 +84,35 @@ def test_cluster_failures_falls_back_to_failed_deterministic_check() -> None:
     ]
 
 
+def test_cluster_failures_handles_assertion_failures() -> None:
+    failures = [
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=1,
+            passed=False,
+            deterministic_passed=False,
+            semantic=SemanticGrade(passed=True, score=1.0),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_1.json",
+            deterministic_checks=[
+                CheckOutcome(
+                    name=DeterministicCheck.ASSERTIONS_SATISFIED,
+                    passed=False,
+                    reason="issue_refund should not be called",
+                )
+            ],
+        )
+    ]
+
+    clusters = cluster_failures(failures)
+
+    assert clusters[0].name == "assertions_satisfied"
+    assert clusters[0].severity == "high"
+    assert clusters[0].repair_plan == [
+        "Update scenario assertions or agent behavior to satisfy trace invariants: "
+        "issue_refund should not be called"
+    ]
+
+
 def test_cluster_failures_uses_deterministic_repairs_when_semantic_fix_is_empty() -> None:
     failures = [
         GradeResult(

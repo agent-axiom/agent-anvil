@@ -85,6 +85,7 @@ Start here:
 - [OpenAI-graded regression report](docs/openai-graded-regression-report.md)
 - [Limits and experimental helpers](docs/limits.md)
 - [MCP tool safety audit](docs/mcp.md)
+- [Paper benchmark artifact](docs/paper/artifact.md)
 - [Full artifact index](docs/artifacts.md)
 - [CLI reference](docs/cli.md)
 

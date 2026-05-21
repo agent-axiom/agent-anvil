@@ -1,0 +1,11 @@
+name: agent_anvil_trace_eval_benchmark
+description: >
+  A compact offline benchmark for comparing final-answer-only checks with
+  trace-aware Agent Anvil assertions across tool-use safety scenarios.
+suites:
+  - scenarios/refund_trace.yaml
+  - scenarios/tool_safety_trace.yaml
+  - scenarios/external_protocol_trace.yaml
+output:
+  json: ../docs/paper/results.json
+  markdown: ../docs/paper/results.md

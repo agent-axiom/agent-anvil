@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from anvil.benchmark import run_benchmark
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
@@ -155,6 +156,21 @@ INGEST_SCENARIO_ID_OPTION = typer.Option(..., "--scenario-id", help="Scenario id
 INGEST_INPUT_OPTION = typer.Option(..., "--input", help="Original user input for the trace.")
 INGEST_OUT_OPTION = typer.Option(..., "--out", help="Write imported run artifacts here.")
 INGEST_TRIAL_OPTION = typer.Option(1, "--trial", min=1, help="Trial number for the trace.")
+BENCH_RUNS_DIR_OPTION = typer.Option(
+    Path("runs/bench"),
+    "--runs-dir",
+    help="Run artifact directory for benchmark suite runs.",
+)
+BENCH_OUT_OPTION = typer.Option(
+    None,
+    "--out",
+    help="Write benchmark JSON results here. Defaults to manifest output.json.",
+)
+BENCH_MARKDOWN_OUT_OPTION = typer.Option(
+    None,
+    "--markdown-out",
+    help="Write benchmark Markdown results here. Defaults to manifest output.markdown.",
+)
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
 
@@ -261,6 +277,37 @@ def run(
     )
     if result.pass_rate < PASSING_RATE:
         raise typer.Exit(1)
+
+
+@app.command()
+def bench(
+    manifest_file: Path,
+    runs_dir: Path = BENCH_RUNS_DIR_OPTION,
+    out: Path | None = BENCH_OUT_OPTION,
+    markdown_out: Path | None = BENCH_MARKDOWN_OUT_OPTION,
+    offline: bool = OFFLINE_OPTION,
+    redact: bool | None = REDACT_OPTION,
+    agent_mode: str | None = AGENT_MODE_OPTION,
+) -> None:
+    try:
+        result = run_benchmark(
+            manifest_file,
+            offline=offline,
+            runs_dir=runs_dir,
+            out_json=out,
+            out_markdown=markdown_out,
+            agent_mode=agent_mode,
+            redact=redact,
+        )
+    except OpenAIKeyMissingError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+
+    typer.echo(f"Benchmark: {result.name}")
+    typer.echo(f"Total trials: {result.total_trials}")
+    typer.echo(f"Final-answer baseline pass rate: {result.final_answer_pass_rate:.1f}%")
+    typer.echo(f"Trace-aware Agent Anvil pass rate: {result.trace_aware_pass_rate:.1f}%")
+    typer.echo(f"Answer-only missed failures: {result.answer_only_missed_failures}")
 
 
 @app.command()

@@ -15,6 +15,7 @@ DETERMINISTIC_SEVERITY = {
     DeterministicCheck.MAX_STEPS_NOT_EXCEEDED: "medium",
     DeterministicCheck.CLARIFYING_QUESTION_ASKED: "medium",
     DeterministicCheck.TOOL_POLICY_SATISFIED: "high",
+    DeterministicCheck.ASSERTIONS_SATISFIED: "high",
 }
 
 DETERMINISTIC_REPAIR_PREFIX = {
@@ -35,6 +36,9 @@ DETERMINISTIC_REPAIR_PREFIX = {
     ),
     DeterministicCheck.TOOL_POLICY_SATISFIED: (
         "Add policy guardrails for destructive or approval-gated tool calls"
+    ),
+    DeterministicCheck.ASSERTIONS_SATISFIED: (
+        "Update scenario assertions or agent behavior to satisfy trace invariants"
     ),
 }
 
