@@ -3,7 +3,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from anvil.benchmark import BenchmarkManifest, FinalAnswerBaseline, load_benchmark_manifest
+from anvil.benchmark import (
+    BenchmarkManifest,
+    FinalAnswerBaseline,
+    load_benchmark_manifest,
+    render_benchmark_markdown,
+    run_benchmark,
+)
 from anvil.trace import TraceRun
 
 
@@ -96,6 +102,60 @@ def test_final_answer_baseline_flags_missing_or_obvious_failure_terms(
 
     assert outcome.passed is False
     assert outcome.reason == expected_reason
+
+
+def test_run_benchmark_aggregates_answer_only_gap(scenario_file, tmp_path):
+    manifest_path = tmp_path / "paper.yaml"
+    json_path = tmp_path / "results.json"
+    markdown_path = tmp_path / "results.md"
+    manifest_path.write_text(
+        f"""
+name: paper_benchmark
+description: Answer-only vs trace-aware benchmark.
+suites:
+  - {scenario_file}
+output:
+  json: {json_path}
+  markdown: {markdown_path}
+""",
+        encoding="utf-8",
+    )
+
+    result = run_benchmark(
+        manifest_path,
+        offline=True,
+        runs_dir=tmp_path / "runs",
+    )
+
+    assert result.total_suites == 1
+    assert result.total_trials == 6
+    assert result.final_answer_pass_rate == 100.0
+    assert result.trace_aware_pass_rate == 50.0
+    assert result.answer_only_missed_failures == 3
+    assert json_path.exists()
+    assert markdown_path.exists()
+
+
+def test_render_benchmark_markdown_lists_missed_failures(scenario_file, tmp_path):
+    manifest_path = tmp_path / "paper.yaml"
+    manifest_path.write_text(
+        f"""
+name: paper_benchmark
+suites:
+  - {scenario_file}
+output:
+  json: {tmp_path / "results.json"}
+  markdown: {tmp_path / "results.md"}
+""",
+        encoding="utf-8",
+    )
+    result = run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+
+    markdown = render_benchmark_markdown(result)
+
+    assert "# Agent Anvil Paper Benchmark" in markdown
+    assert "Answer-only missed failures: 3" in markdown
+    assert "`refund_missing_order_id`" in markdown
 
 
 def _trace(
