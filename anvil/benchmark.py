@@ -5,7 +5,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-from anvil.grading import DeterministicCheck, GradeResult, SemanticGrader
+from anvil.grading import SemanticGrader
+from anvil.outcomes import OutcomeCategory, classify_grade
 from anvil.runner import default_semantic_grader, run_suite
 from anvil.trace import TraceRun
 
@@ -45,6 +46,7 @@ class BenchmarkTrialResult(BaseModel):
     trace_aware_passed: bool
     deterministic_passed: bool
     semantic_passed: bool
+    outcome_category: OutcomeCategory
     failure_type: str
     severity: str
 
@@ -73,6 +75,7 @@ class BenchmarkResult(BaseModel):
     final_answer_pass_rate: float
     trace_aware_pass_rate: float
     answer_only_missed_failures: int
+    outcome_counts: dict[str, int]
     suites: list[BenchmarkSuiteResult]
     trials: list[BenchmarkTrialResult]
 
@@ -131,7 +134,7 @@ def run_benchmark(
         for grade in suite_run.grades:
             trace = _load_trace(grade.trace_path)
             baseline_outcome = baseline.grade(trace)
-            failure_type, severity = _grade_failure_key(grade)
+            outcome = classify_grade(grade)
             trial_result = BenchmarkTrialResult(
                 suite=suite_run.suite_name,
                 scenario_id=grade.scenario_id,
@@ -142,8 +145,9 @@ def run_benchmark(
                 trace_aware_passed=grade.passed,
                 deterministic_passed=grade.deterministic_passed,
                 semantic_passed=grade.semantic.passed,
-                failure_type=failure_type,
-                severity=severity,
+                outcome_category=outcome.category,
+                failure_type=outcome.failure_type,
+                severity=outcome.severity,
             )
             suite_trials.append(trial_result)
             trial_results.append(trial_result)
@@ -182,6 +186,7 @@ def run_benchmark(
             for trial in trial_results
             if trial.final_answer_passed and not trial.trace_aware_passed
         ),
+        outcome_counts=_outcome_counts(trial_results),
         suites=suite_results,
         trials=trial_results,
     )
@@ -229,6 +234,18 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
             f"- Trace-aware Agent Anvil pass rate: {result.trace_aware_pass_rate:.1f}%",
             f"- Answer-only missed failures: {result.answer_only_missed_failures}",
             "",
+            "## Outcome Categories",
+            "",
+            "| Outcome | Trials |",
+            "| --- | ---: |",
+        ]
+    )
+    lines.extend(
+        [f"| {outcome} | {count} |" for outcome, count in sorted(result.outcome_counts.items())]
+    )
+    lines.extend(
+        [
+            "",
             "## Suite Results",
             "",
             "| Suite | Trials | Final-answer pass rate | Trace-aware pass rate | Run |",
@@ -261,7 +278,8 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
         lines.extend(
             [
                 f"- `{trial.scenario_id}` trial {trial.trial}: "
-                f"{trial.failure_type} / {trial.severity}; trace `{trial.trace_path}`"
+                f"{trial.outcome_category} / {trial.failure_type} / {trial.severity}; "
+                f"trace `{trial.trace_path}`"
                 for trial in missed
             ]
         )
@@ -302,29 +320,12 @@ def _load_trace(path: str | Path) -> TraceRun:
     return TraceRun.model_validate_json(Path(path).read_text(encoding="utf-8"))
 
 
-def _grade_failure_key(grade: GradeResult) -> tuple[str, str]:
-    if grade.passed:
-        return "none", "none"
-    if grade.semantic.failure_type != "none":
-        return grade.semantic.failure_type, grade.semantic.severity
-    failed_checks = [check for check in grade.deterministic_checks if not check.passed]
-    if not failed_checks:
-        return "unknown_failure", "medium"
-    check = failed_checks[0]
-    return check.name.value, _deterministic_severity(check.name)
-
-
-def _deterministic_severity(check: DeterministicCheck) -> str:
-    if check in {
-        DeterministicCheck.TRACE_COMPLETED,
-        DeterministicCheck.FORBIDDEN_TOOL_NOT_CALLED,
-        DeterministicCheck.REQUIRED_TOOL_ARGS_MATCHED,
-        DeterministicCheck.FINAL_OUTPUT_EXISTS,
-        DeterministicCheck.TOOL_POLICY_SATISFIED,
-        DeterministicCheck.ASSERTIONS_SATISFIED,
-    }:
-        return "high"
-    return "medium"
+def _outcome_counts(trials: list[BenchmarkTrialResult]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for trial in trials:
+        outcome = trial.outcome_category.value
+        counts[outcome] = counts.get(outcome, 0) + 1
+    return counts
 
 
 def _pass_rate(passed: int, total: int) -> float:

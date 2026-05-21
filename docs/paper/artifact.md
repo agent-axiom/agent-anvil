@@ -40,6 +40,10 @@ The command writes:
 - `docs/paper/results.md`
 - trace artifacts under `runs/paper-benchmark/`
 
+Results include stable outcome categories such as `pass`, `policy_violation`,
+`assertion_failure`, `deterministic_failure`, and `semantic_failure` so paper
+tables do not depend on ad hoc explanation text.
+
 `runs/` artifacts are intentionally local and are not committed. Re-run the
 command to regenerate trace paths referenced in `results.md`.
 

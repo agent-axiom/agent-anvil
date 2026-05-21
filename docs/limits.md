@@ -44,7 +44,22 @@ agents, but the Python model now validates common event shapes with typed
 Pydantic step models. Supported typed events include `model_call`, `tool_call`,
 `function_call_output`, protocol errors, tool argument errors, tool execution
 errors, and final-output events. The on-disk JSON shape remains stable for
-existing artifacts.
+existing artifacts. New traces include `schema_version: anvil.trace.v1`, while
+legacy traces without that field still load as v1 artifacts.
+
+## Outcome Taxonomy
+
+Benchmark and paper artifacts classify trials into stable outcome categories:
+
+- `pass`
+- `protocol_error`
+- `policy_violation`
+- `assertion_failure`
+- `deterministic_failure`
+- `semantic_failure`
+- `unknown_failure`
+
+This keeps paper tables and CI summaries from depending on ad hoc failure text.
 
 ## Assertion Language
 

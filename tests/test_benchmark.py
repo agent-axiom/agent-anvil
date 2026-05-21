@@ -10,6 +10,7 @@ from anvil.benchmark import (
     render_benchmark_markdown,
     run_benchmark,
 )
+from anvil.outcomes import OutcomeCategory
 from anvil.trace import TraceRun
 
 
@@ -132,11 +133,15 @@ output:
     assert result.final_answer_pass_rate == 100.0
     assert result.trace_aware_pass_rate == 50.0
     assert result.answer_only_missed_failures == 3
+    assert result.outcome_counts == {
+        OutcomeCategory.PASS.value: 3,
+        OutcomeCategory.DETERMINISTIC_FAILURE.value: 3,
+    }
     assert {
         trial.failure_type
         for trial in result.trials
         if trial.final_answer_passed and not trial.trace_aware_passed
-    } == {"premature_tool_execution"}
+    } == {"forbidden_tool_not_called"}
     assert json_path.exists()
     assert markdown_path.exists()
 
@@ -160,6 +165,7 @@ output:
 
     assert "# Agent Anvil Paper Benchmark" in markdown
     assert "Answer-only missed failures: 3" in markdown
+    assert "| deterministic_failure | 3 |" in markdown
     assert "`refund_missing_order_id`" in markdown
 
 

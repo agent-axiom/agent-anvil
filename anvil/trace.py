@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny, field_validator, model_validator
 
+TRACE_SCHEMA_VERSION = "anvil.trace.v1"
+TraceSchemaVersion = Literal["anvil.trace.v1"]
 TraceStatus = Literal["running", "completed", "failed"]
 
 
@@ -108,6 +110,7 @@ class TraceMetrics(BaseModel):
 
 
 class TraceRun(BaseModel):
+    schema_version: TraceSchemaVersion = TRACE_SCHEMA_VERSION
     run_id: str
     scenario_id: str
     trial: int = Field(ge=1)
