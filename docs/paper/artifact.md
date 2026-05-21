@@ -28,10 +28,10 @@ Expected summary:
 
 ```text
 Benchmark: agent_anvil_trace_eval_benchmark
-Total trials: 30
+Total trials: 100
 Final-answer baseline pass rate: 100.0%
-Trace-aware Agent Anvil pass rate: 33.3%
-Answer-only missed failures: 20
+Trace-aware Agent Anvil pass rate: 30.0%
+Answer-only missed failures: 70
 ```
 
 The command writes:

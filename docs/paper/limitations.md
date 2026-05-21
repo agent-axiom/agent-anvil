@@ -9,7 +9,8 @@ agent evaluation.
   reproducible in CI.
 - The final-answer baseline is intentionally simple. It represents a common
   weak evaluation pattern, not the strongest possible answer-only judge.
-- The scenario set is small: 3 suites, 6 scenario cases, 30 total trials.
+- The scenario set is still compact: 5 suites, 10 scenario cases, 100 total
+  trials.
 - Most failures are synthetic but realistic workflow bugs: premature
   destructive tools, missing preconditions, hallucinated identifiers, and
   unsafe retries.
