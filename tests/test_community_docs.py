@@ -73,6 +73,20 @@ def test_artifacts_and_cli_docs_are_linked_from_readme() -> None:
     assert "uv run anvil mcp harden" in cli_doc
 
 
+def test_paper_draft_links_reproducible_artifact() -> None:
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    paper = Path("paper/main.tex").read_text(encoding="utf-8")
+    references = Path("paper/references.bib").read_text(encoding="utf-8")
+
+    assert "../paper/main.tex" in artifacts
+    assert "Agent Anvil: Trace-Centric CI Evaluation" in paper
+    assert "experiments/paper.yaml" in paper
+    assert "100.0\\% final-answer pass rate" in paper
+    assert "33.3\\% trace-aware pass rate" in paper
+    assert "yao2023react" in references
+    assert "openaiAgentEvals" in references
+
+
 def test_docs_separate_core_from_experimental_helpers() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     limits = Path("docs/limits.md").read_text(encoding="utf-8")

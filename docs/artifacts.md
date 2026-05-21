@@ -36,6 +36,7 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Paper benchmark artifact](paper/artifact.md)
 - [Paper benchmark results](paper/results.md)
 - [Paper benchmark limitations](paper/limitations.md)
+- [Preprint draft](../paper/main.tex)
 
 ## MCP Tool Safety Audit
 
