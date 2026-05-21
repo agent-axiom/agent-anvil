@@ -132,6 +132,11 @@ output:
     assert result.final_answer_pass_rate == 100.0
     assert result.trace_aware_pass_rate == 50.0
     assert result.answer_only_missed_failures == 3
+    assert {
+        trial.failure_type
+        for trial in result.trials
+        if trial.final_answer_passed and not trial.trace_aware_passed
+    } == {"premature_tool_execution"}
     assert json_path.exists()
     assert markdown_path.exists()
 
@@ -156,6 +161,14 @@ output:
     assert "# Agent Anvil Paper Benchmark" in markdown
     assert "Answer-only missed failures: 3" in markdown
     assert "`refund_missing_order_id`" in markdown
+
+
+def test_paper_benchmark_manifest_references_existing_suites():
+    manifest = load_benchmark_manifest("experiments/paper.yaml")
+
+    assert manifest.name == "agent_anvil_trace_eval_benchmark"
+    assert len(manifest.suites) == 3
+    assert all(suite.exists() for suite in manifest.suites)
 
 
 def _trace(
