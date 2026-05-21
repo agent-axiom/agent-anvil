@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from anvil.trace import AgentProtocolErrorStep, ModelCallStep, ToolCallStep, TraceRun
+import pytest
+from pydantic import ValidationError
+
+from anvil.trace import (
+    TRACE_SCHEMA_VERSION,
+    AgentProtocolErrorStep,
+    ModelCallStep,
+    ToolCallStep,
+    TraceRun,
+)
 
 
 def test_trace_run_round_trips_to_json(trace_steps: list[dict[str, object]]) -> None:
@@ -20,6 +29,7 @@ def test_trace_run_round_trips_to_json(trace_steps: list[dict[str, object]]) -> 
 
     restored = TraceRun.model_validate_json(trace.model_dump_json())
 
+    assert restored.schema_version == TRACE_SCHEMA_VERSION
     assert restored.metrics.latency_ms == 4000
     assert restored.metrics.tool_call_count == 2
     assert restored.metrics.model_call_count == 1
@@ -43,6 +53,42 @@ def test_trace_run_counts_missing_end_as_zero_latency(
 
     assert trace.metrics.latency_ms == 0
     assert trace.metrics.tool_call_count == 2
+
+
+def test_trace_run_defaults_schema_version_for_legacy_artifacts() -> None:
+    trace = TraceRun.model_validate(
+        {
+            "run_id": "run_20260501_001",
+            "scenario_id": "refund_valid_order",
+            "trial": 1,
+            "input": "Please refund order ORD-123.",
+            "started_at": "2026-05-01T20:00:00Z",
+            "ended_at": "2026-05-01T20:00:04Z",
+            "status": "completed",
+            "steps": [],
+            "final_output": "Done.",
+        }
+    )
+
+    assert trace.schema_version == TRACE_SCHEMA_VERSION
+
+
+def test_trace_run_rejects_unknown_schema_version() -> None:
+    with pytest.raises(ValidationError):
+        TraceRun.model_validate(
+            {
+                "schema_version": "anvil.trace.v999",
+                "run_id": "run_20260501_001",
+                "scenario_id": "refund_valid_order",
+                "trial": 1,
+                "input": "Please refund order ORD-123.",
+                "started_at": "2026-05-01T20:00:00Z",
+                "ended_at": "2026-05-01T20:00:04Z",
+                "status": "completed",
+                "steps": [],
+                "final_output": "Done.",
+            }
+        )
 
 
 def test_trace_steps_are_typed_but_dict_compatible(trace_steps: list[dict[str, object]]) -> None:
