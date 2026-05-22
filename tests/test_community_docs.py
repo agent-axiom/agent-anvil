@@ -73,6 +73,24 @@ def test_artifacts_and_cli_docs_are_linked_from_readme() -> None:
     assert "uv run anvil mcp harden" in cli_doc
 
 
+def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    cli_doc = Path("docs/cli.md").read_text(encoding="utf-8")
+    leaderboard_doc = Path("docs/leaderboard.md").read_text(encoding="utf-8")
+    space_readme = Path("integrations/huggingface/leaderboard_space/README.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "docs/leaderboard.md" in readme
+    assert "leaderboard build submissions" in readme
+    assert "leaderboard-index-workflow.yml" in artifacts
+    assert "uv run anvil leaderboard build submissions" in cli_doc
+    assert "Hugging Face Dataset" in leaderboard_doc
+    assert "LEADERBOARD_INDEX_URL" in leaderboard_doc
+    assert "does not execute user agents" in space_readme
+
+
 def test_paper_draft_links_reproducible_artifact() -> None:
     artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
     paper = Path("paper/main.tex").read_text(encoding="utf-8")

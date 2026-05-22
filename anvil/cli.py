@@ -13,6 +13,7 @@ from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.leaderboard import (
     LeaderboardValidationError,
+    build_leaderboard_index,
     export_leaderboard_submission,
     validate_leaderboard_submission,
 )
@@ -239,6 +240,21 @@ LEADERBOARD_REQUIRE_TRUST_OPTION = typer.Option(
     None,
     "--require-trust",
     help="Require a trust level such as self_reported or github_actions.",
+)
+LEADERBOARD_INDEX_OUT_OPTION = typer.Option(
+    Path("leaderboard.csv"),
+    "--out",
+    help="Write leaderboard CSV index here.",
+)
+LEADERBOARD_INDEX_JSON_OUT_OPTION = typer.Option(
+    Path("leaderboard.json"),
+    "--json-out",
+    help="Write leaderboard JSON index here.",
+)
+LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION = typer.Option(
+    False,
+    "--artifacts/--no-artifacts",
+    help="Verify local artifact hashes while building the index.",
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
@@ -499,6 +515,30 @@ def leaderboard_validate(
     typer.echo(f"Evidence SHA-256: {submission.verification.evidence_sha256}")
     typer.echo(f"Benchmark: {submission.benchmark.name}")
     typer.echo(f"Trace-aware pass rate: {submission.metrics.trace_aware_pass_rate:.1f}%")
+
+
+@leaderboard_app.command("build")
+def leaderboard_build(
+    submissions_dir: Path,
+    out: Path = LEADERBOARD_INDEX_OUT_OPTION,
+    json_out: Path = LEADERBOARD_INDEX_JSON_OUT_OPTION,
+    verify_artifacts: bool = LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION,
+    require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
+) -> None:
+    try:
+        index = build_leaderboard_index(
+            submissions_dir,
+            csv_path=out,
+            json_path=json_out,
+            verify_artifacts=verify_artifacts,
+            require_trust_level=require_trust_level,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"Wrote leaderboard CSV: {_display_path(out)}")
+    typer.echo(f"Wrote leaderboard JSON: {_display_path(json_out)}")
+    typer.echo(f"Rows: {len(index.rows)}")
 
 
 @app.command()

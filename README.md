@@ -211,6 +211,7 @@ uv run anvil leaderboard export docs/paper/results.json \
   --agent-name "My Agent" \
   --repo-url "https://github.com/acme/my-agent"
 uv run anvil leaderboard validate leaderboard_submission.json
+uv run anvil leaderboard build submissions --out leaderboard.csv --json-out leaderboard.json
 ```
 
 See the [leaderboard submission guide](docs/leaderboard.md) for the Hugging Face
