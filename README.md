@@ -86,6 +86,7 @@ Start here:
 - [Limits and experimental helpers](docs/limits.md)
 - [MCP tool safety audit](docs/mcp.md)
 - [Paper benchmark artifact](docs/paper/artifact.md)
+- [Leaderboard submissions](docs/leaderboard.md)
 - [Full artifact index](docs/artifacts.md)
 - [CLI reference](docs/cli.md)
 
@@ -195,6 +196,25 @@ For MCP servers, see the copy-paste
 snapshots a stdio MCP server, runs static tool-description checks, generates
 draft safety scenarios, writes an audit report, and uploads repair hints as
 GitHub Actions artifacts.
+
+## Leaderboard Submissions
+
+Agent Anvil can export a small public leaderboard submission from a benchmark
+run. The file includes aggregate metrics, evaluator ablation, benchmark hashes,
+artifact hashes, and a trust label (`self_reported` or `github_actions`) without
+publishing raw traces or tool outputs.
+
+```bash
+uv run anvil paper reproduce
+uv run anvil leaderboard export docs/paper/results.json \
+  --manifest experiments/paper.yaml \
+  --agent-name "My Agent" \
+  --repo-url "https://github.com/acme/my-agent"
+uv run anvil leaderboard validate leaderboard_submission.json
+```
+
+See the [leaderboard submission guide](docs/leaderboard.md) for the Hugging Face
+Dataset + Space design.
 
 ## Why AI Was Necessary
 
