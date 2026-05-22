@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-from anvil.grading import SemanticGrader
+from anvil.grading import DeterministicCheck, SemanticGrader
 from anvil.outcomes import OutcomeCategory, classify_grade
 from anvil.runner import default_semantic_grader, run_suite
 from anvil.trace import TraceRun
@@ -46,6 +46,9 @@ class BenchmarkTrialResult(BaseModel):
     trace_path: Path
     final_answer_passed: bool
     final_answer_reason: str
+    trace_completion_passed: bool
+    deterministic_assertions_passed: bool
+    policy_checks_passed: bool
     trace_aware_passed: bool
     deterministic_passed: bool
     semantic_passed: bool
@@ -70,6 +73,20 @@ class BenchmarkSuiteResult(BaseModel):
     trace_aware_pass_rate_ci_high: float
 
 
+class BenchmarkAblationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    evaluator: str
+    description: str
+    total_trials: int
+    passed: int
+    pass_rate: float
+    pass_rate_ci_low: float
+    pass_rate_ci_high: float
+    answer_only_missed_failures: int
+    answer_only_missed_failure_rate: float
+
+
 class BenchmarkResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -90,6 +107,7 @@ class BenchmarkResult(BaseModel):
     answer_only_missed_failure_rate_ci_low: float
     answer_only_missed_failure_rate_ci_high: float
     outcome_counts: dict[str, int]
+    evaluator_ablation: list[BenchmarkAblationResult]
     suites: list[BenchmarkSuiteResult]
     trials: list[BenchmarkTrialResult]
 
@@ -149,6 +167,7 @@ def run_benchmark(
             trace = _load_trace(grade.trace_path)
             baseline_outcome = baseline.grade(trace)
             outcome = classify_grade(grade)
+            checks_by_name = {check.name: check.passed for check in grade.deterministic_checks}
             trial_result = BenchmarkTrialResult(
                 suite=suite_run.suite_name,
                 scenario_id=grade.scenario_id,
@@ -156,6 +175,9 @@ def run_benchmark(
                 trace_path=Path(grade.trace_path),
                 final_answer_passed=baseline_outcome.passed,
                 final_answer_reason=baseline_outcome.reason,
+                trace_completion_passed=_trace_completion_passed(checks_by_name),
+                deterministic_assertions_passed=_deterministic_assertions_passed(checks_by_name),
+                policy_checks_passed=_policy_checks_passed(checks_by_name),
                 trace_aware_passed=grade.passed,
                 deterministic_passed=grade.deterministic_passed,
                 semantic_passed=grade.semantic.passed,
@@ -214,6 +236,7 @@ def run_benchmark(
         answer_only_missed_failure_rate_ci_low=missed_failure_ci[0],
         answer_only_missed_failure_rate_ci_high=missed_failure_ci[1],
         outcome_counts=_outcome_counts(trial_results),
+        evaluator_ablation=_evaluator_ablation(trial_results),
         suites=suite_results,
         trials=trial_results,
     )
@@ -298,6 +321,23 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
     lines.extend(
         [
             "",
+            "## Evaluator Ablation",
+            "",
+            "| Evaluator | Trials | Pass rate | Answer-only missed failures |",
+            "| --- | ---: | ---: | ---: |",
+        ]
+    )
+    lines.extend(
+        [
+            f"| {entry.evaluator} | {entry.total_trials} | "
+            f"{_ablation_rate_ci(entry)} | "
+            f"{entry.answer_only_missed_failures} |"
+            for entry in result.evaluator_ablation
+        ]
+    )
+    lines.extend(
+        [
+            "",
             "## Answer-Only Missed Failures",
             "",
         ]
@@ -361,6 +401,32 @@ def write_benchmark_tables(
         ["outcome", "trials"],
         [[outcome, count] for outcome, count in sorted(result.outcome_counts.items())],
     )
+    _write_csv(
+        tables_dir / "evaluator_ablation.csv",
+        [
+            "evaluator",
+            "total_trials",
+            "passed",
+            "pass_rate",
+            "pass_rate_ci_low",
+            "pass_rate_ci_high",
+            "answer_only_missed_failures",
+            "answer_only_missed_failure_rate",
+        ],
+        [
+            [
+                entry.evaluator,
+                entry.total_trials,
+                entry.passed,
+                f"{entry.pass_rate:.1f}",
+                f"{entry.pass_rate_ci_low:.1f}",
+                f"{entry.pass_rate_ci_high:.1f}",
+                entry.answer_only_missed_failures,
+                f"{entry.answer_only_missed_failure_rate:.1f}",
+            ]
+            for entry in result.evaluator_ablation
+        ],
+    )
     missed = [
         trial
         for trial in result.trials
@@ -385,6 +451,10 @@ def write_benchmark_tables(
         render_suite_results_latex(result),
         encoding="utf-8",
     )
+    (tables_dir / "evaluator_ablation.tex").write_text(
+        render_evaluator_ablation_latex(result),
+        encoding="utf-8",
+    )
     index_path.write_text(render_tables_markdown(result, tables_dir=tables_dir), encoding="utf-8")
 
 
@@ -399,9 +469,11 @@ def render_tables_markdown(result: BenchmarkResult, *, tables_dir: Path) -> str:
             "Generated table artifacts:",
             "",
             f"- `{display_dir / 'suite_results.csv'}`",
+            f"- `{display_dir / 'evaluator_ablation.csv'}`",
             f"- `{display_dir / 'outcome_counts.csv'}`",
             f"- `{display_dir / 'missed_failures.csv'}`",
             f"- `{display_dir / 'suite_results.tex'}`",
+            f"- `{display_dir / 'evaluator_ablation.tex'}`",
             "",
             "## Main Result",
             "",
@@ -413,6 +485,25 @@ def render_tables_markdown(result: BenchmarkResult, *, tables_dir: Path) -> str:
             "",
         ]
     )
+
+
+def render_evaluator_ablation_latex(result: BenchmarkResult) -> str:
+    lines = [
+        "\\begin{tabular}{lrrr}",
+        "\\toprule",
+        "Evaluator & Trials & Pass rate & Answer-only missed failures \\\\",
+        "\\midrule",
+    ]
+    lines.extend(
+        [
+            f"{_ablation_label(entry.evaluator)} & {entry.total_trials} & "
+            f"{_ablation_latex_ci(entry)} & "
+            f"{entry.answer_only_missed_failures} \\\\"
+            for entry in result.evaluator_ablation
+        ]
+    )
+    lines.extend(["\\bottomrule", "\\end{tabular}", ""])
+    return "\n".join(lines)
 
 
 def render_suite_results_latex(result: BenchmarkResult) -> str:
@@ -492,6 +583,10 @@ def _latex_label(value: str) -> str:
     return label.replace("_", "-").title()
 
 
+def _ablation_label(value: str) -> str:
+    return value.replace("_", " ").title()
+
+
 def _display_path(path: Path) -> Path:
     try:
         return path.resolve().relative_to(Path.cwd().resolve())
@@ -509,6 +604,96 @@ def _outcome_counts(trials: list[BenchmarkTrialResult]) -> dict[str, int]:
         outcome = trial.outcome_category.value
         counts[outcome] = counts.get(outcome, 0) + 1
     return counts
+
+
+def _evaluator_ablation(trials: list[BenchmarkTrialResult]) -> list[BenchmarkAblationResult]:
+    variants: list[tuple[str, str, str]] = [
+        (
+            "final_answer_baseline",
+            "Final answer exists and avoids obvious runtime failure text.",
+            "final_answer_passed",
+        ),
+        (
+            "trace_completion_only",
+            "Trace completed without protocol/runtime failure.",
+            "trace_completion_passed",
+        ),
+        (
+            "deterministic_assertions",
+            "Trace completion plus deterministic expectations and assertions, excluding policy.",
+            "deterministic_assertions_passed",
+        ),
+        (
+            "policy_checks",
+            "Trace completion plus risky-tool policy preconditions.",
+            "policy_checks_passed",
+        ),
+        (
+            "full_trace_aware",
+            "Full Agent Anvil trace-aware evaluator, including semantic grading.",
+            "trace_aware_passed",
+        ),
+    ]
+    return [
+        _ablation_result(
+            evaluator=evaluator,
+            description=description,
+            trials=trials,
+            passed=[trial for trial in trials if bool(getattr(trial, field))],
+        )
+        for evaluator, description, field in variants
+    ]
+
+
+def _ablation_result(
+    *,
+    evaluator: str,
+    description: str,
+    trials: list[BenchmarkTrialResult],
+    passed: list[BenchmarkTrialResult],
+) -> BenchmarkAblationResult:
+    total = len(trials)
+    passed_count = len(passed)
+    passed_trial_keys = {(trial.suite, trial.scenario_id, trial.trial) for trial in passed}
+    failed_trial_keys = {
+        (trial.suite, trial.scenario_id, trial.trial)
+        for trial in trials
+        if (trial.suite, trial.scenario_id, trial.trial) not in passed_trial_keys
+    }
+    missed_failures = sum(
+        1
+        for trial in trials
+        if trial.final_answer_passed
+        and (trial.suite, trial.scenario_id, trial.trial) in failed_trial_keys
+    )
+    interval = _pass_rate_interval(passed_count, total)
+    return BenchmarkAblationResult(
+        evaluator=evaluator,
+        description=description,
+        total_trials=total,
+        passed=passed_count,
+        pass_rate=_pass_rate(passed_count, total),
+        pass_rate_ci_low=interval[0],
+        pass_rate_ci_high=interval[1],
+        answer_only_missed_failures=missed_failures,
+        answer_only_missed_failure_rate=_pass_rate(missed_failures, total),
+    )
+
+
+def _trace_completion_passed(checks: dict[DeterministicCheck, bool]) -> bool:
+    return checks.get(DeterministicCheck.TRACE_COMPLETED, False)
+
+
+def _deterministic_assertions_passed(checks: dict[DeterministicCheck, bool]) -> bool:
+    ignored_checks = {DeterministicCheck.TOOL_POLICY_SATISFIED}
+    return all(passed for check, passed in checks.items() if check not in ignored_checks)
+
+
+def _policy_checks_passed(checks: dict[DeterministicCheck, bool]) -> bool:
+    return _trace_completion_passed(checks) and checks.get(
+        DeterministicCheck.TOOL_POLICY_SATISFIED,
+        True,
+    )
 
 
 def _pass_rate(passed: int, total: int) -> float:
@@ -539,6 +724,14 @@ def _missed_failure_rate_ci(result: BenchmarkResult) -> str:
     )
 
 
+def _ablation_rate_ci(result: BenchmarkAblationResult) -> str:
+    return format_rate_ci(
+        result.pass_rate,
+        result.pass_rate_ci_low,
+        result.pass_rate_ci_high,
+    )
+
+
 def _final_answer_latex_ci(result: BenchmarkResult | BenchmarkSuiteResult) -> str:
     return _format_latex_ci(
         result.final_answer_pass_rate,
@@ -552,6 +745,14 @@ def _trace_aware_latex_ci(result: BenchmarkResult | BenchmarkSuiteResult) -> str
         result.trace_aware_pass_rate,
         result.trace_aware_pass_rate_ci_low,
         result.trace_aware_pass_rate_ci_high,
+    )
+
+
+def _ablation_latex_ci(result: BenchmarkAblationResult) -> str:
+    return _format_latex_ci(
+        result.pass_rate,
+        result.pass_rate_ci_low,
+        result.pass_rate_ci_high,
     )
 
 

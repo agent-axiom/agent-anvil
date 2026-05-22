@@ -140,6 +140,14 @@ output:
     assert result.answer_only_missed_failure_rate == 50.0
     assert result.answer_only_missed_failure_rate_ci_low == 18.8
     assert result.answer_only_missed_failure_rate_ci_high == 81.2
+    ablation = {entry.evaluator: entry for entry in result.evaluator_ablation}
+    assert ablation["final_answer_baseline"].passed == 6
+    assert ablation["trace_completion_only"].passed == 6
+    assert ablation["deterministic_assertions"].passed == 3
+    assert ablation["policy_checks"].passed == 6
+    assert ablation["full_trace_aware"].passed == 3
+    assert ablation["deterministic_assertions"].answer_only_missed_failures == 3
+    assert ablation["full_trace_aware"].answer_only_missed_failure_rate == 50.0
     assert result.outcome_counts == {
         OutcomeCategory.PASS.value: 3,
         OutcomeCategory.DETERMINISTIC_FAILURE.value: 3,
@@ -172,9 +180,11 @@ output:
     run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
 
     suite_csv = (table_dir / "suite_results.csv").read_text(encoding="utf-8")
+    ablation_csv = (table_dir / "evaluator_ablation.csv").read_text(encoding="utf-8")
     outcome_csv = (table_dir / "outcome_counts.csv").read_text(encoding="utf-8")
     missed_csv = (table_dir / "missed_failures.csv").read_text(encoding="utf-8")
     tables_md = (tmp_path / "tables.md").read_text(encoding="utf-8")
+    ablation_latex = (table_dir / "evaluator_ablation.tex").read_text(encoding="utf-8")
     latex = (table_dir / "suite_results.tex").read_text(encoding="utf-8")
 
     assert suite_csv.splitlines()[0] == (
@@ -183,14 +193,22 @@ output:
         "trace_aware_pass_rate_ci_low,trace_aware_pass_rate_ci_high"
     )
     assert "refund_agent_regression_suite,6,100.0,61.0,100.0,50.0,18.8,81.2" in suite_csv
+    assert ablation_csv.splitlines()[0] == (
+        "evaluator,total_trials,passed,pass_rate,pass_rate_ci_low,pass_rate_ci_high,"
+        "answer_only_missed_failures,answer_only_missed_failure_rate"
+    )
+    assert "deterministic_assertions,6,3,50.0,18.8,81.2,3,50.0" in ablation_csv
     assert outcome_csv.splitlines()[0] == "outcome,trials"
     assert "deterministic_failure,3" in outcome_csv
     assert missed_csv.splitlines()[0] == "suite,scenario_id,trial,outcome,failure_type,severity"
     assert "refund_missing_order_id" in missed_csv
     assert "# Paper Tables" in tables_md
+    assert "`" + str(table_dir / "evaluator_ablation.csv") + "`" in tables_md
     assert "Trace-aware Agent Anvil pass rate: 50.0% [95% CI: 18.8%, 81.2%]" in tables_md
     assert "\\begin{tabular}" in latex
     assert "Trace-aware pass (95\\% CI)" in latex
+    assert "Evaluator & Trials & Pass rate" in ablation_latex
+    assert "Deterministic Assertions & 6 & 50.0\\% [18.8, 81.2]" in ablation_latex
 
 
 def test_render_benchmark_markdown_lists_missed_failures(scenario_file, tmp_path):
@@ -213,6 +231,8 @@ output:
     assert "# Agent Anvil Paper Benchmark" in markdown
     assert "Answer-only missed failures: 3" in markdown
     assert "Answer-only missed failure rate: 50.0% [95% CI: 18.8%, 81.2%]" in markdown
+    assert "## Evaluator Ablation" in markdown
+    assert "| deterministic_assertions | 6 | 50.0% [95% CI: 18.8%, 81.2%] | 3 |" in markdown
     assert "| deterministic_failure | 3 |" in markdown
     assert "`refund_missing_order_id`" in markdown
 

@@ -30,4 +30,5 @@ Answer-only missed failure rate: 70.0% [95% CI: 60.4%, 78.1%]
 - `../docs/paper/artifact.md`: reproduction instructions
 - `../docs/paper/results.md`: generated benchmark table
 - `../docs/paper/tables.md`: generated CSV and LaTeX table artifacts
+- `../docs/paper/tables/evaluator_ablation.csv`: evaluator-layer ablation
 - `../docs/paper/limitations.md`: threats to validity

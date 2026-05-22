@@ -1,0 +1,6 @@
+evaluator,total_trials,passed,pass_rate,pass_rate_ci_low,pass_rate_ci_high,answer_only_missed_failures,answer_only_missed_failure_rate
+final_answer_baseline,100,100,100.0,96.3,100.0,0,0.0
+trace_completion_only,100,100,100.0,96.3,100.0,0,0.0
+deterministic_assertions,100,30,30.0,21.9,39.6,70,70.0
+policy_checks,100,30,30.0,21.9,39.6,70,70.0
+full_trace_aware,100,30,30.0,21.9,39.6,70,70.0
