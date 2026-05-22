@@ -146,6 +146,42 @@ output:
     assert markdown_path.exists()
 
 
+def test_run_benchmark_writes_paper_table_artifacts(scenario_file, tmp_path):
+    manifest_path = tmp_path / "paper.yaml"
+    table_dir = tmp_path / "tables"
+    manifest_path.write_text(
+        f"""
+name: paper_benchmark
+suites:
+  - {scenario_file}
+output:
+  json: {tmp_path / "results.json"}
+  markdown: {tmp_path / "results.md"}
+  tables: {table_dir}
+""",
+        encoding="utf-8",
+    )
+
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+
+    suite_csv = (table_dir / "suite_results.csv").read_text(encoding="utf-8")
+    outcome_csv = (table_dir / "outcome_counts.csv").read_text(encoding="utf-8")
+    missed_csv = (table_dir / "missed_failures.csv").read_text(encoding="utf-8")
+    tables_md = (tmp_path / "tables.md").read_text(encoding="utf-8")
+    latex = (table_dir / "suite_results.tex").read_text(encoding="utf-8")
+
+    assert suite_csv.splitlines()[0] == (
+        "suite,trials,final_answer_pass_rate,trace_aware_pass_rate"
+    )
+    assert "refund_agent_regression_suite,6,100.0,50.0" in suite_csv
+    assert outcome_csv.splitlines()[0] == "outcome,trials"
+    assert "deterministic_failure,3" in outcome_csv
+    assert missed_csv.splitlines()[0] == "suite,scenario_id,trial,outcome,failure_type,severity"
+    assert "refund_missing_order_id" in missed_csv
+    assert "# Paper Tables" in tables_md
+    assert "\\begin{tabular}" in latex
+
+
 def test_render_benchmark_markdown_lists_missed_failures(scenario_file, tmp_path):
     manifest_path = tmp_path / "paper.yaml"
     manifest_path.write_text(

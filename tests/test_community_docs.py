@@ -79,6 +79,7 @@ def test_paper_draft_links_reproducible_artifact() -> None:
     references = Path("paper/references.bib").read_text(encoding="utf-8")
 
     assert "../paper/main.tex" in artifacts
+    assert "paper/tables.md" in artifacts
     assert "Agent Anvil: Trace-Centric CI Evaluation" in paper
     assert "experiments/paper.yaml" in paper
     assert "100.0\\% final-answer pass rate" in paper
