@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 import yaml
@@ -16,6 +17,7 @@ class BenchmarkOutput(BaseModel):
 
     json_path: Path = Field(default=Path("docs/paper/results.json"), alias="json")
     markdown: Path = Path("docs/paper/results.md")
+    tables: Path = Path("docs/paper/tables")
 
 
 class BenchmarkManifest(BaseModel):
@@ -199,6 +201,7 @@ def run_benchmark(
         result,
         json_path=selected_json_path,
         markdown_path=selected_markdown_path,
+        tables_dir=manifest.output.tables,
     )
     return result
 
@@ -208,11 +211,14 @@ def write_benchmark_result(
     *,
     json_path: Path,
     markdown_path: Path,
+    tables_dir: Path | None = None,
 ) -> None:
     json_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
     markdown_path.write_text(render_benchmark_markdown(result), encoding="utf-8")
+    if tables_dir is not None:
+        write_benchmark_tables(result, tables_dir=tables_dir, index_path=markdown_path.parent / "tables.md")
 
 
 def render_benchmark_markdown(result: BenchmarkResult) -> str:
@@ -287,6 +293,109 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
     return "\n".join(lines)
 
 
+def write_benchmark_tables(
+    result: BenchmarkResult,
+    *,
+    tables_dir: Path,
+    index_path: Path,
+) -> None:
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_csv(
+        tables_dir / "suite_results.csv",
+        ["suite", "trials", "final_answer_pass_rate", "trace_aware_pass_rate"],
+        [
+            [
+                suite.suite,
+                suite.total_trials,
+                f"{suite.final_answer_pass_rate:.1f}",
+                f"{suite.trace_aware_pass_rate:.1f}",
+            ]
+            for suite in result.suites
+        ],
+    )
+    _write_csv(
+        tables_dir / "outcome_counts.csv",
+        ["outcome", "trials"],
+        [[outcome, count] for outcome, count in sorted(result.outcome_counts.items())],
+    )
+    missed = [
+        trial for trial in result.trials if trial.final_answer_passed and not trial.trace_aware_passed
+    ]
+    _write_csv(
+        tables_dir / "missed_failures.csv",
+        ["suite", "scenario_id", "trial", "outcome", "failure_type", "severity"],
+        [
+            [
+                trial.suite,
+                trial.scenario_id,
+                trial.trial,
+                trial.outcome_category.value,
+                trial.failure_type,
+                trial.severity,
+            ]
+            for trial in missed
+        ],
+    )
+    (tables_dir / "suite_results.tex").write_text(
+        render_suite_results_latex(result),
+        encoding="utf-8",
+    )
+    index_path.write_text(render_tables_markdown(result, tables_dir=tables_dir), encoding="utf-8")
+
+
+def render_tables_markdown(result: BenchmarkResult, *, tables_dir: Path) -> str:
+    return "\n".join(
+        [
+            "# Paper Tables",
+            "",
+            f"Benchmark: {result.name}",
+            "",
+            "Generated table artifacts:",
+            "",
+            f"- `{tables_dir / 'suite_results.csv'}`",
+            f"- `{tables_dir / 'outcome_counts.csv'}`",
+            f"- `{tables_dir / 'missed_failures.csv'}`",
+            f"- `{tables_dir / 'suite_results.tex'}`",
+            "",
+            "## Main Result",
+            "",
+            f"- Total trials: {result.total_trials}",
+            f"- Final-answer baseline pass rate: {result.final_answer_pass_rate:.1f}%",
+            f"- Trace-aware Agent Anvil pass rate: {result.trace_aware_pass_rate:.1f}%",
+            f"- Answer-only missed failures: {result.answer_only_missed_failures}",
+            "",
+        ]
+    )
+
+
+def render_suite_results_latex(result: BenchmarkResult) -> str:
+    lines = [
+        "\\begin{tabular}{lrrr}",
+        "\\toprule",
+        "Suite & Trials & Final-answer pass & Trace-aware pass \\\\",
+        "\\midrule",
+    ]
+    lines.extend(
+        [
+            f"{_latex_label(suite.suite)} & {suite.total_trials} & "
+            f"{suite.final_answer_pass_rate:.1f}\\% & {suite.trace_aware_pass_rate:.1f}\\% \\\\"
+            for suite in result.suites
+        ]
+    )
+    lines.extend(
+        [
+            "\\midrule",
+            f"Total & {result.total_trials} & {result.final_answer_pass_rate:.1f}\\% & "
+            f"{result.trace_aware_pass_rate:.1f}\\% \\\\",
+            "\\bottomrule",
+            "\\end{tabular}",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def load_benchmark_manifest(path: str | Path) -> BenchmarkManifest:
     manifest_path = Path(path)
     payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
@@ -304,6 +413,10 @@ def load_benchmark_manifest(path: str | Path) -> BenchmarkManifest:
                         manifest_path,
                         manifest.output.markdown,
                     ),
+                    "tables": _resolve_manifest_path(
+                        manifest_path,
+                        manifest.output.tables,
+                    ),
                 },
             ),
         },
@@ -314,6 +427,21 @@ def _resolve_manifest_path(manifest_path: Path, value: Path) -> Path:
     if value.is_absolute():
         return value
     return manifest_path.parent / value
+
+
+def _write_csv(path: Path, header: list[str], rows: list[list[object]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(header)
+        writer.writerows(rows)
+
+
+def _latex_label(value: str) -> str:
+    suffix = "_trace_suite"
+    label = value.removeprefix("paper_")
+    if label.endswith(suffix):
+        label = label[: -len(suffix)]
+    return label.replace("_", "-").title()
 
 
 def _load_trace(path: str | Path) -> TraceRun:
