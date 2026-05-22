@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from anvil.benchmark import format_rate_ci, run_benchmark
+from anvil.benchmark import format_rate_ci, load_benchmark_manifest, run_benchmark
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
@@ -34,10 +34,12 @@ mcp_app = typer.Typer(help="Audit MCP tools and generate safety scenarios.")
 trace_app = typer.Typer(help="Import and export trace formats.")
 pack_app = typer.Typer(help="List and add built-in scenario packs.")
 ingest_app = typer.Typer(help="Ingest production agent logs into Anvil traces.")
+paper_app = typer.Typer(help="Reproduce paper benchmark artifacts.")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(trace_app, name="trace")
 app.add_typer(pack_app, name="pack")
 app.add_typer(ingest_app, name="ingest")
+app.add_typer(paper_app, name="paper")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -170,6 +172,21 @@ BENCH_MARKDOWN_OUT_OPTION = typer.Option(
     None,
     "--markdown-out",
     help="Write benchmark Markdown results here. Defaults to manifest output.markdown.",
+)
+PAPER_MANIFEST_OPTION = typer.Option(
+    Path("experiments/paper.yaml"),
+    "--manifest",
+    help="Paper benchmark manifest to reproduce.",
+)
+PAPER_RUNS_DIR_OPTION = typer.Option(
+    Path("runs/paper-benchmark"),
+    "--runs-dir",
+    help="Run artifact directory for reproduced paper traces.",
+)
+PAPER_OFFLINE_OPTION = typer.Option(
+    True,
+    "--offline/--openai",
+    help="Use offline grading by default; pass --openai to reproduce with OpenAI grading.",
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
@@ -324,6 +341,61 @@ def bench(
     typer.echo(f"Trace-aware Agent Anvil pass rate: {trace_aware_rate}")
     typer.echo(f"Answer-only missed failures: {result.answer_only_missed_failures}")
     typer.echo(f"Answer-only missed failure rate: {missed_failure_rate}")
+
+
+@paper_app.command("reproduce")
+def paper_reproduce(
+    manifest_file: Path = PAPER_MANIFEST_OPTION,
+    runs_dir: Path = PAPER_RUNS_DIR_OPTION,
+    offline: bool = PAPER_OFFLINE_OPTION,
+    redact: bool | None = REDACT_OPTION,
+    agent_mode: str | None = AGENT_MODE_OPTION,
+) -> None:
+    try:
+        result = run_benchmark(
+            manifest_file,
+            offline=offline,
+            runs_dir=runs_dir,
+            redact=redact,
+            agent_mode=agent_mode,
+        )
+    except OpenAIKeyMissingError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+
+    manifest = load_benchmark_manifest(manifest_file)
+    final_answer_rate = format_rate_ci(
+        result.final_answer_pass_rate,
+        result.final_answer_pass_rate_ci_low,
+        result.final_answer_pass_rate_ci_high,
+    )
+    trace_aware_rate = format_rate_ci(
+        result.trace_aware_pass_rate,
+        result.trace_aware_pass_rate_ci_low,
+        result.trace_aware_pass_rate_ci_high,
+    )
+    missed_failure_rate = format_rate_ci(
+        result.answer_only_missed_failure_rate,
+        result.answer_only_missed_failure_rate_ci_low,
+        result.answer_only_missed_failure_rate_ci_high,
+    )
+    typer.echo("Reproduced Agent Anvil paper artifacts")
+    typer.echo(f"Benchmark: {result.name}")
+    typer.echo(f"Total trials: {result.total_trials}")
+    typer.echo(f"Final-answer baseline pass rate: {final_answer_rate}")
+    typer.echo(f"Trace-aware Agent Anvil pass rate: {trace_aware_rate}")
+    typer.echo(f"Answer-only missed failures: {result.answer_only_missed_failures}")
+    typer.echo(f"Answer-only missed failure rate: {missed_failure_rate}")
+    typer.echo(f"Results JSON: {_display_path(manifest.output.json_path)}")
+    typer.echo(f"Results Markdown: {_display_path(manifest.output.markdown)}")
+    typer.echo(f"Tables: {_display_path(manifest.output.tables)}")
+    typer.echo(f"Runs: {_display_path(runs_dir)}")
+    typer.echo("Evaluator ablation:")
+    for entry in result.evaluator_ablation:
+        typer.echo(
+            f"- {entry.evaluator}: {entry.pass_rate:.1f}% pass; "
+            f"{entry.answer_only_missed_failures} answer-only missed failures"
+        )
 
 
 @app.command()
@@ -675,7 +747,7 @@ def _run_command(
 
 def _display_path(path: Path) -> Path:
     try:
-        return path.relative_to(Path.cwd())
+        return path.resolve().relative_to(Path.cwd().resolve())
     except ValueError:
         return path
 

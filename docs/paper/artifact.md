@@ -21,18 +21,24 @@ From a clean checkout:
 
 ```bash
 uv sync --group dev
-uv run anvil bench experiments/paper.yaml --offline --runs-dir runs/paper-benchmark
+uv run anvil paper reproduce
 ```
 
 Expected summary:
 
 ```text
+Reproduced Agent Anvil paper artifacts
 Benchmark: agent_anvil_trace_eval_benchmark
 Total trials: 100
 Final-answer baseline pass rate: 100.0% [95% CI: 96.3%, 100.0%]
 Trace-aware Agent Anvil pass rate: 30.0% [95% CI: 21.9%, 39.6%]
 Answer-only missed failures: 70
 Answer-only missed failure rate: 70.0% [95% CI: 60.4%, 78.1%]
+Results JSON: docs/paper/results.json
+Results Markdown: docs/paper/results.md
+Tables: docs/paper/tables
+Runs: runs/paper-benchmark
+Evaluator ablation:
 ```
 
 The command writes:
@@ -50,6 +56,9 @@ Results include stable outcome categories such as `pass`, `policy_violation`,
 tables do not depend on ad hoc explanation text.
 Pass-rate summaries include 95% Wilson confidence intervals for the final-answer
 baseline, trace-aware Agent Anvil, and answer-only missed-failure rate.
+The generated summary reports 100 total trials, 100.0% final-answer pass rate
+[95% CI: 96.3%, 100.0%], 30.0% trace-aware pass rate [95% CI: 21.9%, 39.6%],
+and 70 answer-only missed failures.
 The evaluator ablation table compares final-answer checks, trace completion,
 deterministic assertions, policy checks, and the full trace-aware evaluator over
 the same traces.
@@ -62,7 +71,7 @@ command to regenerate trace paths referenced in `results.md`.
 Set an API key and omit `--offline`:
 
 ```bash
-OPENAI_API_KEY=... uv run anvil bench experiments/paper.yaml \
+OPENAI_API_KEY=... uv run anvil paper reproduce --openai \
   --runs-dir runs/paper-benchmark-openai
 ```
 

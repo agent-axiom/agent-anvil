@@ -211,6 +211,55 @@ output:
     assert markdown_path.exists()
 
 
+def test_cli_paper_reproduce_writes_artifact_bundle(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "paper.yaml"
+    json_path = tmp_path / "paper" / "results.json"
+    markdown_path = tmp_path / "paper" / "results.md"
+    tables_path = tmp_path / "paper" / "tables"
+    manifest_path.write_text(
+        f"""
+name: paper_benchmark
+suites:
+  - {scenario_file}
+output:
+  json: {json_path}
+  markdown: {markdown_path}
+  tables: {tables_path}
+""",
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "paper",
+            "reproduce",
+            "--manifest",
+            str(manifest_path),
+            "--runs-dir",
+            str(tmp_path / "runs"),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Reproduced Agent Anvil paper artifacts" in result.stdout
+    assert "Benchmark: paper_benchmark" in result.stdout
+    assert "Final-answer baseline pass rate: 100.0% [95% CI: 61.0%, 100.0%]" in result.stdout
+    assert "Trace-aware Agent Anvil pass rate: 50.0% [95% CI: 18.8%, 81.2%]" in result.stdout
+    assert f"Results JSON: {json_path}" in result.stdout
+    assert f"Results Markdown: {markdown_path}" in result.stdout
+    assert f"Tables: {tables_path}" in result.stdout
+    assert "Evaluator ablation:" in result.stdout
+    assert json_path.exists()
+    assert markdown_path.exists()
+    assert (tables_path / "suite_results.csv").exists()
+    assert (tables_path / "evaluator_ablation.csv").exists()
+
+
 def test_cli_summary_prints_github_summary(
     scenario_file: Path,
     tmp_path: Path,
