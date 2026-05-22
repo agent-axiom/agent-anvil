@@ -218,7 +218,9 @@ def write_benchmark_result(
     json_path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
     markdown_path.write_text(render_benchmark_markdown(result), encoding="utf-8")
     if tables_dir is not None:
-        write_benchmark_tables(result, tables_dir=tables_dir, index_path=markdown_path.parent / "tables.md")
+        write_benchmark_tables(
+            result, tables_dir=tables_dir, index_path=markdown_path.parent / "tables.md"
+        )
 
 
 def render_benchmark_markdown(result: BenchmarkResult) -> str:
@@ -320,7 +322,9 @@ def write_benchmark_tables(
         [[outcome, count] for outcome, count in sorted(result.outcome_counts.items())],
     )
     missed = [
-        trial for trial in result.trials if trial.final_answer_passed and not trial.trace_aware_passed
+        trial
+        for trial in result.trials
+        if trial.final_answer_passed and not trial.trace_aware_passed
     ]
     _write_csv(
         tables_dir / "missed_failures.csv",
