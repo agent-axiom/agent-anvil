@@ -18,7 +18,9 @@ from anvil.leaderboard import (
 def test_export_leaderboard_submission_writes_verifiable_summary(
     scenario_file: Path,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _clear_github_env(monkeypatch)
     manifest_path = _write_manifest(tmp_path, scenario_file)
     run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
     out_path = tmp_path / "leaderboard_submission.json"
@@ -52,7 +54,9 @@ def test_export_leaderboard_submission_writes_verifiable_summary(
 def test_cli_leaderboard_export_writes_submission(
     scenario_file: Path,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _clear_github_env(monkeypatch)
     manifest_path = _write_manifest(tmp_path, scenario_file)
     run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
     out_path = tmp_path / "leaderboard_submission.json"
@@ -89,7 +93,9 @@ def test_cli_leaderboard_export_writes_submission(
 def test_validate_leaderboard_submission_rejects_tampering(
     scenario_file: Path,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _clear_github_env(monkeypatch)
     manifest_path = _write_manifest(tmp_path, scenario_file)
     run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
     out_path = tmp_path / "leaderboard_submission.json"
@@ -110,7 +116,9 @@ def test_validate_leaderboard_submission_rejects_tampering(
 def test_cli_leaderboard_validate_checks_artifact_hashes(
     scenario_file: Path,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _clear_github_env(monkeypatch)
     manifest_path = _write_manifest(tmp_path, scenario_file)
     run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
     out_path = tmp_path / "leaderboard_submission.json"
@@ -132,6 +140,45 @@ def test_cli_leaderboard_validate_checks_artifact_hashes(
 
     assert invalid.exit_code == 1
     assert "artifact hash mismatch" in invalid.stderr
+
+
+def test_export_leaderboard_submission_marks_github_actions_trust(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "agent-axiom/agent-anvil")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    out_path = tmp_path / "leaderboard_submission.json"
+
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=out_path,
+        agent_name="Support Agent",
+    )
+
+    assert submission.verification.trust_level == "github_actions"
+    assert submission.verification.github_run_url == (
+        "https://github.com/agent-axiom/agent-anvil/actions/runs/12345"
+    )
+    assert submission.submitter.commit_sha == "abc123"
+
+
+def _clear_github_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in (
+        "GITHUB_ACTIONS",
+        "GITHUB_SERVER_URL",
+        "GITHUB_REPOSITORY",
+        "GITHUB_RUN_ID",
+        "GITHUB_SHA",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 def _write_manifest(tmp_path: Path, scenario_file: Path) -> Path:
