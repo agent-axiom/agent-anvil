@@ -101,3 +101,22 @@ uv run anvil fuzz scenarios/refund_agent.yaml \
 ```bash
 uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
 ```
+
+## Paper Benchmark And Leaderboard Submissions
+
+```bash
+uv run anvil paper reproduce
+uv run anvil leaderboard export docs/paper/results.json \
+  --manifest experiments/paper.yaml \
+  --out leaderboard_submission.json \
+  --agent-name "My Agent" \
+  --agent-version "2026-05-22" \
+  --repo-url "https://github.com/acme/my-agent" \
+  --commit-sha "$(git rev-parse HEAD)"
+uv run anvil leaderboard validate leaderboard_submission.json
+uv run anvil leaderboard validate leaderboard_submission.json \
+  --require-trust github_actions
+```
+
+Use `--no-artifacts` on `leaderboard validate` when validating a submitted JSON
+row in a repository that does not also contain the referenced result artifacts.

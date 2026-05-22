@@ -1,0 +1,29 @@
+name: Agent Anvil Leaderboard Submission
+
+on:
+  workflow_dispatch:
+
+jobs:
+  leaderboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --group dev
+      - run: uv run anvil paper reproduce
+      - run: |
+          uv run anvil leaderboard export docs/paper/results.json \
+            --manifest experiments/paper.yaml \
+            --out leaderboard_submission.json \
+            --agent-name "My Agent" \
+            --agent-version "${{ github.ref_name }}" \
+            --repo-url "${{ github.server_url }}/${{ github.repository }}" \
+            --commit-sha "${{ github.sha }}"
+      - run: uv run anvil leaderboard validate leaderboard_submission.json --require-trust github_actions
+      - uses: actions/upload-artifact@v5
+        with:
+          name: agent-anvil-leaderboard-submission
+          path: leaderboard_submission.json

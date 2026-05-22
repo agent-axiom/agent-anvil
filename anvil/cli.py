@@ -11,6 +11,11 @@ from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
+from anvil.leaderboard import (
+    LeaderboardValidationError,
+    export_leaderboard_submission,
+    validate_leaderboard_submission,
+)
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools, snapshot_mcp_tools
 from anvil.mcp_repair import generate_mcp_repair, harden_mcp_server, render_mcp_harden_summary
@@ -35,11 +40,13 @@ trace_app = typer.Typer(help="Import and export trace formats.")
 pack_app = typer.Typer(help="List and add built-in scenario packs.")
 ingest_app = typer.Typer(help="Ingest production agent logs into Anvil traces.")
 paper_app = typer.Typer(help="Reproduce paper benchmark artifacts.")
+leaderboard_app = typer.Typer(help="Export leaderboard submission artifacts.")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(trace_app, name="trace")
 app.add_typer(pack_app, name="pack")
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(paper_app, name="paper")
+app.add_typer(leaderboard_app, name="leaderboard")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -187,6 +194,51 @@ PAPER_OFFLINE_OPTION = typer.Option(
     True,
     "--offline/--openai",
     help="Use offline grading by default; pass --openai to reproduce with OpenAI grading.",
+)
+LEADERBOARD_MANIFEST_OPTION = typer.Option(
+    ...,
+    "--manifest",
+    help="Benchmark manifest used to produce the results JSON.",
+)
+LEADERBOARD_OUT_OPTION = typer.Option(
+    Path("leaderboard_submission.json"),
+    "--out",
+    help="Write leaderboard submission JSON here.",
+)
+LEADERBOARD_AGENT_NAME_OPTION = typer.Option(
+    ...,
+    "--agent-name",
+    help="Human-readable agent name for the leaderboard.",
+)
+LEADERBOARD_AGENT_VERSION_OPTION = typer.Option(
+    "",
+    "--agent-version",
+    help="Agent version, model, prompt version, or release label.",
+)
+LEADERBOARD_REPO_URL_OPTION = typer.Option(
+    "",
+    "--repo-url",
+    help="Public repository URL for the evaluated agent.",
+)
+LEADERBOARD_COMMIT_SHA_OPTION = typer.Option(
+    "",
+    "--commit-sha",
+    help="Commit SHA for the evaluated agent.",
+)
+LEADERBOARD_NOTES_OPTION = typer.Option(
+    "",
+    "--notes",
+    help="Short public notes for the leaderboard submission.",
+)
+LEADERBOARD_VERIFY_ARTIFACTS_OPTION = typer.Option(
+    True,
+    "--artifacts/--no-artifacts",
+    help="Verify local artifact hashes referenced by the submission.",
+)
+LEADERBOARD_REQUIRE_TRUST_OPTION = typer.Option(
+    None,
+    "--require-trust",
+    help="Require a trust level such as self_reported or github_actions.",
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
@@ -396,6 +448,57 @@ def paper_reproduce(
             f"- {entry.evaluator}: {entry.pass_rate:.1f}% pass; "
             f"{entry.answer_only_missed_failures} answer-only missed failures"
         )
+
+
+@leaderboard_app.command("export")
+def leaderboard_export(
+    results_json: Path,
+    manifest_file: Path = LEADERBOARD_MANIFEST_OPTION,
+    out: Path = LEADERBOARD_OUT_OPTION,
+    agent_name: str = LEADERBOARD_AGENT_NAME_OPTION,
+    agent_version: str = LEADERBOARD_AGENT_VERSION_OPTION,
+    repo_url: str = LEADERBOARD_REPO_URL_OPTION,
+    commit_sha: str = LEADERBOARD_COMMIT_SHA_OPTION,
+    notes: str = LEADERBOARD_NOTES_OPTION,
+) -> None:
+    submission = export_leaderboard_submission(
+        results_json=results_json,
+        manifest_path=manifest_file,
+        out_path=out,
+        agent_name=agent_name,
+        agent_version=agent_version,
+        repo_url=repo_url,
+        commit_sha=commit_sha,
+        notes=notes,
+    )
+    typer.echo(f"Wrote leaderboard submission: {_display_path(out)}")
+    typer.echo(f"Trust level: {submission.verification.trust_level}")
+    typer.echo(f"Evidence SHA-256: {submission.verification.evidence_sha256}")
+    typer.echo(f"Benchmark: {submission.benchmark.name}")
+    typer.echo(f"Total trials: {submission.metrics.total_trials}")
+    typer.echo(f"Trace-aware pass rate: {submission.metrics.trace_aware_pass_rate:.1f}%")
+
+
+@leaderboard_app.command("validate")
+def leaderboard_validate(
+    submission_file: Path,
+    verify_artifacts: bool = LEADERBOARD_VERIFY_ARTIFACTS_OPTION,
+    require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
+) -> None:
+    try:
+        submission = validate_leaderboard_submission(
+            submission_file,
+            verify_artifacts=verify_artifacts,
+            require_trust_level=require_trust_level,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo("Leaderboard submission is valid")
+    typer.echo(f"Trust level: {submission.verification.trust_level}")
+    typer.echo(f"Evidence SHA-256: {submission.verification.evidence_sha256}")
+    typer.echo(f"Benchmark: {submission.benchmark.name}")
+    typer.echo(f"Trace-aware pass rate: {submission.metrics.trace_aware_pass_rate:.1f}%")
 
 
 @app.command()

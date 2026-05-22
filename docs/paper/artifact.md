@@ -66,6 +66,27 @@ the same traces.
 `runs/` artifacts are intentionally local and are not committed. Re-run the
 command to regenerate trace paths referenced in `results.md`.
 
+## Export A Leaderboard Submission
+
+After reproducing the benchmark, export and validate a small public submission
+artifact:
+
+```bash
+uv run anvil leaderboard export docs/paper/results.json \
+  --manifest experiments/paper.yaml \
+  --out leaderboard_submission.json \
+  --agent-name "My Agent" \
+  --agent-version "2026-05-22" \
+  --repo-url "https://github.com/acme/my-agent" \
+  --commit-sha "$(git rev-parse HEAD)"
+uv run anvil leaderboard validate leaderboard_submission.json
+```
+
+The submission contains aggregate metrics, evaluator ablation, benchmark hashes,
+artifact hashes, and a trust level. It does not include raw traces, model
+outputs, tool results, or scenario contents. See
+[leaderboard submissions](../leaderboard.md) for the public leaderboard design.
+
 ## Reproduce With OpenAI Grading
 
 Set an API key and omit `--offline`:

@@ -37,6 +37,7 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Paper benchmark results](paper/results.md)
 - [Paper benchmark tables](paper/tables.md)
 - [Paper benchmark limitations](paper/limitations.md)
+- [Leaderboard submission guide](leaderboard.md)
 - [Preprint draft](../paper/main.tex)
 
 ## MCP Tool Safety Audit
@@ -57,3 +58,4 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [External agent protocol](protocol.md)
 - [Engineering details](engineering.md)
 - [GitHub Action marketplace notes](marketplace.md)
+- [Leaderboard submission workflow](examples/leaderboard-submission-workflow.yml)
