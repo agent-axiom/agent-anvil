@@ -10,7 +10,7 @@ editing pass, a larger related-work review, and a PDF build check.
 ## Reproduce The Reported Table
 
 ```bash
-uv run anvil bench experiments/paper.yaml --offline --runs-dir runs/paper-benchmark
+uv run anvil paper reproduce
 ```
 
 Expected result:
