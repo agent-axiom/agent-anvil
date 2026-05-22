@@ -116,7 +116,14 @@ uv run anvil leaderboard export docs/paper/results.json \
 uv run anvil leaderboard validate leaderboard_submission.json
 uv run anvil leaderboard validate leaderboard_submission.json \
   --require-trust github_actions
+uv run anvil leaderboard build submissions \
+  --out leaderboard.csv \
+  --json-out leaderboard.json \
+  --no-artifacts
 ```
 
 Use `--no-artifacts` on `leaderboard validate` when validating a submitted JSON
 row in a repository that does not also contain the referenced result artifacts.
+`leaderboard build` validates all `*.json` submissions, rejects duplicate
+evidence hashes, ranks rows per benchmark, and writes CSV/JSON files suitable
+for a Hugging Face Dataset-backed public leaderboard.

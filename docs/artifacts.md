@@ -59,3 +59,5 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Engineering details](engineering.md)
 - [GitHub Action marketplace notes](marketplace.md)
 - [Leaderboard submission workflow](examples/leaderboard-submission-workflow.yml)
+- [Leaderboard index workflow](examples/leaderboard-index-workflow.yml)
+- [Hugging Face leaderboard Space scaffold](../integrations/huggingface/leaderboard_space/README.md)

@@ -34,6 +34,15 @@ Validate it before publishing:
 uv run anvil leaderboard validate leaderboard_submission.json
 ```
 
+Build a public leaderboard index from accepted submissions:
+
+```bash
+uv run anvil leaderboard build submissions \
+  --out leaderboard.csv \
+  --json-out leaderboard.json \
+  --no-artifacts
+```
+
 The JSON contains:
 
 - `schema_version`: stable submission schema identifier
@@ -68,7 +77,9 @@ are self-reported, CI-verified, or independently re-run by maintainers.
 4. The user opens a pull request to the leaderboard submissions repository.
 5. The leaderboard CI runs `anvil leaderboard validate --no-artifacts` for schema
    and evidence-hash checks, then labels the row by `verification.trust_level`.
-6. Maintainers can optionally re-run the agent and mark the row as
+6. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
+   `leaderboard.csv` and `leaderboard.json`.
+7. Maintainers can optionally re-run the agent and mark the row as
    `maintainer_rerun`.
 
 For stricter public rows, generate the submission in GitHub Actions and validate
@@ -81,6 +92,9 @@ uv run anvil leaderboard validate leaderboard_submission.json \
 
 A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).
+
+A copy-paste validator/index workflow for a submissions repository is available
+at [`docs/examples/leaderboard-index-workflow.yml`](examples/leaderboard-index-workflow.yml).
 
 ## Hugging Face Leaderboard Plan
 
@@ -99,6 +113,25 @@ The recommended public setup is:
 
 The Space should display aggregate results only. Raw traces stay with the user
 unless they intentionally publish them.
+
+The starter Space app lives in
+[`integrations/huggingface/leaderboard_space`](../integrations/huggingface/leaderboard_space).
+Set `LEADERBOARD_INDEX_URL` to the raw `leaderboard.json` URL in the Dataset
+repository, for example:
+
+```text
+https://huggingface.co/datasets/agent-axiom/agent-anvil-leaderboard/resolve/main/leaderboard.json
+```
+
+Recommended Dataset layout:
+
+```text
+submissions/
+  acme-support-agent.json
+  research-lab-agent.json
+leaderboard.csv
+leaderboard.json
+```
 
 ## Why Not Run Agents In The Space?
 

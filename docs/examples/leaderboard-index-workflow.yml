@@ -1,0 +1,36 @@
+name: Validate Agent Anvil Leaderboard
+
+on:
+  pull_request:
+    paths:
+      - "submissions/**/*.json"
+      - "leaderboard.csv"
+      - "leaderboard.json"
+      - ".github/workflows/leaderboard.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --group dev
+      - name: Build leaderboard index
+        run: |
+          uv run anvil leaderboard build submissions \
+            --out leaderboard.csv \
+            --json-out leaderboard.json \
+            --no-artifacts
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: agent-anvil-leaderboard-index
+          path: |
+            leaderboard.csv
+            leaderboard.json
