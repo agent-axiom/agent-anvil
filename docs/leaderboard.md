@@ -9,6 +9,8 @@ Live submissions repository:
 Live Hugging Face leaderboard:
 [Space](https://huggingface.co/spaces/ifif/agent-anvil-leaderboard) and
 [Dataset](https://huggingface.co/datasets/ifif/agent-anvil-leaderboard-data).
+The live submissions repository publishes the rebuilt index to Hugging Face
+automatically after merges to `main`.
 
 The user runs Agent Anvil locally or in CI. Agent Anvil exports a small
 `leaderboard_submission.json` file with aggregate metrics, evaluator ablation
@@ -109,16 +111,17 @@ The recommended public setup is:
 
 1. The public submissions repository stores accepted
    `leaderboard_submission.json` files and generated `leaderboard.csv` /
-   `leaderboard.json` indexes. It can be mirrored to a Hugging Face Dataset
-   repository if the community wants Hugging Face-native dataset history.
-2. A Hugging Face Space reads the dataset/index and renders the leaderboard with
-   filters for benchmark version, trust level, agent type, pass rate, missed
-   failures, and evidence links.
+   `leaderboard.json` indexes.
+2. A Hugging Face Space reads the Hugging Face Dataset index and renders the
+   leaderboard with filters for benchmark version, trust level, agent type, pass
+   rate, missed failures, and evidence links.
 3. Users submit results by opening a pull request to the dataset repository or
    to an Agent Anvil submissions repository.
 4. A validator checks schema version, required fields, benchmark/scenario hashes,
    artifact hashes, and whether the claimed CI run URL exists.
 5. Rows are labeled as `self_reported`, `github_actions`, or `maintainer_rerun`.
+6. The live submissions repository publishes the rebuilt index and Space files
+   to Hugging Face when its `HF_TOKEN` repository secret is configured.
 
 The Space should display aggregate results only. Raw traces stay with the user
 unless they intentionally publish them.
