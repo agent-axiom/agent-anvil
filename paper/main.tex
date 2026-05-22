@@ -126,6 +126,30 @@ classified as policy violations in the current benchmark artifact. The result
 demonstrates the intended gap: final text can look acceptable while the agent's
 intermediate behavior violates tool-use safety contracts.
 
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Evaluator & Trials & Pass rate & Answer-only missed failures \\
+\midrule
+Final answer baseline & 100 & 100.0\% [96.3, 100.0] & 0 \\
+Trace completion only & 100 & 100.0\% [96.3, 100.0] & 0 \\
+Deterministic assertions & 100 & 30.0\% [21.9, 39.6] & 70 \\
+Policy checks & 100 & 30.0\% [21.9, 39.6] & 70 \\
+Full trace-aware & 100 & 30.0\% [21.9, 39.6] & 70 \\
+\bottomrule
+\end{tabular}
+\caption{Evaluator-layer ablation over the same 100 benchmark traces. The current benchmark focuses on policy-backed unsafe tool behavior, so deterministic assertions, policy checks, and the full trace-aware evaluator expose the same 70 answer-only missed failures.}
+\label{tab:ablation}
+\end{table}
+
+The ablation in Table~\ref{tab:ablation} clarifies which evaluation layers
+matter for this artifact. Merely requiring a completed trace does not improve
+over final-answer checking, because all benchmark agents produce completed
+traces and plausible final text. The missed failures appear only when the
+evaluator inspects tool arguments, ordering, forbidden calls, and risky-tool
+preconditions.
+
 \section{Artifact}
 
 The artifact is public and reproducible. From a clean checkout:

@@ -42,6 +42,7 @@ The command writes:
 - `docs/paper/tables.md`
 - `docs/paper/tables/*.csv`
 - `docs/paper/tables/suite_results.tex`
+- `docs/paper/tables/evaluator_ablation.tex`
 - trace artifacts under `runs/paper-benchmark/`
 
 Results include stable outcome categories such as `pass`, `policy_violation`,
@@ -49,6 +50,9 @@ Results include stable outcome categories such as `pass`, `policy_violation`,
 tables do not depend on ad hoc explanation text.
 Pass-rate summaries include 95% Wilson confidence intervals for the final-answer
 baseline, trace-aware Agent Anvil, and answer-only missed-failure rate.
+The evaluator ablation table compares final-answer checks, trace completion,
+deterministic assertions, policy checks, and the full trace-aware evaluator over
+the same traces.
 
 `runs/` artifacts are intentionally local and are not committed. Re-run the
 command to regenerate trace paths referenced in `results.md`.
