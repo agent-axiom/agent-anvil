@@ -1,3 +1,12 @@
+---
+title: Agent Anvil Leaderboard
+colorFrom: blue
+colorTo: purple
+sdk: gradio
+app_file: app.py
+pinned: false
+---
+
 # Agent Anvil Leaderboard Space
 
 This is a minimal Hugging Face Space scaffold for a public Agent Anvil
@@ -12,7 +21,7 @@ renders aggregate benchmark rows.
 Set this Space secret or variable:
 
 ```text
-LEADERBOARD_INDEX_URL=https://huggingface.co/datasets/agent-axiom/agent-anvil-leaderboard/resolve/main/leaderboard.json
+LEADERBOARD_INDEX_URL=https://huggingface.co/datasets/ifif/agent-anvil-leaderboard-data/resolve/main/leaderboard.json
 ```
 
 The Dataset repository should be updated by CI with:
