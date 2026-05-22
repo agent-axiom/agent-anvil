@@ -6,6 +6,10 @@ hard to misrepresent accidentally.
 Live submissions repository:
 [agent-axiom/agent-anvil-leaderboard](https://github.com/agent-axiom/agent-anvil-leaderboard).
 
+Live Hugging Face leaderboard:
+[Space](https://huggingface.co/spaces/ifif/agent-anvil-leaderboard) and
+[Dataset](https://huggingface.co/datasets/ifif/agent-anvil-leaderboard-data).
+
 The user runs Agent Anvil locally or in CI. Agent Anvil exports a small
 `leaderboard_submission.json` file with aggregate metrics, evaluator ablation
 results, benchmark/scenario hashes, and artifact hashes. It does not include raw
@@ -125,7 +129,7 @@ Set `LEADERBOARD_INDEX_URL` to the raw `leaderboard.json` URL in the Dataset
 repository, for example:
 
 ```text
-https://raw.githubusercontent.com/agent-axiom/agent-anvil-leaderboard/main/leaderboard.json
+https://huggingface.co/datasets/ifif/agent-anvil-leaderboard-data/resolve/main/leaderboard.json
 ```
 
 Recommended Dataset layout:
