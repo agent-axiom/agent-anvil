@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import os
@@ -17,6 +18,7 @@ from anvil.benchmark import (
 )
 
 LEADERBOARD_SCHEMA_VERSION = "agent-anvil.leaderboard.v1"
+LEADERBOARD_INDEX_SCHEMA_VERSION = "agent-anvil.leaderboard.index.v1"
 
 
 class LeaderboardSubmitter(BaseModel):
@@ -89,6 +91,38 @@ class LeaderboardSubmission(BaseModel):
     evaluator_ablation: list[BenchmarkAblationResult]
     artifacts: LeaderboardArtifacts
     verification: LeaderboardVerification
+
+
+class LeaderboardRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rank: int
+    submission_path: str
+    agent_name: str
+    agent_version: str
+    repo_url: str
+    commit_sha: str
+    benchmark_name: str
+    benchmark_description: str
+    trust_level: Literal["self_reported", "github_actions", "maintainer_rerun"]
+    evidence_sha256: str
+    github_run_url: str
+    generated_at: str
+    total_trials: int
+    final_answer_pass_rate: float
+    trace_aware_pass_rate: float
+    answer_only_missed_failures: int
+    answer_only_missed_failure_rate: float
+    outcome_counts: dict[str, int]
+
+
+class LeaderboardIndex(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["agent-anvil.leaderboard.index.v1"]
+    generated_at: str
+    generated_by: str
+    rows: list[LeaderboardRow]
 
 
 class LeaderboardValidationError(ValueError):
@@ -201,6 +235,178 @@ def validate_leaderboard_submission(
         _validate_artifact_hashes(submission)
 
     return submission
+
+
+def build_leaderboard_index(
+    submissions_dir: str | Path,
+    *,
+    csv_path: str | Path | None = None,
+    json_path: str | Path | None = None,
+    verify_artifacts: bool = False,
+    require_trust_level: str | None = None,
+) -> LeaderboardIndex:
+    selected_submissions_dir = Path(submissions_dir)
+    submissions = _load_submission_files(
+        selected_submissions_dir,
+        verify_artifacts=verify_artifacts,
+        require_trust_level=require_trust_level,
+    )
+    rows = _rank_rows(
+        [
+            _row_from_submission(submission_path, submission)
+            for submission_path, submission in submissions
+        ]
+    )
+    index = LeaderboardIndex(
+        schema_version=LEADERBOARD_INDEX_SCHEMA_VERSION,
+        generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        generated_by=f"agent-anvil/{_anvil_version()}",
+        rows=rows,
+    )
+    if csv_path is not None:
+        _write_leaderboard_csv(index, Path(csv_path))
+    if json_path is not None:
+        selected_json_path = Path(json_path)
+        selected_json_path.parent.mkdir(parents=True, exist_ok=True)
+        selected_json_path.write_text(index.model_dump_json(indent=2), encoding="utf-8")
+    return index
+
+
+def _load_submission_files(
+    submissions_dir: Path,
+    *,
+    verify_artifacts: bool,
+    require_trust_level: str | None,
+) -> list[tuple[Path, LeaderboardSubmission]]:
+    if not submissions_dir.exists():
+        raise LeaderboardValidationError(f"submissions directory missing: {submissions_dir}")
+    files = sorted(
+        path
+        for path in submissions_dir.rglob("*.json")
+        if path.is_file() and path.name != "leaderboard.json"
+    )
+    if not files:
+        raise LeaderboardValidationError(f"no submission JSON files found in {submissions_dir}")
+
+    submissions: list[tuple[Path, LeaderboardSubmission]] = []
+    seen_evidence_hashes: dict[str, Path] = {}
+    for path in files:
+        submission = validate_leaderboard_submission(
+            path,
+            verify_artifacts=verify_artifacts,
+            require_trust_level=require_trust_level,
+        )
+        evidence_hash = submission.verification.evidence_sha256
+        if evidence_hash in seen_evidence_hashes:
+            raise LeaderboardValidationError(
+                "duplicate evidence hash: "
+                f"{path} and {seen_evidence_hashes[evidence_hash]} both use {evidence_hash}"
+            )
+        seen_evidence_hashes[evidence_hash] = path
+        submissions.append((path, submission))
+    return submissions
+
+
+def _row_from_submission(
+    submission_path: Path,
+    submission: LeaderboardSubmission,
+) -> LeaderboardRow:
+    return LeaderboardRow(
+        rank=0,
+        submission_path=str(_display_path(submission_path)),
+        agent_name=submission.submitter.agent_name,
+        agent_version=submission.submitter.agent_version,
+        repo_url=submission.submitter.repo_url,
+        commit_sha=submission.submitter.commit_sha,
+        benchmark_name=submission.benchmark.name,
+        benchmark_description=submission.benchmark.description,
+        trust_level=submission.verification.trust_level,
+        evidence_sha256=submission.verification.evidence_sha256,
+        github_run_url=submission.verification.github_run_url,
+        generated_at=submission.verification.generated_at,
+        total_trials=submission.metrics.total_trials,
+        final_answer_pass_rate=submission.metrics.final_answer_pass_rate,
+        trace_aware_pass_rate=submission.metrics.trace_aware_pass_rate,
+        answer_only_missed_failures=submission.metrics.answer_only_missed_failures,
+        answer_only_missed_failure_rate=submission.metrics.answer_only_missed_failure_rate,
+        outcome_counts=submission.metrics.outcome_counts,
+    )
+
+
+def _rank_rows(rows: list[LeaderboardRow]) -> list[LeaderboardRow]:
+    sorted_rows = sorted(
+        rows,
+        key=lambda row: (
+            row.benchmark_name,
+            -row.trace_aware_pass_rate,
+            row.answer_only_missed_failures,
+            -row.final_answer_pass_rate,
+            -_trust_priority(row.trust_level),
+            row.agent_name.lower(),
+            row.agent_version.lower(),
+        ),
+    )
+    ranked: list[LeaderboardRow] = []
+    ranks_by_benchmark: dict[str, int] = {}
+    for row in sorted_rows:
+        rank = ranks_by_benchmark.get(row.benchmark_name, 0) + 1
+        ranks_by_benchmark[row.benchmark_name] = rank
+        ranked.append(row.model_copy(update={"rank": rank}))
+    return ranked
+
+
+def _trust_priority(trust_level: str) -> int:
+    return {
+        "maintainer_rerun": 3,
+        "github_actions": 2,
+        "self_reported": 1,
+    }.get(trust_level, 0)
+
+
+def _write_leaderboard_csv(index: LeaderboardIndex, csv_path: Path) -> None:
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "rank",
+        "agent_name",
+        "agent_version",
+        "benchmark_name",
+        "trust_level",
+        "trace_aware_pass_rate",
+        "final_answer_pass_rate",
+        "answer_only_missed_failures",
+        "answer_only_missed_failure_rate",
+        "total_trials",
+        "repo_url",
+        "commit_sha",
+        "github_run_url",
+        "evidence_sha256",
+        "submission_path",
+    ]
+    with csv_path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in index.rows:
+            writer.writerow(
+                {
+                    "rank": row.rank,
+                    "agent_name": row.agent_name,
+                    "agent_version": row.agent_version,
+                    "benchmark_name": row.benchmark_name,
+                    "trust_level": row.trust_level,
+                    "trace_aware_pass_rate": f"{row.trace_aware_pass_rate:.1f}",
+                    "final_answer_pass_rate": f"{row.final_answer_pass_rate:.1f}",
+                    "answer_only_missed_failures": row.answer_only_missed_failures,
+                    "answer_only_missed_failure_rate": (
+                        f"{row.answer_only_missed_failure_rate:.1f}"
+                    ),
+                    "total_trials": row.total_trials,
+                    "repo_url": row.repo_url,
+                    "commit_sha": row.commit_sha,
+                    "github_run_url": row.github_run_url,
+                    "evidence_sha256": row.evidence_sha256,
+                    "submission_path": row.submission_path,
+                }
+            )
 
 
 def _evidence_sha256(submission: LeaderboardSubmission) -> str:
