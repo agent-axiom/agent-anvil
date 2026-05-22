@@ -9,6 +9,9 @@ on:
       - ".github/workflows/leaderboard.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -17,14 +20,10 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
-          python-version: "3.12"
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: uv sync --group dev
-      - name: Build leaderboard index
+      - name: Validate submissions and build index
         run: |
-          uv run anvil leaderboard build submissions \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil \
+            anvil leaderboard build submissions \
             --out leaderboard.csv \
             --json-out leaderboard.json \
             --no-artifacts
