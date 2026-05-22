@@ -28,4 +28,5 @@ Answer-only missed failures: 70
 - `references.bib`: initial bibliography
 - `../docs/paper/artifact.md`: reproduction instructions
 - `../docs/paper/results.md`: generated benchmark table
+- `../docs/paper/tables.md`: generated CSV and LaTeX table artifacts
 - `../docs/paper/limitations.md`: threats to validity

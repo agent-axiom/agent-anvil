@@ -345,6 +345,7 @@ def write_benchmark_tables(
 
 
 def render_tables_markdown(result: BenchmarkResult, *, tables_dir: Path) -> str:
+    display_dir = _display_path(tables_dir)
     return "\n".join(
         [
             "# Paper Tables",
@@ -353,10 +354,10 @@ def render_tables_markdown(result: BenchmarkResult, *, tables_dir: Path) -> str:
             "",
             "Generated table artifacts:",
             "",
-            f"- `{tables_dir / 'suite_results.csv'}`",
-            f"- `{tables_dir / 'outcome_counts.csv'}`",
-            f"- `{tables_dir / 'missed_failures.csv'}`",
-            f"- `{tables_dir / 'suite_results.tex'}`",
+            f"- `{display_dir / 'suite_results.csv'}`",
+            f"- `{display_dir / 'outcome_counts.csv'}`",
+            f"- `{display_dir / 'missed_failures.csv'}`",
+            f"- `{display_dir / 'suite_results.tex'}`",
             "",
             "## Main Result",
             "",
@@ -431,7 +432,7 @@ def _resolve_manifest_path(manifest_path: Path, value: Path) -> Path:
 
 def _write_csv(path: Path, header: list[str], rows: list[list[object]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as csv_file:
-        writer = csv.writer(csv_file)
+        writer = csv.writer(csv_file, lineterminator="\n")
         writer.writerow(header)
         writer.writerows(rows)
 
@@ -442,6 +443,13 @@ def _latex_label(value: str) -> str:
     if label.endswith(suffix):
         label = label[: -len(suffix)]
     return label.replace("_", "-").title()
+
+
+def _display_path(path: Path) -> Path:
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        return path
 
 
 def _load_trace(path: str | Path) -> TraceRun:

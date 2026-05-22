@@ -11,3 +11,4 @@ suites:
 output:
   json: ../docs/paper/results.json
   markdown: ../docs/paper/results.md
+  tables: ../docs/paper/tables

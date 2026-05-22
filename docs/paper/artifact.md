@@ -38,6 +38,9 @@ The command writes:
 
 - `docs/paper/results.json`
 - `docs/paper/results.md`
+- `docs/paper/tables.md`
+- `docs/paper/tables/*.csv`
+- `docs/paper/tables/suite_results.tex`
 - trace artifacts under `runs/paper-benchmark/`
 
 Results include stable outcome categories such as `pass`, `policy_violation`,

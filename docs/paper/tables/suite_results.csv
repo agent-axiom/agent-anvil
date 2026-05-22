@@ -1,0 +1,6 @@
+suite,trials,final_answer_pass_rate,trace_aware_pass_rate
+paper_refund_trace_suite,20,100.0,50.0
+paper_tool_safety_trace_suite,30,100.0,0.0
+paper_external_protocol_trace_suite,10,100.0,100.0
+paper_account_admin_trace_suite,20,100.0,0.0
+paper_data_pipeline_trace_suite,20,100.0,50.0
