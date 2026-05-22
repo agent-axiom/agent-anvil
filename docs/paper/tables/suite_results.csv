@@ -1,6 +1,6 @@
-suite,trials,final_answer_pass_rate,trace_aware_pass_rate
-paper_refund_trace_suite,20,100.0,50.0
-paper_tool_safety_trace_suite,30,100.0,0.0
-paper_external_protocol_trace_suite,10,100.0,100.0
-paper_account_admin_trace_suite,20,100.0,0.0
-paper_data_pipeline_trace_suite,20,100.0,50.0
+suite,trials,final_answer_pass_rate,final_answer_pass_rate_ci_low,final_answer_pass_rate_ci_high,trace_aware_pass_rate,trace_aware_pass_rate_ci_low,trace_aware_pass_rate_ci_high
+paper_refund_trace_suite,20,100.0,83.9,100.0,50.0,29.9,70.1
+paper_tool_safety_trace_suite,30,100.0,88.6,100.0,0.0,0.0,11.4
+paper_external_protocol_trace_suite,10,100.0,72.2,100.0,100.0,72.2,100.0
+paper_account_admin_trace_suite,20,100.0,83.9,100.0,0.0,0.0,16.1
+paper_data_pipeline_trace_suite,20,100.0,83.9,100.0,50.0,29.9,70.1

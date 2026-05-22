@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from anvil.benchmark import run_benchmark
+from anvil.benchmark import format_rate_ci, run_benchmark
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
@@ -305,9 +305,25 @@ def bench(
 
     typer.echo(f"Benchmark: {result.name}")
     typer.echo(f"Total trials: {result.total_trials}")
-    typer.echo(f"Final-answer baseline pass rate: {result.final_answer_pass_rate:.1f}%")
-    typer.echo(f"Trace-aware Agent Anvil pass rate: {result.trace_aware_pass_rate:.1f}%")
+    final_answer_rate = format_rate_ci(
+        result.final_answer_pass_rate,
+        result.final_answer_pass_rate_ci_low,
+        result.final_answer_pass_rate_ci_high,
+    )
+    trace_aware_rate = format_rate_ci(
+        result.trace_aware_pass_rate,
+        result.trace_aware_pass_rate_ci_low,
+        result.trace_aware_pass_rate_ci_high,
+    )
+    missed_failure_rate = format_rate_ci(
+        result.answer_only_missed_failure_rate,
+        result.answer_only_missed_failure_rate_ci_low,
+        result.answer_only_missed_failure_rate_ci_high,
+    )
+    typer.echo(f"Final-answer baseline pass rate: {final_answer_rate}")
+    typer.echo(f"Trace-aware Agent Anvil pass rate: {trace_aware_rate}")
     typer.echo(f"Answer-only missed failures: {result.answer_only_missed_failures}")
+    typer.echo(f"Answer-only missed failure rate: {missed_failure_rate}")
 
 
 @app.command()

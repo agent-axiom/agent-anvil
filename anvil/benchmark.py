@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import math
 from pathlib import Path
 
 import yaml
@@ -62,7 +63,11 @@ class BenchmarkSuiteResult(BaseModel):
     final_answer_passed: int
     trace_aware_passed: int
     final_answer_pass_rate: float
+    final_answer_pass_rate_ci_low: float
+    final_answer_pass_rate_ci_high: float
     trace_aware_pass_rate: float
+    trace_aware_pass_rate_ci_low: float
+    trace_aware_pass_rate_ci_high: float
 
 
 class BenchmarkResult(BaseModel):
@@ -75,8 +80,15 @@ class BenchmarkResult(BaseModel):
     final_answer_passed: int
     trace_aware_passed: int
     final_answer_pass_rate: float
+    final_answer_pass_rate_ci_low: float
+    final_answer_pass_rate_ci_high: float
     trace_aware_pass_rate: float
+    trace_aware_pass_rate_ci_low: float
+    trace_aware_pass_rate_ci_high: float
     answer_only_missed_failures: int
+    answer_only_missed_failure_rate: float
+    answer_only_missed_failure_rate_ci_low: float
+    answer_only_missed_failure_rate_ci_high: float
     outcome_counts: dict[str, int]
     suites: list[BenchmarkSuiteResult]
     trials: list[BenchmarkTrialResult]
@@ -154,40 +166,53 @@ def run_benchmark(
             suite_trials.append(trial_result)
             trial_results.append(trial_result)
 
+        suite_total = len(suite_trials)
+        suite_final_answer_passed = sum(1 for trial in suite_trials if trial.final_answer_passed)
+        suite_trace_aware_passed = sum(1 for trial in suite_trials if trial.trace_aware_passed)
+        suite_final_answer_ci = _pass_rate_interval(suite_final_answer_passed, suite_total)
+        suite_trace_aware_ci = _pass_rate_interval(suite_trace_aware_passed, suite_total)
         suite_results.append(
             BenchmarkSuiteResult(
                 suite=suite_run.suite_name,
                 run_dir=suite_run.run_dir,
-                total_trials=len(suite_trials),
-                final_answer_passed=sum(1 for trial in suite_trials if trial.final_answer_passed),
-                trace_aware_passed=sum(1 for trial in suite_trials if trial.trace_aware_passed),
-                final_answer_pass_rate=_pass_rate(
-                    sum(1 for trial in suite_trials if trial.final_answer_passed),
-                    len(suite_trials),
-                ),
-                trace_aware_pass_rate=_pass_rate(
-                    sum(1 for trial in suite_trials if trial.trace_aware_passed),
-                    len(suite_trials),
-                ),
+                total_trials=suite_total,
+                final_answer_passed=suite_final_answer_passed,
+                trace_aware_passed=suite_trace_aware_passed,
+                final_answer_pass_rate=_pass_rate(suite_final_answer_passed, suite_total),
+                final_answer_pass_rate_ci_low=suite_final_answer_ci[0],
+                final_answer_pass_rate_ci_high=suite_final_answer_ci[1],
+                trace_aware_pass_rate=_pass_rate(suite_trace_aware_passed, suite_total),
+                trace_aware_pass_rate_ci_low=suite_trace_aware_ci[0],
+                trace_aware_pass_rate_ci_high=suite_trace_aware_ci[1],
             )
         )
 
+    total_trials = len(trial_results)
     final_answer_passed = sum(1 for trial in trial_results if trial.final_answer_passed)
     trace_aware_passed = sum(1 for trial in trial_results if trial.trace_aware_passed)
+    answer_only_missed_failures = sum(
+        1 for trial in trial_results if trial.final_answer_passed and not trial.trace_aware_passed
+    )
+    final_answer_ci = _pass_rate_interval(final_answer_passed, total_trials)
+    trace_aware_ci = _pass_rate_interval(trace_aware_passed, total_trials)
+    missed_failure_ci = _pass_rate_interval(answer_only_missed_failures, total_trials)
     result = BenchmarkResult(
         name=manifest.name,
         description=manifest.description,
         total_suites=len(suite_results),
-        total_trials=len(trial_results),
+        total_trials=total_trials,
         final_answer_passed=final_answer_passed,
         trace_aware_passed=trace_aware_passed,
-        final_answer_pass_rate=_pass_rate(final_answer_passed, len(trial_results)),
-        trace_aware_pass_rate=_pass_rate(trace_aware_passed, len(trial_results)),
-        answer_only_missed_failures=sum(
-            1
-            for trial in trial_results
-            if trial.final_answer_passed and not trial.trace_aware_passed
-        ),
+        final_answer_pass_rate=_pass_rate(final_answer_passed, total_trials),
+        final_answer_pass_rate_ci_low=final_answer_ci[0],
+        final_answer_pass_rate_ci_high=final_answer_ci[1],
+        trace_aware_pass_rate=_pass_rate(trace_aware_passed, total_trials),
+        trace_aware_pass_rate_ci_low=trace_aware_ci[0],
+        trace_aware_pass_rate_ci_high=trace_aware_ci[1],
+        answer_only_missed_failures=answer_only_missed_failures,
+        answer_only_missed_failure_rate=_pass_rate(answer_only_missed_failures, total_trials),
+        answer_only_missed_failure_rate_ci_low=missed_failure_ci[0],
+        answer_only_missed_failure_rate_ci_high=missed_failure_ci[1],
         outcome_counts=_outcome_counts(trial_results),
         suites=suite_results,
         trials=trial_results,
@@ -238,9 +263,10 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
             "",
             f"- Total suites: {result.total_suites}",
             f"- Total trials: {result.total_trials}",
-            f"- Final-answer baseline pass rate: {result.final_answer_pass_rate:.1f}%",
-            f"- Trace-aware Agent Anvil pass rate: {result.trace_aware_pass_rate:.1f}%",
+            f"- Final-answer baseline pass rate: {_final_answer_rate_ci(result)}",
+            f"- Trace-aware Agent Anvil pass rate: {_trace_aware_rate_ci(result)}",
             f"- Answer-only missed failures: {result.answer_only_missed_failures}",
+            f"- Answer-only missed failure rate: {_missed_failure_rate_ci(result)}",
             "",
             "## Outcome Categories",
             "",
@@ -263,7 +289,8 @@ def render_benchmark_markdown(result: BenchmarkResult) -> str:
     lines.extend(
         [
             f"| {suite.suite} | {suite.total_trials} | "
-            f"{suite.final_answer_pass_rate:.1f}% | {suite.trace_aware_pass_rate:.1f}% | "
+            f"{_final_answer_rate_ci(suite)} | "
+            f"{_trace_aware_rate_ci(suite)} | "
             f"`{suite.run_dir}` |"
             for suite in result.suites
         ]
@@ -305,13 +332,26 @@ def write_benchmark_tables(
     index_path.parent.mkdir(parents=True, exist_ok=True)
     _write_csv(
         tables_dir / "suite_results.csv",
-        ["suite", "trials", "final_answer_pass_rate", "trace_aware_pass_rate"],
+        [
+            "suite",
+            "trials",
+            "final_answer_pass_rate",
+            "final_answer_pass_rate_ci_low",
+            "final_answer_pass_rate_ci_high",
+            "trace_aware_pass_rate",
+            "trace_aware_pass_rate_ci_low",
+            "trace_aware_pass_rate_ci_high",
+        ],
         [
             [
                 suite.suite,
                 suite.total_trials,
                 f"{suite.final_answer_pass_rate:.1f}",
+                f"{suite.final_answer_pass_rate_ci_low:.1f}",
+                f"{suite.final_answer_pass_rate_ci_high:.1f}",
                 f"{suite.trace_aware_pass_rate:.1f}",
+                f"{suite.trace_aware_pass_rate_ci_low:.1f}",
+                f"{suite.trace_aware_pass_rate_ci_high:.1f}",
             ]
             for suite in result.suites
         ],
@@ -366,9 +406,10 @@ def render_tables_markdown(result: BenchmarkResult, *, tables_dir: Path) -> str:
             "## Main Result",
             "",
             f"- Total trials: {result.total_trials}",
-            f"- Final-answer baseline pass rate: {result.final_answer_pass_rate:.1f}%",
-            f"- Trace-aware Agent Anvil pass rate: {result.trace_aware_pass_rate:.1f}%",
+            f"- Final-answer baseline pass rate: {_final_answer_rate_ci(result)}",
+            f"- Trace-aware Agent Anvil pass rate: {_trace_aware_rate_ci(result)}",
             f"- Answer-only missed failures: {result.answer_only_missed_failures}",
+            f"- Answer-only missed failure rate: {_missed_failure_rate_ci(result)}",
             "",
         ]
     )
@@ -378,21 +419,23 @@ def render_suite_results_latex(result: BenchmarkResult) -> str:
     lines = [
         "\\begin{tabular}{lrrr}",
         "\\toprule",
-        "Suite & Trials & Final-answer pass & Trace-aware pass \\\\",
+        "Suite & Trials & Final-answer pass (95\\% CI) & Trace-aware pass (95\\% CI) \\\\",
         "\\midrule",
     ]
     lines.extend(
         [
             f"{_latex_label(suite.suite)} & {suite.total_trials} & "
-            f"{suite.final_answer_pass_rate:.1f}\\% & {suite.trace_aware_pass_rate:.1f}\\% \\\\"
+            f"{_final_answer_latex_ci(suite)} & "
+            f"{_trace_aware_latex_ci(suite)} \\\\"
             for suite in result.suites
         ]
     )
     lines.extend(
         [
             "\\midrule",
-            f"Total & {result.total_trials} & {result.final_answer_pass_rate:.1f}\\% & "
-            f"{result.trace_aware_pass_rate:.1f}\\% \\\\",
+            f"Total & {result.total_trials} & "
+            f"{_final_answer_latex_ci(result)} & "
+            f"{_trace_aware_latex_ci(result)} \\\\",
             "\\bottomrule",
             "\\end{tabular}",
             "",
@@ -470,3 +513,67 @@ def _outcome_counts(trials: list[BenchmarkTrialResult]) -> dict[str, int]:
 
 def _pass_rate(passed: int, total: int) -> float:
     return round((passed / total * 100) if total else 0.0, 1)
+
+
+def _final_answer_rate_ci(result: BenchmarkResult | BenchmarkSuiteResult) -> str:
+    return format_rate_ci(
+        result.final_answer_pass_rate,
+        result.final_answer_pass_rate_ci_low,
+        result.final_answer_pass_rate_ci_high,
+    )
+
+
+def _trace_aware_rate_ci(result: BenchmarkResult | BenchmarkSuiteResult) -> str:
+    return format_rate_ci(
+        result.trace_aware_pass_rate,
+        result.trace_aware_pass_rate_ci_low,
+        result.trace_aware_pass_rate_ci_high,
+    )
+
+
+def _missed_failure_rate_ci(result: BenchmarkResult) -> str:
+    return format_rate_ci(
+        result.answer_only_missed_failure_rate,
+        result.answer_only_missed_failure_rate_ci_low,
+        result.answer_only_missed_failure_rate_ci_high,
+    )
+
+
+def _final_answer_latex_ci(result: BenchmarkResult | BenchmarkSuiteResult) -> str:
+    return _format_latex_ci(
+        result.final_answer_pass_rate,
+        result.final_answer_pass_rate_ci_low,
+        result.final_answer_pass_rate_ci_high,
+    )
+
+
+def _trace_aware_latex_ci(result: BenchmarkResult | BenchmarkSuiteResult) -> str:
+    return _format_latex_ci(
+        result.trace_aware_pass_rate,
+        result.trace_aware_pass_rate_ci_low,
+        result.trace_aware_pass_rate_ci_high,
+    )
+
+
+def _pass_rate_interval(passed: int, total: int) -> tuple[float, float]:
+    """Wilson score interval, rendered as percentage points for compact paper tables."""
+    if total == 0:
+        return (0.0, 0.0)
+    z = 1.96
+    proportion = passed / total
+    denominator = 1 + z**2 / total
+    center = (proportion + z**2 / (2 * total)) / denominator
+    margin = (
+        z * math.sqrt((proportion * (1 - proportion) + z**2 / (4 * total)) / total) / denominator
+    )
+    low = max(0.0, center - margin) * 100
+    high = min(1.0, center + margin) * 100
+    return (round(low, 1), round(high, 1))
+
+
+def format_rate_ci(rate: float, low: float, high: float) -> str:
+    return f"{rate:.1f}% [95% CI: {low:.1f}%, {high:.1f}%]"
+
+
+def _format_latex_ci(rate: float, low: float, high: float) -> str:
+    return f"{rate:.1f}\\% [{low:.1f}, {high:.1f}]"
