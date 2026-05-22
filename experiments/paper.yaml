@@ -6,6 +6,8 @@ suites:
   - scenarios/refund_trace.yaml
   - scenarios/tool_safety_trace.yaml
   - scenarios/external_protocol_trace.yaml
+  - scenarios/account_admin_trace.yaml
+  - scenarios/data_pipeline_trace.yaml
 output:
   json: ../docs/paper/results.json
   markdown: ../docs/paper/results.md

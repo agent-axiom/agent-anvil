@@ -3,7 +3,7 @@ agent:
   command: "python examples/external_jsonl_agent.py"
   protocol: jsonl
 defaults:
-  trials: 5
+  trials: 10
   max_steps: 8
 scenarios:
   - id: external_order_lookup

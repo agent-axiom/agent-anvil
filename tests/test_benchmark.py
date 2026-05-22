@@ -173,8 +173,30 @@ def test_paper_benchmark_manifest_references_existing_suites():
     manifest = load_benchmark_manifest("experiments/paper.yaml")
 
     assert manifest.name == "agent_anvil_trace_eval_benchmark"
-    assert len(manifest.suites) == 3
+    assert len(manifest.suites) == 5
     assert all(suite.exists() for suite in manifest.suites)
+
+
+def test_paper_benchmark_runs_100_trials(tmp_path):
+    result = run_benchmark(
+        "experiments/paper.yaml",
+        offline=True,
+        runs_dir=tmp_path / "runs",
+        out_json=tmp_path / "results.json",
+        out_markdown=tmp_path / "results.md",
+    )
+
+    assert result.total_suites == 5
+    assert result.total_trials == 100
+    assert {suite.suite for suite in result.suites} == {
+        "paper_refund_trace_suite",
+        "paper_tool_safety_trace_suite",
+        "paper_external_protocol_trace_suite",
+        "paper_account_admin_trace_suite",
+        "paper_data_pipeline_trace_suite",
+    }
+    assert result.final_answer_pass_rate == 100.0
+    assert result.answer_only_missed_failures >= 50
 
 
 def _trace(

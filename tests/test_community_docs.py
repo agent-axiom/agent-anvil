@@ -82,7 +82,7 @@ def test_paper_draft_links_reproducible_artifact() -> None:
     assert "Agent Anvil: Trace-Centric CI Evaluation" in paper
     assert "experiments/paper.yaml" in paper
     assert "100.0\\% final-answer pass rate" in paper
-    assert "33.3\\% trace-aware pass rate" in paper
+    assert "30.0\\% trace-aware pass rate" in paper
     assert "yao2023react" in references
     assert "openaiAgentEvals" in references
 
