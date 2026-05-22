@@ -203,9 +203,10 @@ output:
 
     assert result.exit_code == 0
     assert "Benchmark: paper_benchmark" in result.stdout
-    assert "Final-answer baseline pass rate: 100.0%" in result.stdout
-    assert "Trace-aware Agent Anvil pass rate: 50.0%" in result.stdout
+    assert "Final-answer baseline pass rate: 100.0% [95% CI: 61.0%, 100.0%]" in result.stdout
+    assert "Trace-aware Agent Anvil pass rate: 50.0% [95% CI: 18.8%, 81.2%]" in result.stdout
     assert "Answer-only missed failures: 3" in result.stdout
+    assert "Answer-only missed failure rate: 50.0% [95% CI: 18.8%, 81.2%]" in result.stdout
     assert json_path.exists()
     assert markdown_path.exists()
 

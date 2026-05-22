@@ -131,8 +131,15 @@ output:
     assert result.total_suites == 1
     assert result.total_trials == 6
     assert result.final_answer_pass_rate == 100.0
+    assert result.final_answer_pass_rate_ci_low == 61.0
+    assert result.final_answer_pass_rate_ci_high == 100.0
     assert result.trace_aware_pass_rate == 50.0
+    assert result.trace_aware_pass_rate_ci_low == 18.8
+    assert result.trace_aware_pass_rate_ci_high == 81.2
     assert result.answer_only_missed_failures == 3
+    assert result.answer_only_missed_failure_rate == 50.0
+    assert result.answer_only_missed_failure_rate_ci_low == 18.8
+    assert result.answer_only_missed_failure_rate_ci_high == 81.2
     assert result.outcome_counts == {
         OutcomeCategory.PASS.value: 3,
         OutcomeCategory.DETERMINISTIC_FAILURE.value: 3,
@@ -171,15 +178,19 @@ output:
     latex = (table_dir / "suite_results.tex").read_text(encoding="utf-8")
 
     assert suite_csv.splitlines()[0] == (
-        "suite,trials,final_answer_pass_rate,trace_aware_pass_rate"
+        "suite,trials,final_answer_pass_rate,final_answer_pass_rate_ci_low,"
+        "final_answer_pass_rate_ci_high,trace_aware_pass_rate,"
+        "trace_aware_pass_rate_ci_low,trace_aware_pass_rate_ci_high"
     )
-    assert "refund_agent_regression_suite,6,100.0,50.0" in suite_csv
+    assert "refund_agent_regression_suite,6,100.0,61.0,100.0,50.0,18.8,81.2" in suite_csv
     assert outcome_csv.splitlines()[0] == "outcome,trials"
     assert "deterministic_failure,3" in outcome_csv
     assert missed_csv.splitlines()[0] == "suite,scenario_id,trial,outcome,failure_type,severity"
     assert "refund_missing_order_id" in missed_csv
     assert "# Paper Tables" in tables_md
+    assert "Trace-aware Agent Anvil pass rate: 50.0% [95% CI: 18.8%, 81.2%]" in tables_md
     assert "\\begin{tabular}" in latex
+    assert "Trace-aware pass (95\\% CI)" in latex
 
 
 def test_render_benchmark_markdown_lists_missed_failures(scenario_file, tmp_path):
@@ -201,6 +212,7 @@ output:
 
     assert "# Agent Anvil Paper Benchmark" in markdown
     assert "Answer-only missed failures: 3" in markdown
+    assert "Answer-only missed failure rate: 50.0% [95% CI: 18.8%, 81.2%]" in markdown
     assert "| deterministic_failure | 3 |" in markdown
     assert "`refund_missing_order_id`" in markdown
 
