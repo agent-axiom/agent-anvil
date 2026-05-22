@@ -215,7 +215,8 @@ uv run anvil leaderboard build submissions --out leaderboard.csv --json-out lead
 ```
 
 See the [leaderboard submission guide](docs/leaderboard.md) for the Hugging Face
-Dataset + Space design.
+Dataset + Space design. The live public submissions repository is
+[agent-axiom/agent-anvil-leaderboard](https://github.com/agent-axiom/agent-anvil-leaderboard).
 
 ## Why AI Was Necessary
 

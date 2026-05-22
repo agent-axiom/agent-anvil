@@ -3,6 +3,9 @@
 Agent Anvil leaderboard submissions are designed to be easy to generate and
 hard to misrepresent accidentally.
 
+Live submissions repository:
+[agent-axiom/agent-anvil-leaderboard](https://github.com/agent-axiom/agent-anvil-leaderboard).
+
 The user runs Agent Anvil locally or in CI. Agent Anvil exports a small
 `leaderboard_submission.json` file with aggregate metrics, evaluator ablation
 results, benchmark/scenario hashes, and artifact hashes. It does not include raw
@@ -100,9 +103,11 @@ at [`docs/examples/leaderboard-index-workflow.yml`](examples/leaderboard-index-w
 
 The recommended public setup is:
 
-1. A Hugging Face Dataset repository stores accepted `leaderboard_submission.json`
-   files and a generated `leaderboard.csv`.
-2. A Hugging Face Space reads the dataset and renders the leaderboard with
+1. The public submissions repository stores accepted
+   `leaderboard_submission.json` files and generated `leaderboard.csv` /
+   `leaderboard.json` indexes. It can be mirrored to a Hugging Face Dataset
+   repository if the community wants Hugging Face-native dataset history.
+2. A Hugging Face Space reads the dataset/index and renders the leaderboard with
    filters for benchmark version, trust level, agent type, pass rate, missed
    failures, and evidence links.
 3. Users submit results by opening a pull request to the dataset repository or
@@ -120,7 +125,7 @@ Set `LEADERBOARD_INDEX_URL` to the raw `leaderboard.json` URL in the Dataset
 repository, for example:
 
 ```text
-https://huggingface.co/datasets/agent-axiom/agent-anvil-leaderboard/resolve/main/leaderboard.json
+https://raw.githubusercontent.com/agent-axiom/agent-anvil-leaderboard/main/leaderboard.json
 ```
 
 Recommended Dataset layout:

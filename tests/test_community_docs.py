@@ -91,6 +91,17 @@ def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     assert "does not execute user agents" in space_readme
 
 
+def test_leaderboard_docs_reference_live_submissions_repo() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    leaderboard_doc = Path("docs/leaderboard.md").read_text(encoding="utf-8")
+    workflow = Path("docs/examples/leaderboard-index-workflow.yml").read_text(encoding="utf-8")
+
+    assert "https://github.com/agent-axiom/agent-anvil-leaderboard" in readme
+    assert "https://github.com/agent-axiom/agent-anvil-leaderboard" in leaderboard_doc
+    assert "uvx --from git+https://github.com/agent-axiom/agent-anvil" in workflow
+    assert "uv sync --group dev" not in workflow
+
+
 def test_paper_draft_links_reproducible_artifact() -> None:
     artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
     paper = Path("paper/main.tex").read_text(encoding="utf-8")
