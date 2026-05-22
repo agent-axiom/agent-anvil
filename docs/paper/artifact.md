@@ -29,9 +29,10 @@ Expected summary:
 ```text
 Benchmark: agent_anvil_trace_eval_benchmark
 Total trials: 100
-Final-answer baseline pass rate: 100.0%
-Trace-aware Agent Anvil pass rate: 30.0%
+Final-answer baseline pass rate: 100.0% [95% CI: 96.3%, 100.0%]
+Trace-aware Agent Anvil pass rate: 30.0% [95% CI: 21.9%, 39.6%]
 Answer-only missed failures: 70
+Answer-only missed failure rate: 70.0% [95% CI: 60.4%, 78.1%]
 ```
 
 The command writes:
@@ -46,6 +47,8 @@ The command writes:
 Results include stable outcome categories such as `pass`, `policy_violation`,
 `assertion_failure`, `deterministic_failure`, and `semantic_failure` so paper
 tables do not depend on ad hoc explanation text.
+Pass-rate summaries include 95% Wilson confidence intervals for the final-answer
+baseline, trace-aware Agent Anvil, and answer-only missed-failure rate.
 
 `runs/` artifacts are intentionally local and are not committed. Re-run the
 command to regenerate trace paths referenced in `results.md`.
