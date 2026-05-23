@@ -101,12 +101,16 @@ class LeaderboardRow(BaseModel):
 
     rank: int
     submission_path: str
+    submission_schema_version: str
+    submission_generated_by: str
     agent_name: str
     agent_version: str
     repo_url: str
     commit_sha: str
     benchmark_name: str
     benchmark_description: str
+    benchmark_manifest_sha256: str
+    benchmark_scenario_count: int
     trust_level: Literal["self_reported", "github_actions", "maintainer_rerun"]
     evidence_sha256: str
     github_run_url: str
@@ -390,12 +394,16 @@ def _row_from_submission(
     return LeaderboardRow(
         rank=0,
         submission_path=str(_display_path(submission_path)),
+        submission_schema_version=submission.schema_version,
+        submission_generated_by=submission.verification.generated_by,
         agent_name=submission.submitter.agent_name,
         agent_version=submission.submitter.agent_version,
         repo_url=submission.submitter.repo_url,
         commit_sha=submission.submitter.commit_sha,
         benchmark_name=submission.benchmark.name,
         benchmark_description=submission.benchmark.description,
+        benchmark_manifest_sha256=submission.benchmark.manifest_sha256,
+        benchmark_scenario_count=len(submission.benchmark.scenario_hashes),
         trust_level=submission.verification.trust_level,
         evidence_sha256=submission.verification.evidence_sha256,
         github_run_url=submission.verification.github_run_url,
@@ -446,6 +454,10 @@ def _write_leaderboard_csv(index: LeaderboardIndex, csv_path: Path) -> None:
         "agent_name",
         "agent_version",
         "benchmark_name",
+        "benchmark_manifest_sha256",
+        "benchmark_scenario_count",
+        "submission_schema_version",
+        "submission_generated_by",
         "trust_level",
         "trace_aware_pass_rate",
         "final_answer_pass_rate",
@@ -468,6 +480,10 @@ def _write_leaderboard_csv(index: LeaderboardIndex, csv_path: Path) -> None:
                     "agent_name": row.agent_name,
                     "agent_version": row.agent_version,
                     "benchmark_name": row.benchmark_name,
+                    "benchmark_manifest_sha256": row.benchmark_manifest_sha256,
+                    "benchmark_scenario_count": row.benchmark_scenario_count,
+                    "submission_schema_version": row.submission_schema_version,
+                    "submission_generated_by": row.submission_generated_by,
                     "trust_level": row.trust_level,
                     "trace_aware_pass_rate": f"{row.trace_aware_pass_rate:.1f}",
                     "final_answer_pass_rate": f"{row.final_answer_pass_rate:.1f}",
