@@ -93,9 +93,9 @@ Start here:
 Verified leaderboard demo:
 [agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent)
 ran the benchmark in
-[GitHub Actions](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868)
+[GitHub Actions](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349)
 and submitted the generated JSON through
-[agent-anvil-leaderboard#1](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1).
+[agent-anvil-leaderboard#5](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5).
 
 ## How It Works
 

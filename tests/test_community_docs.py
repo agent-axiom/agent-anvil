@@ -103,7 +103,7 @@ def test_huggingface_space_invites_verified_submissions() -> None:
     for text in (app, readme):
         assert "Submit your agent" in text
         assert "agent-axiom/agent-anvil-demo-agent" in text
-        assert "agent-anvil-leaderboard/pull/1" in text
+        assert "agent-anvil-leaderboard/pull/5" in text
         assert "self_reported" in text
         assert "github_actions" in text
         assert "maintainer_rerun" in text
@@ -127,9 +127,9 @@ def test_leaderboard_docs_link_verified_end_to_end_demo() -> None:
     for text in (readme, leaderboard_doc):
         assert "https://github.com/agent-axiom/agent-anvil-demo-agent" in text
         assert (
-            "https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868" in text
+            "https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349" in text
         )
-        assert "https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1" in text
+        assert "https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5" in text
 
 
 def test_leaderboard_submission_workflow_exports_verifiable_github_actions_row() -> None:
