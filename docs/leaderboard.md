@@ -113,6 +113,18 @@ destination pull-request path into the GitHub Step Summary.
 A copy-paste validator/index workflow for a submissions repository is available
 at [`docs/examples/leaderboard-index-workflow.yml`](examples/leaderboard-index-workflow.yml).
 
+## Verified End-To-End Demo
+
+A public reference repository demonstrates the full flow:
+[agent-axiom/agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent).
+
+The demo repo runs Agent Anvil in GitHub Actions, exports a
+`github_actions` leaderboard submission, uploads the JSON artifact, and then
+submits it to the public leaderboard. The successful source run is
+[26335581868](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868),
+and the accepted leaderboard pull request is
+[agent-anvil-leaderboard#1](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1).
+
 ## Hugging Face Leaderboard Plan
 
 The recommended public setup is:

@@ -90,6 +90,13 @@ Start here:
 - [Full artifact index](docs/artifacts.md)
 - [CLI reference](docs/cli.md)
 
+Verified leaderboard demo:
+[agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent)
+ran the benchmark in
+[GitHub Actions](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868)
+and submitted the generated JSON through
+[agent-anvil-leaderboard#1](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1).
+
 ## How It Works
 
 ```mermaid
