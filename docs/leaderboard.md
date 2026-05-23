@@ -69,10 +69,12 @@ environment. It is useful for exploration and community sharing, but a
 leaderboard should label it as self-reported.
 
 `github_actions` means the submission was generated in GitHub Actions and
-contains a workflow run URL assembled from GitHub environment variables. This is
-not cryptographic proof that the agent is honest, but it gives reviewers a
-public run to inspect and is the minimum bar for a verified public leaderboard
-row.
+contains `verification.github_run_url`, `verification.github_repository`, and
+`verification.github_sha` assembled from GitHub environment variables. The live
+leaderboard repository verifies that the run exists, completed successfully, and
+matches the submitted repository/SHA through the GitHub API. This is not
+cryptographic proof that the agent is honest, but it gives reviewers a public
+run to inspect and is the minimum bar for a verified public leaderboard row.
 
 Public benchmark leaderboards should not pretend to prevent all gaming. The
 benchmark is visible, so leaderboard rows should be explicit about whether they
@@ -85,7 +87,8 @@ are self-reported, CI-verified, or independently re-run by maintainers.
 3. The user validates the file locally with `anvil leaderboard validate`.
 4. The user opens a pull request to the leaderboard submissions repository.
 5. The leaderboard CI runs `anvil leaderboard validate --no-artifacts` for schema
-   and evidence-hash checks, then labels the row by `verification.trust_level`.
+   and evidence-hash checks, then verifies `github_actions` evidence through the
+   GitHub API before labeling the row by `verification.trust_level`.
 6. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
    `leaderboard.csv` and `leaderboard.json`.
 7. Maintainers can optionally re-run the agent and mark the row as
@@ -118,7 +121,8 @@ The recommended public setup is:
 3. Users submit results by opening a pull request to the dataset repository or
    to an Agent Anvil submissions repository.
 4. A validator checks schema version, required fields, benchmark/scenario hashes,
-   artifact hashes, and whether the claimed CI run URL exists.
+   artifact hashes, and whether the claimed CI run URL completed successfully
+   for the submitted repository/SHA.
 5. Rows are labeled as `self_reported`, `github_actions`, or `maintainer_rerun`.
 6. The live submissions repository publishes the rebuilt index and Space files
    to Hugging Face when its `HF_TOKEN` repository secret is configured.
