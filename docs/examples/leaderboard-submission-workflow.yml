@@ -8,6 +8,7 @@ permissions:
   actions: read
 
 env:
+  PYTHONPATH: ${{ github.workspace }}
   ANVIL_RESULTS_JSON: docs/paper/results.json
   ANVIL_MANIFEST: experiments/paper.yaml
   ANVIL_AGENT_NAME: My Agent
