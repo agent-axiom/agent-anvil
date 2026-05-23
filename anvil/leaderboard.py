@@ -4,6 +4,9 @@ import csv
 import hashlib
 import json
 import os
+import re
+import shutil
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -127,6 +130,13 @@ class LeaderboardIndex(BaseModel):
 
 class LeaderboardValidationError(ValueError):
     """Raised when a leaderboard submission cannot be verified locally."""
+
+
+@dataclass(frozen=True)
+class LeaderboardPrPreparation:
+    submission: LeaderboardSubmission
+    target_path: Path
+    next_steps: str
 
 
 def export_leaderboard_submission(
@@ -272,6 +282,41 @@ def build_leaderboard_index(
     return index
 
 
+def prepare_leaderboard_pr_submission(
+    *,
+    submission_path: str | Path,
+    leaderboard_repo: str | Path,
+    submission_name: str | None = None,
+    force: bool = False,
+    require_trust_level: str | None = None,
+) -> LeaderboardPrPreparation:
+    selected_submission_path = Path(submission_path)
+    selected_leaderboard_repo = Path(leaderboard_repo)
+    submission = validate_leaderboard_submission(
+        selected_submission_path,
+        verify_artifacts=False,
+        require_trust_level=require_trust_level,
+    )
+    submissions_dir = selected_leaderboard_repo / "submissions"
+    submissions_dir.mkdir(parents=True, exist_ok=True)
+    filename = _submission_filename(submission, submission_name=submission_name)
+    target_path = submissions_dir / filename
+    if target_path.exists() and not force:
+        raise LeaderboardValidationError(
+            f"{target_path} already exists. Re-run with --force to overwrite it."
+        )
+    shutil.copyfile(selected_submission_path, target_path)
+    return LeaderboardPrPreparation(
+        submission=submission,
+        target_path=target_path,
+        next_steps=_leaderboard_pr_next_steps(
+            target_path=target_path,
+            leaderboard_repo=selected_leaderboard_repo,
+            slug=target_path.stem,
+        ),
+    )
+
+
 def _load_submission_files(
     submissions_dir: Path,
     *,
@@ -305,6 +350,37 @@ def _load_submission_files(
         seen_evidence_hashes[evidence_hash] = path
         submissions.append((path, submission))
     return submissions
+
+
+def _submission_filename(
+    submission: LeaderboardSubmission,
+    *,
+    submission_name: str | None,
+) -> str:
+    if submission_name:
+        name = Path(submission_name).name
+        if name != submission_name:
+            raise LeaderboardValidationError("--submission-name must be a file name, not a path")
+        return name if name.endswith(".json") else f"{name}.json"
+    return f"{_slug(submission.submitter.agent_name)}.json"
+
+
+def _leaderboard_pr_next_steps(
+    *,
+    target_path: Path,
+    leaderboard_repo: Path,
+    slug: str,
+) -> str:
+    display_target = target_path.relative_to(leaderboard_repo)
+    return "\n".join(
+        [
+            f"cd {leaderboard_repo}",
+            f"git checkout -b add-{slug}-submission",
+            f"git add {display_target}",
+            f'git commit -m "Add {slug} leaderboard submission"',
+            "gh pr create --fill --repo agent-axiom/agent-anvil-leaderboard",
+        ]
+    )
 
 
 def _row_from_submission(
@@ -545,3 +621,8 @@ def _display_path(path: Path) -> Path:
         return path.resolve().relative_to(Path.cwd().resolve())
     except ValueError:
         return path
+
+
+def _slug(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug or "agent"

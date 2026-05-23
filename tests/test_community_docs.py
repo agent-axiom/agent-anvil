@@ -89,6 +89,8 @@ def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     assert "Hugging Face Dataset" in leaderboard_doc
     assert "LEADERBOARD_INDEX_URL" in leaderboard_doc
     assert "does not execute user agents" in space_readme
+    assert "uv run anvil leaderboard pr leaderboard_submission.json" in cli_doc
+    assert "--leaderboard-repo ../agent-anvil-leaderboard" in leaderboard_doc
 
 
 def test_leaderboard_docs_reference_live_submissions_repo() -> None:
