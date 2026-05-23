@@ -89,6 +89,8 @@ def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     assert "uv run anvil leaderboard build submissions" in cli_doc
     assert "Hugging Face Dataset" in leaderboard_doc
     assert "LEADERBOARD_INDEX_URL" in leaderboard_doc
+    assert "Create Maintainer Rerun Attestation" in leaderboard_doc
+    assert "trust-level filters" in leaderboard_doc
     assert "does not execute user agents" in space_readme
     assert "uv run anvil leaderboard pr leaderboard_submission.json" in cli_doc
     assert "--leaderboard-repo ../agent-anvil-leaderboard" in leaderboard_doc
@@ -96,6 +98,9 @@ def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
 
 def test_huggingface_space_invites_verified_submissions() -> None:
     app = Path("integrations/huggingface/leaderboard_space/app.py").read_text(encoding="utf-8")
+    view = Path("integrations/huggingface/leaderboard_space/leaderboard_view.py").read_text(
+        encoding="utf-8"
+    )
     readme = Path("integrations/huggingface/leaderboard_space/README.md").read_text(
         encoding="utf-8"
     )
@@ -104,6 +109,11 @@ def test_huggingface_space_invites_verified_submissions() -> None:
         assert "Submit your agent" in text
         assert "agent-axiom/agent-anvil-demo-agent" in text
         assert "agent-anvil-leaderboard/pull/5" in text
+        assert "filter" in text.lower()
+        assert "sort" in text.lower()
+
+    assert "DISPLAY_COLUMNS" in view
+    for text in (app, readme, view):
         assert "self_reported" in text
         assert "github_actions" in text
         assert "maintainer_rerun" in text

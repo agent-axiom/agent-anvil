@@ -16,6 +16,11 @@ It does not execute user agents. It reads a generated `leaderboard.json` file
 from a Hugging Face Dataset repository or from the local Space filesystem and
 renders aggregate benchmark rows.
 
+The scaffold includes a snapshot summary, trust-level filters, repository/name
+search, minimum-trial filtering, and sortable trace-aware metrics so users can
+quickly separate self-reported rows from GitHub Actions and maintainer-verified
+results.
+
 ## Configure
 
 Set this Space secret or variable:
