@@ -69,6 +69,6 @@ Verified reference:
 
 - Demo repo: https://github.com/agent-axiom/agent-anvil-demo-agent
 - Successful GitHub Actions run:
-  https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868
+  https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349
 - Accepted leaderboard PR:
-  https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1
+  https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5

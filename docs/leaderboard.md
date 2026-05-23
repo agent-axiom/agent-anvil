@@ -128,9 +128,9 @@ A public reference repository demonstrates the full flow:
 The demo repo runs Agent Anvil in GitHub Actions, exports a
 `github_actions` leaderboard submission, uploads the JSON artifact, and then
 submits it to the public leaderboard. The successful source run is
-[26335581868](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868),
+[26336840349](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349),
 and the accepted leaderboard pull request is
-[agent-anvil-leaderboard#1](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1).
+[agent-anvil-leaderboard#5](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5).
 
 ## Hugging Face Leaderboard Plan
 

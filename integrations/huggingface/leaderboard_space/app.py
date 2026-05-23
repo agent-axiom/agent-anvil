@@ -94,8 +94,8 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
         [github-actions-submission.yml](https://github.com/agent-axiom/agent-anvil-leaderboard/blob/main/examples/github-actions-submission.yml).
         Verified reference:
         [agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent)
-        -> [Actions run](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868)
-        -> [accepted PR](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1).
+        -> [Actions run](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349)
+        -> [accepted PR](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5).
 
         Trust labels: `self_reported`, `github_actions`, `maintainer_rerun`.
         """
