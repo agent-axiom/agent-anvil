@@ -103,9 +103,7 @@ def test_leaderboard_docs_reference_live_submissions_repo() -> None:
 
 
 def test_leaderboard_submission_workflow_exports_verifiable_github_actions_row() -> None:
-    workflow = Path("docs/examples/leaderboard-submission-workflow.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = Path("docs/examples/leaderboard-submission-workflow.yml").read_text(encoding="utf-8")
 
     assert "uvx --from git+https://github.com/agent-axiom/agent-anvil" in workflow
     assert "--require-trust github_actions" in workflow
