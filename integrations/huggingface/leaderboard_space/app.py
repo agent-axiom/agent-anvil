@@ -32,6 +32,7 @@ def render_leaderboard(
     search: str,
     trust_level: str,
     min_trials: int | float,
+    freshness: str,
     sort_by: str,
     descending: bool,
 ) -> tuple[str, list[list[Any]]]:
@@ -40,6 +41,7 @@ def render_leaderboard(
         search=search,
         trust_level=trust_level,
         min_trials=min_trials,
+        freshness=freshness,
         sort_by=sort_by,
         descending=descending,
     )
@@ -99,6 +101,11 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
             value="all",
         )
         min_trials = gr.Slider(label="Minimum trials", minimum=0, maximum=500, step=10, value=0)
+        freshness = gr.Dropdown(
+            label="Freshness",
+            choices=["all", "fresh", "aging", "stale", "unknown"],
+            value="all",
+        )
     with gr.Row():
         sort_by = gr.Dropdown(
             label="Sort by",
@@ -118,6 +125,7 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
         search="",
         trust_level="all",
         min_trials=0,
+        freshness="all",
         sort_by="trace_aware_pass_rate",
         descending=True,
     )
@@ -130,10 +138,10 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
         wrap=True,
     )
 
-    for control in (search, trust_level, min_trials, sort_by, descending):
+    for control in (search, trust_level, min_trials, freshness, sort_by, descending):
         control.change(
             render_leaderboard,
-            inputs=[search, trust_level, min_trials, sort_by, descending],
+            inputs=[search, trust_level, min_trials, freshness, sort_by, descending],
             outputs=[summary, table],
         )
 

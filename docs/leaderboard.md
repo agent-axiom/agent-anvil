@@ -141,8 +141,8 @@ The live public setup is:
    `leaderboard.json` indexes.
 2. A Hugging Face Space reads the Hugging Face Dataset index and renders the
    leaderboard with a snapshot summary, trust-level filters, repository/name
-   search, minimum-trial filtering, sortable trace-aware metrics, and evidence
-   links.
+   search, freshness/stale badges, minimum-trial filtering, sortable
+   trace-aware metrics, and evidence links.
 3. Users submit results by opening a pull request to the dataset repository or
    to an Agent Anvil submissions repository.
 4. A validator checks schema version, required fields, benchmark/scenario hashes,

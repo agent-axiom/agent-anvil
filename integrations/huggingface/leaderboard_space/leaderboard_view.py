@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import UTC, datetime
 from typing import Any
 
 TRUST_BADGES = {
@@ -20,11 +21,13 @@ DISPLAY_COLUMNS = [
     "agent_name",
     "agent_version",
     "trust_badge",
+    "freshness_badge",
     "trace_aware_pass_rate",
     "final_answer_pass_rate",
     "answer_only_missed_failures",
     "answer_only_missed_failure_rate",
     "total_trials",
+    "generated_at",
     "repo_url",
     "github_run_url",
     "maintainer_rerun_url",
@@ -41,6 +44,16 @@ ALL_COLUMNS = [
     "maintainer_rerun_sha",
 ]
 
+FRESHNESS_LABELS = {
+    "fresh": "[fresh]",
+    "aging": "[aging]",
+    "stale": "[stale]",
+    "unknown": "[unknown age]",
+}
+
+FRESH_DAYS = 30
+AGING_DAYS = 90
+
 SORT_COLUMNS = {
     "trace_aware_pass_rate",
     "final_answer_pass_rate",
@@ -51,10 +64,11 @@ SORT_COLUMNS = {
 }
 
 
-def normalize_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+def normalize_rows(payload: dict[str, Any], *, now: datetime | None = None) -> list[dict[str, Any]]:
     raw_rows = payload.get("rows", [])
     if not isinstance(raw_rows, list):
         raw_rows = []
+    now = now or datetime.now(UTC)
 
     rows: list[dict[str, Any]] = []
     for index, raw_row in enumerate(raw_rows, start=1):
@@ -66,6 +80,9 @@ def normalize_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
             str(row.get("trust_level") or ""),
             str(row.get("trust_level") or ""),
         )
+        freshness = _freshness_status(str(row.get("generated_at") or ""), now=now)
+        row["freshness"] = freshness
+        row["freshness_badge"] = FRESHNESS_LABELS[freshness]
         for column in SORT_COLUMNS:
             if column != "rank":
                 row[column] = _float_or_default(row.get(column), 0.0)
@@ -79,6 +96,7 @@ def filter_rows(
     search: str,
     trust_level: str,
     min_trials: int | float,
+    freshness: str,
     sort_by: str,
     descending: bool,
 ) -> list[dict[str, Any]]:
@@ -91,6 +109,7 @@ def filter_rows(
         for row in rows
         if _matches_search(row, needle)
         and _matches_trust(row, trusted)
+        and _matches_freshness(row, freshness)
         and _float_or_default(row.get("total_trials"), 0.0) >= minimum_trials
     ]
     sort_column = sort_by if sort_by in SORT_COLUMNS else "trace_aware_pass_rate"
@@ -113,6 +132,7 @@ def summary_markdown(rows: list[dict[str, Any]]) -> str:
     missed_failures = sum(
         int(_float_or_default(row.get("answer_only_missed_failures"), 0.0)) for row in rows
     )
+    stale_rows = sum(1 for row in rows if row.get("freshness") == "stale")
     trust_counts = Counter(str(row.get("trust_level") or "") for row in rows)
     trust_mix = ", ".join(
         f"{TRUST_LABELS.get(level, level or 'unknown')}: {count}"
@@ -126,6 +146,7 @@ def summary_markdown(rows: list[dict[str, Any]]) -> str:
             f"Rows: {len(rows)}",
             f"Best trace-aware pass rate: {best_trace:.1f}%",
             f"Answer-only missed failures: {missed_failures}",
+            f"Stale rows: {stale_rows}",
             f"Trust mix: {trust_mix}",
         ]
     )
@@ -143,6 +164,35 @@ def _matches_search(row: dict[str, Any], needle: str) -> bool:
 
 def _matches_trust(row: dict[str, Any], trust_level: str) -> bool:
     return trust_level in {"", "all"} or str(row.get("trust_level") or "") == trust_level
+
+
+def _matches_freshness(row: dict[str, Any], freshness: str) -> bool:
+    return freshness in {"", "all"} or str(row.get("freshness") or "") == freshness
+
+
+def _freshness_status(value: str, *, now: datetime) -> str:
+    generated_at = _parse_datetime(value)
+    if generated_at is None:
+        return "unknown"
+    age_days = (now - generated_at).days
+    if age_days <= FRESH_DAYS:
+        return "fresh"
+    if age_days <= AGING_DAYS:
+        return "aging"
+    return "stale"
+
+
+def _parse_datetime(value: str) -> datetime | None:
+    value = value.strip()
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _float_or_default(value: Any, default: float) -> float:
