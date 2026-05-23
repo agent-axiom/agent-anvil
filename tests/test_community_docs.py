@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -141,6 +142,21 @@ def test_leaderboard_submission_workflow_exports_verifiable_github_actions_row()
     assert "actions/upload-artifact@v7" in workflow
     assert "submission/" in workflow
     assert "uv sync --group dev" not in workflow
+
+
+def test_leaderboard_uvx_examples_pin_current_release() -> None:
+    version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
+    expected_ref = f"git+https://github.com/agent-axiom/agent-anvil@v{version}"
+
+    for path in (
+        Path("docs/examples/leaderboard-submission-workflow.yml"),
+        Path("docs/examples/leaderboard-index-workflow.yml"),
+    ):
+        text = path.read_text(encoding="utf-8")
+        assert expected_ref in text
+        assert "git+https://github.com/agent-axiom/agent-anvil \\" not in text
 
 
 def test_paper_draft_links_reproducible_artifact() -> None:
