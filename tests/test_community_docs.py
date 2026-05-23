@@ -102,6 +102,19 @@ def test_leaderboard_docs_reference_live_submissions_repo() -> None:
     assert "uv sync --group dev" not in workflow
 
 
+def test_leaderboard_submission_workflow_exports_verifiable_github_actions_row() -> None:
+    workflow = Path("docs/examples/leaderboard-submission-workflow.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "uvx --from git+https://github.com/agent-axiom/agent-anvil" in workflow
+    assert "--require-trust github_actions" in workflow
+    assert "GITHUB_STEP_SUMMARY" in workflow
+    assert "actions/upload-artifact@v7" in workflow
+    assert "submission/" in workflow
+    assert "uv sync --group dev" not in workflow
+
+
 def test_paper_draft_links_reproducible_artifact() -> None:
     artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
     paper = Path("paper/main.tex").read_text(encoding="utf-8")

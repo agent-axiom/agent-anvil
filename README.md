@@ -220,6 +220,8 @@ Dataset + Space design. The live public submissions repository is
 [agent-axiom/agent-anvil-leaderboard](https://github.com/agent-axiom/agent-anvil-leaderboard),
 with the rendered leaderboard on
 [Hugging Face Spaces](https://huggingface.co/spaces/ifif/agent-anvil-leaderboard).
+Use the [copy-paste GitHub Actions submission workflow](docs/examples/leaderboard-submission-workflow.yml)
+to generate a verifiable `github_actions` row.
 
 ## Why AI Was Necessary
 

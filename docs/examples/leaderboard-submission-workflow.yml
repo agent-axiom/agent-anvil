@@ -3,27 +3,71 @@ name: Agent Anvil Leaderboard Submission
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
+env:
+  ANVIL_RESULTS_JSON: docs/paper/results.json
+  ANVIL_MANIFEST: experiments/paper.yaml
+  ANVIL_AGENT_NAME: My Agent
+
 jobs:
-  leaderboard:
+  leaderboard-submission:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
-      - uses: actions/setup-python@v6
+
+      - uses: astral-sh/setup-uv@v8.1.0
         with:
-          python-version: "3.12"
-      - run: uv sync --group dev
-      - run: uv run anvil paper reproduce
-      - run: |
-          uv run anvil leaderboard export docs/paper/results.json \
-            --manifest experiments/paper.yaml \
+          enable-cache: true
+
+      - name: Run Agent Anvil benchmark
+        run: |
+          # Replace this command if your repository uses a different benchmark
+          # manifest or writes results to a different path.
+          uvx --from git+https://github.com/agent-axiom/agent-anvil \
+            anvil paper reproduce \
+            --manifest "$ANVIL_MANIFEST"
+
+      - name: Export GitHub Actions leaderboard submission
+        run: |
+          uvx --from git+https://github.com/agent-axiom/agent-anvil \
+            anvil leaderboard export "$ANVIL_RESULTS_JSON" \
+            --manifest "$ANVIL_MANIFEST" \
             --out leaderboard_submission.json \
-            --agent-name "My Agent" \
+            --agent-name "$ANVIL_AGENT_NAME" \
             --agent-version "${{ github.ref_name }}" \
             --repo-url "${{ github.server_url }}/${{ github.repository }}" \
             --commit-sha "${{ github.sha }}"
-      - run: uv run anvil leaderboard validate leaderboard_submission.json --require-trust github_actions
-      - uses: actions/upload-artifact@v5
+
+      - name: Validate GitHub Actions trust metadata
+        run: |
+          uvx --from git+https://github.com/agent-axiom/agent-anvil \
+            anvil leaderboard validate leaderboard_submission.json \
+            --require-trust github_actions
+
+      - name: Prepare submission artifact
+        run: |
+          mkdir -p submission
+          submission_name="$(echo "${GITHUB_REPOSITORY}" | tr '/[:upper:]' '-[:lower:]')"
+          cp leaderboard_submission.json "submission/${submission_name}.json"
+          {
+            echo "## Agent Anvil leaderboard submission"
+            echo
+            echo "Trust level: github_actions"
+            echo "Run URL: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "Download the artifact and open a pull request that adds:"
+            echo
+            echo "\`\`\`text"
+            echo "submissions/${submission_name}.json"
+            echo "\`\`\`"
+            echo
+            echo "Destination repo: https://github.com/agent-axiom/agent-anvil-leaderboard"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
         with:
           name: agent-anvil-leaderboard-submission
-          path: leaderboard_submission.json
+          path: submission/*.json
