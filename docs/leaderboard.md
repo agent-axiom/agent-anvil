@@ -106,6 +106,9 @@ uv run anvil leaderboard validate leaderboard_submission.json \
 
 A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).
+It exports a `github_actions` submission, validates that trust level inside the
+same GitHub Actions run, stages the JSON under `submission/`, and writes the
+destination pull-request path into the GitHub Step Summary.
 
 A copy-paste validator/index workflow for a submissions repository is available
 at [`docs/examples/leaderboard-index-workflow.yml`](examples/leaderboard-index-workflow.yml).
