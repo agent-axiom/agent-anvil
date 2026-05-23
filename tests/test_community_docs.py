@@ -113,6 +113,8 @@ def test_huggingface_space_invites_verified_submissions() -> None:
         assert "sort" in text.lower()
         assert "freshness" in text.lower()
         assert "stale" in text.lower()
+        assert "health" in text.lower()
+        assert "benchmark" in text.lower()
 
     assert "DISPLAY_COLUMNS" in view
     for text in (app, readme, view):

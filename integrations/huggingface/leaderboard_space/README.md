@@ -9,48 +9,29 @@ pinned: false
 
 # Agent Anvil Leaderboard Space
 
-This is a minimal Hugging Face Space scaffold for a public Agent Anvil
-leaderboard.
+This Hugging Face Space renders the public Agent Anvil leaderboard from the
+generated `leaderboard.json` index.
 
-It does not execute user agents. It reads a generated `leaderboard.json` file
-from a Hugging Face Dataset repository or from the local Space filesystem and
-renders aggregate benchmark rows.
-
-The scaffold includes a snapshot summary, trust-level filters, freshness/stale
-badges, repository/name search, minimum-trial filtering, and sortable
-trace-aware metrics so users can quickly separate self-reported rows from
-GitHub Actions and maintainer-verified results.
-
-## Configure
-
-Set this Space secret or variable:
+By default it reads the published Agent Anvil leaderboard Dataset:
 
 ```text
-LEADERBOARD_INDEX_URL=https://huggingface.co/datasets/ifif/agent-anvil-leaderboard-data/resolve/main/leaderboard.json
+https://huggingface.co/datasets/ifif/agent-anvil-leaderboard-data/resolve/main/leaderboard.json
 ```
 
-The Dataset repository should be updated by CI with:
+Override the source with this Space variable:
 
-```bash
-uv run anvil leaderboard build submissions \
-  --out leaderboard.csv \
-  --json-out leaderboard.json \
-  --no-artifacts
+```text
+LEADERBOARD_INDEX_URL=https://raw.githubusercontent.com/agent-axiom/agent-anvil-leaderboard/main/leaderboard.json
 ```
 
-## Trust Model
+The app does not execute user agents. It only reads aggregate leaderboard rows
+that were validated by this repository's GitHub Actions workflow.
 
-Rows are labeled by trust level:
-
-- `self_reported`: generated outside recognized CI
-- `github_actions`: generated in GitHub Actions with a public run URL
-- `maintainer_rerun`: independently reproduced by maintainers
-
-Maintainer rerun metadata is displayed from the public leaderboard index when a
-row has a verified `maintainer_reruns/*.json` attestation.
-
-The Space displays these labels instead of pretending that a public benchmark
-cannot be gamed.
+The Space includes a snapshot summary, trust-level filters, freshness/stale
+badges, benchmark compatibility badges, submission health badges,
+repository/name search, minimum-trial filtering, and sortable trace-aware
+metrics so users can quickly separate self-reported rows from GitHub Actions
+and maintainer-verified results.
 
 ## Submit your agent
 
@@ -67,8 +48,15 @@ uv run anvil leaderboard pr leaderboard_submission.json \
   --leaderboard-repo ../agent-anvil-leaderboard
 ```
 
-For a `github_actions` row, copy the workflow from
-`agent-axiom/agent-anvil-leaderboard` and run it from the Actions tab.
+For a `github_actions` row, copy
+`examples/github-actions-submission.yml` into your repository and run it from
+the Actions tab.
+
+Trust labels shown by the Space:
+
+- `self_reported`: generated outside recognized CI
+- `github_actions`: generated in GitHub Actions with a public run URL
+- `maintainer_rerun`: independently reproduced by maintainers
 
 Verified reference:
 
