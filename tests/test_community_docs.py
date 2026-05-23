@@ -93,6 +93,21 @@ def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     assert "--leaderboard-repo ../agent-anvil-leaderboard" in leaderboard_doc
 
 
+def test_huggingface_space_invites_verified_submissions() -> None:
+    app = Path("integrations/huggingface/leaderboard_space/app.py").read_text(encoding="utf-8")
+    readme = Path("integrations/huggingface/leaderboard_space/README.md").read_text(
+        encoding="utf-8"
+    )
+
+    for text in (app, readme):
+        assert "Submit your agent" in text
+        assert "agent-axiom/agent-anvil-demo-agent" in text
+        assert "agent-anvil-leaderboard/pull/1" in text
+        assert "self_reported" in text
+        assert "github_actions" in text
+        assert "maintainer_rerun" in text
+
+
 def test_leaderboard_docs_reference_live_submissions_repo() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     leaderboard_doc = Path("docs/leaderboard.md").read_text(encoding="utf-8")

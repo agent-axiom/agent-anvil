@@ -46,3 +46,29 @@ row has a verified `maintainer_reruns/*.json` attestation.
 
 The Space displays these labels instead of pretending that a public benchmark
 cannot be gamed.
+
+## Submit your agent
+
+Run Agent Anvil in your own repository, export a compact submission, and open a
+pull request to the public submissions repo:
+
+```bash
+uv run anvil paper reproduce
+uv run anvil leaderboard export docs/paper/results.json \
+  --manifest experiments/paper.yaml \
+  --out leaderboard_submission.json \
+  --agent-name "My Agent"
+uv run anvil leaderboard pr leaderboard_submission.json \
+  --leaderboard-repo ../agent-anvil-leaderboard
+```
+
+For a `github_actions` row, copy the workflow from
+`agent-axiom/agent-anvil-leaderboard` and run it from the Actions tab.
+
+Verified reference:
+
+- Demo repo: https://github.com/agent-axiom/agent-anvil-demo-agent
+- Successful GitHub Actions run:
+  https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26335581868
+- Accepted leaderboard PR:
+  https://github.com/agent-axiom/agent-anvil-leaderboard/pull/1
