@@ -43,6 +43,13 @@ Validate it before publishing:
 uv run anvil leaderboard validate leaderboard_submission.json
 ```
 
+Prepare a local pull-request file for the public submissions repository:
+
+```bash
+uv run anvil leaderboard pr leaderboard_submission.json \
+  --leaderboard-repo ../agent-anvil-leaderboard
+```
+
 Build a public leaderboard index from accepted submissions:
 
 ```bash

@@ -15,6 +15,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     build_leaderboard_index,
     export_leaderboard_submission,
+    prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
 )
 from anvil.learning import load_trace, write_learned_scenario
@@ -256,6 +257,17 @@ LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION = typer.Option(
     "--artifacts/--no-artifacts",
     help="Verify local artifact hashes while building the index.",
 )
+LEADERBOARD_REPO_OPTION = typer.Option(
+    Path("../agent-anvil-leaderboard"),
+    "--leaderboard-repo",
+    help="Local checkout of agent-axiom/agent-anvil-leaderboard.",
+)
+LEADERBOARD_SUBMISSION_NAME_OPTION = typer.Option(
+    None,
+    "--submission-name",
+    help="Output file name under submissions/. Defaults to a slug of the agent name.",
+)
+LEADERBOARD_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite an existing submission.")
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
 
@@ -539,6 +551,33 @@ def leaderboard_build(
     typer.echo(f"Wrote leaderboard CSV: {_display_path(out)}")
     typer.echo(f"Wrote leaderboard JSON: {_display_path(json_out)}")
     typer.echo(f"Rows: {len(index.rows)}")
+
+
+@leaderboard_app.command("pr")
+def leaderboard_pr(
+    submission_file: Path,
+    leaderboard_repo: Path = LEADERBOARD_REPO_OPTION,
+    submission_name: str | None = LEADERBOARD_SUBMISSION_NAME_OPTION,
+    force: bool = LEADERBOARD_FORCE_OPTION,
+    require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
+) -> None:
+    try:
+        prepared = prepare_leaderboard_pr_submission(
+            submission_path=submission_file,
+            leaderboard_repo=leaderboard_repo,
+            submission_name=submission_name,
+            force=force,
+            require_trust_level=require_trust_level,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo(f"Prepared leaderboard PR file: {_display_path(prepared.target_path)}")
+    typer.echo(f"Trust level: {prepared.submission.verification.trust_level}")
+    typer.echo(f"Evidence SHA-256: {prepared.submission.verification.evidence_sha256}")
+    typer.echo("Next steps:")
+    typer.echo(prepared.next_steps)
 
 
 @app.command()

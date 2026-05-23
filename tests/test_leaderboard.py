@@ -13,6 +13,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     build_leaderboard_index,
     export_leaderboard_submission,
+    prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
 )
 
@@ -283,6 +284,102 @@ def test_build_leaderboard_index_rejects_duplicate_evidence_hash(
 
     with pytest.raises(LeaderboardValidationError, match="duplicate evidence hash"):
         build_leaderboard_index(submissions_dir, verify_artifacts=True)
+
+
+def test_prepare_leaderboard_pr_submission_copies_slugged_file(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    leaderboard_repo = tmp_path / "leaderboard"
+    (leaderboard_repo / "submissions").mkdir(parents=True)
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent!",
+        agent_version="demo",
+    )
+
+    prepared = prepare_leaderboard_pr_submission(
+        submission_path=submission_path,
+        leaderboard_repo=leaderboard_repo,
+    )
+
+    assert prepared.target_path == leaderboard_repo / "submissions" / "support-agent.json"
+    assert prepared.target_path.read_text(encoding="utf-8") == submission_path.read_text(
+        encoding="utf-8"
+    )
+    assert prepared.submission.submitter.agent_name == "Support Agent!"
+    assert "git checkout -b add-support-agent-submission" in prepared.next_steps
+    assert "gh pr create" in prepared.next_steps
+
+
+def test_prepare_leaderboard_pr_submission_refuses_existing_file(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    leaderboard_repo = tmp_path / "leaderboard"
+    submissions_dir = leaderboard_repo / "submissions"
+    submissions_dir.mkdir(parents=True)
+    (submissions_dir / "support-agent.json").write_text("{}", encoding="utf-8")
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+    )
+
+    with pytest.raises(LeaderboardValidationError, match="already exists"):
+        prepare_leaderboard_pr_submission(
+            submission_path=submission_path,
+            leaderboard_repo=leaderboard_repo,
+        )
+
+
+def test_cli_leaderboard_pr_prepares_submission_file(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    leaderboard_repo = tmp_path / "leaderboard"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "pr",
+            str(submission_path),
+            "--leaderboard-repo",
+            str(leaderboard_repo),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Prepared leaderboard PR file:" in result.stdout
+    assert "submissions/support-agent.json" in result.stdout
+    assert "git checkout -b add-support-agent-submission" in result.stdout
+    assert (leaderboard_repo / "submissions" / "support-agent.json").exists()
 
 
 def _clear_github_env(monkeypatch: pytest.MonkeyPatch) -> None:
