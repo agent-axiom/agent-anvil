@@ -215,10 +215,19 @@ def test_build_leaderboard_index_writes_ranked_csv_and_json(
     assert [row.agent_name for row in index.rows] == ["Better Agent", "Support Agent"]
     assert [row.rank for row in index.rows] == [1, 2]
     assert index.rows[0].trace_aware_pass_rate == 83.3
-    assert "rank,agent_name,agent_version,benchmark_name,trust_level" in csv_text
-    assert "Better Agent,patched,paper_benchmark,self_reported" in csv_text
+    assert (
+        "rank,agent_name,agent_version,benchmark_name,benchmark_manifest_sha256,"
+        "benchmark_scenario_count,submission_schema_version,submission_generated_by,"
+        "trust_level"
+    ) in csv_text
+    assert "Better Agent,patched,paper_benchmark," in csv_text
+    assert ",1,agent-anvil.leaderboard.v1,agent-anvil/" in csv_text
     assert json_payload["rows"][0]["agent_name"] == "Better Agent"
     assert json_payload["rows"][0]["submission_path"].endswith("better-agent.json")
+    assert json_payload["rows"][0]["submission_schema_version"] == "agent-anvil.leaderboard.v1"
+    assert json_payload["rows"][0]["submission_generated_by"].startswith("agent-anvil/")
+    assert json_payload["rows"][0]["benchmark_manifest_sha256"]
+    assert json_payload["rows"][0]["benchmark_scenario_count"] == 1
 
 
 def test_cli_leaderboard_build_writes_index_files(
