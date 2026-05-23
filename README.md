@@ -202,7 +202,8 @@ GitHub Actions artifacts.
 Agent Anvil can export a small public leaderboard submission from a benchmark
 run. The file includes aggregate metrics, evaluator ablation, benchmark hashes,
 artifact hashes, and a trust label (`self_reported` or GitHub-API-verified
-`github_actions`) without publishing raw traces or tool outputs.
+`github_actions`, with optional `maintainer_rerun` attestations) without
+publishing raw traces or tool outputs.
 
 ```bash
 uv run anvil paper reproduce

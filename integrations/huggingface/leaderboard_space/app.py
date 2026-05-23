@@ -27,6 +27,10 @@ COLUMNS = [
     "repo_url",
     "commit_sha",
     "github_run_url",
+    "maintainer",
+    "maintainer_rerun_url",
+    "maintainer_rerun_repository",
+    "maintainer_rerun_sha",
     "evidence_sha256",
 ]
 
@@ -69,7 +73,7 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
             "number",
             "number",
             "number",
-            *["str"] * 4,
+            *["str"] * 8,
         ],
         interactive=False,
         wrap=True,

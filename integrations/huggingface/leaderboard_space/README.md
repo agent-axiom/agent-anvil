@@ -41,5 +41,8 @@ Rows are labeled by trust level:
 - `github_actions`: generated in GitHub Actions with a public run URL
 - `maintainer_rerun`: independently reproduced by maintainers
 
+Maintainer rerun metadata is displayed from the public leaderboard index when a
+row has a verified `maintainer_reruns/*.json` attestation.
+
 The Space displays these labels instead of pretending that a public benchmark
 cannot be gamed.

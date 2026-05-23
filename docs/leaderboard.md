@@ -92,7 +92,9 @@ are self-reported, CI-verified, or independently re-run by maintainers.
 6. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
    `leaderboard.csv` and `leaderboard.json`.
 7. Maintainers can optionally re-run the agent and mark the row as
-   `maintainer_rerun`.
+   `maintainer_rerun` by adding a separate `maintainer_reruns/*.json`
+   attestation. The attestation must match the original row evidence hash and
+   point to a successful public GitHub Actions rerun.
 
 For stricter public rows, generate the submission in GitHub Actions and validate
 with:
@@ -124,7 +126,9 @@ The recommended public setup is:
    artifact hashes, and whether the claimed CI run URL completed successfully
    for the submitted repository/SHA.
 5. Rows are labeled as `self_reported`, `github_actions`, or `maintainer_rerun`.
-6. The live submissions repository publishes the rebuilt index and Space files
+6. Maintainer rerun attestations are applied as a separate overlay after the
+   base index is rebuilt, preserving the original submission provenance.
+7. The live submissions repository publishes the rebuilt index and Space files
    to Hugging Face when its `HF_TOKEN` repository secret is configured.
 
 The Space should display aggregate results only. Raw traces stay with the user
