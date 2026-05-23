@@ -7,52 +7,43 @@ from pathlib import Path
 from typing import Any
 from urllib.request import urlopen
 
-gr: Any = import_module("gradio")
-pd: Any = import_module("pandas")
+from leaderboard_view import (
+    DISPLAY_COLUMNS,
+    filter_rows,
+    normalize_rows,
+    summary_markdown,
+    table_values,
+)
 
-INDEX_URL = os.getenv("LEADERBOARD_INDEX_URL", "")
+gr: Any = import_module("gradio")
+
+INDEX_URL = os.getenv(
+    "LEADERBOARD_INDEX_URL",
+    "https://huggingface.co/datasets/ifif/agent-anvil-leaderboard-data/resolve/main/leaderboard.json",
+)
 INDEX_PATH = Path(os.getenv("LEADERBOARD_INDEX_PATH", "leaderboard.json"))
 
-TRUST_BADGES = {
-    "self_reported": "self-reported",
-    "github_actions": "GitHub Actions verified",
-    "maintainer_rerun": "maintainer rerun",
-}
 
-COLUMNS = [
-    "rank",
-    "agent_name",
-    "agent_version",
-    "benchmark_name",
-    "trust_level",
-    "trust_badge",
-    "trace_aware_pass_rate",
-    "final_answer_pass_rate",
-    "answer_only_missed_failures",
-    "answer_only_missed_failure_rate",
-    "total_trials",
-    "repo_url",
-    "commit_sha",
-    "github_run_url",
-    "maintainer",
-    "maintainer_rerun_url",
-    "maintainer_rerun_repository",
-    "maintainer_rerun_sha",
-    "evidence_sha256",
-]
+def load_rows() -> list[dict[str, Any]]:
+    return normalize_rows(_load_payload())
 
 
-def load_rows() -> Any:
-    payload = _load_payload()
-    rows = payload.get("rows", [])
-    if not isinstance(rows, list):
-        rows = []
-    frame = pd.DataFrame(rows)
-    for column in COLUMNS:
-        if column not in frame:
-            frame[column] = ""
-    frame["trust_badge"] = frame["trust_level"].map(TRUST_BADGES).fillna(frame["trust_level"])
-    return frame[COLUMNS]
+def render_leaderboard(
+    search: str,
+    trust_level: str,
+    min_trials: int | float,
+    sort_by: str,
+    descending: bool,
+) -> tuple[str, list[list[Any]]]:
+    rows = filter_rows(
+        load_rows(),
+        search=search,
+        trust_level=trust_level,
+        min_trials=min_trials,
+        sort_by=sort_by,
+        descending=descending,
+    )
+    return summary_markdown(rows), table_values(rows)
 
 
 def _load_payload() -> dict[str, object]:
@@ -100,18 +91,51 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
         Trust labels: `self_reported`, `github_actions`, `maintainer_rerun`.
         """
     )
-    gr.Dataframe(
-        value=load_rows,
-        headers=COLUMNS,
-        datatype=[
-            "number",
-            *["str"] * 5,
-            *["number"] * 5,
-            *["str"] * 8,
-        ],
+    with gr.Row():
+        search = gr.Textbox(label="Search", placeholder="agent name, version, repository")
+        trust_level = gr.Dropdown(
+            label="Trust",
+            choices=["all", "maintainer_rerun", "github_actions", "self_reported"],
+            value="all",
+        )
+        min_trials = gr.Slider(label="Minimum trials", minimum=0, maximum=500, step=10, value=0)
+    with gr.Row():
+        sort_by = gr.Dropdown(
+            label="Sort by",
+            choices=[
+                "trace_aware_pass_rate",
+                "final_answer_pass_rate",
+                "answer_only_missed_failure_rate",
+                "answer_only_missed_failures",
+                "total_trials",
+                "rank",
+            ],
+            value="trace_aware_pass_rate",
+        )
+        descending = gr.Checkbox(label="Descending", value=True)
+
+    initial_summary, initial_table = render_leaderboard(
+        search="",
+        trust_level="all",
+        min_trials=0,
+        sort_by="trace_aware_pass_rate",
+        descending=True,
+    )
+    summary = gr.Markdown(value=initial_summary)
+    table = gr.Dataframe(
+        value=initial_table,
+        headers=DISPLAY_COLUMNS,
+        datatype=["number", *["str"] * 3, *["number"] * 5, *["str"] * 4],
         interactive=False,
         wrap=True,
     )
+
+    for control in (search, trust_level, min_trials, sort_by, descending):
+        control.change(
+            render_leaderboard,
+            inputs=[search, trust_level, min_trials, sort_by, descending],
+            outputs=[summary, table],
+        )
 
 
 if __name__ == "__main__":

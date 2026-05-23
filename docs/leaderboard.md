@@ -132,16 +132,17 @@ submits it to the public leaderboard. The successful source run is
 and the accepted leaderboard pull request is
 [agent-anvil-leaderboard#5](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5).
 
-## Hugging Face Leaderboard Plan
+## Live Hugging Face Leaderboard
 
-The recommended public setup is:
+The live public setup is:
 
 1. The public submissions repository stores accepted
    `leaderboard_submission.json` files and generated `leaderboard.csv` /
    `leaderboard.json` indexes.
 2. A Hugging Face Space reads the Hugging Face Dataset index and renders the
-   leaderboard with filters for benchmark version, trust level, agent type, pass
-   rate, missed failures, and evidence links.
+   leaderboard with a snapshot summary, trust-level filters, repository/name
+   search, minimum-trial filtering, sortable trace-aware metrics, and evidence
+   links.
 3. Users submit results by opening a pull request to the dataset repository or
    to an Agent Anvil submissions repository.
 4. A validator checks schema version, required fields, benchmark/scenario hashes,
@@ -152,6 +153,12 @@ The recommended public setup is:
    base index is rebuilt, preserving the original submission provenance.
 7. The live submissions repository publishes the rebuilt index and Space files
    to Hugging Face when its `HF_TOKEN` repository secret is configured.
+
+Maintainers can create the overlay JSON with the
+**Create Maintainer Rerun Attestation** workflow in the live submissions
+repository. The workflow accepts a submission path, evidence hash, maintainer
+identity, and successful GitHub Actions rerun metadata, then uploads a
+reviewable `maintainer-rerun-attestation` artifact for a pull request.
 
 The Space should display aggregate results only. Raw traces stay with the user
 unless they intentionally publish them.
