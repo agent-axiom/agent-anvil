@@ -141,13 +141,15 @@ The live public setup is:
    `leaderboard.json` indexes.
 2. A Hugging Face Space reads the Hugging Face Dataset index and renders the
    leaderboard with a snapshot summary, trust-level filters, repository/name
-   search, freshness/stale badges, minimum-trial filtering, sortable
-   trace-aware metrics, and evidence links.
+   search, freshness/stale badges, benchmark compatibility badges, submission
+   health badges, minimum-trial filtering, sortable trace-aware metrics, and
+   evidence links.
 3. Users submit results by opening a pull request to the dataset repository or
    to an Agent Anvil submissions repository.
-4. A validator checks schema version, required fields, benchmark/scenario hashes,
-   artifact hashes, and whether the claimed CI run URL completed successfully
-   for the submitted repository/SHA.
+4. Validators check schema version, required fields, benchmark/scenario hashes,
+   artifact hashes, generated leaderboard row metadata, submission health
+   warnings, and whether the claimed CI run URL completed successfully for the
+   submitted repository/SHA.
 5. Rows are labeled as `self_reported`, `github_actions`, or `maintainer_rerun`.
 6. Maintainer rerun attestations are applied as a separate overlay after the
    base index is rebuilt, preserving the original submission provenance.

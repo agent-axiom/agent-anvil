@@ -33,6 +33,8 @@ def render_leaderboard(
     trust_level: str,
     min_trials: int | float,
     freshness: str,
+    compatibility: str,
+    health: str,
     sort_by: str,
     descending: bool,
 ) -> tuple[str, list[list[Any]]]:
@@ -42,6 +44,8 @@ def render_leaderboard(
         trust_level=trust_level,
         min_trials=min_trials,
         freshness=freshness,
+        compatibility=compatibility,
+        health=health,
         sort_by=sort_by,
         descending=descending,
     )
@@ -106,6 +110,16 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
             choices=["all", "fresh", "aging", "stale", "unknown"],
             value="all",
         )
+        compatibility = gr.Dropdown(
+            label="Benchmark",
+            choices=["all", "agent_anvil", "metadata_missing", "custom", "unknown"],
+            value="all",
+        )
+        health = gr.Dropdown(
+            label="Health",
+            choices=["all", "healthy", "needs_review"],
+            value="all",
+        )
     with gr.Row():
         sort_by = gr.Dropdown(
             label="Sort by",
@@ -126,6 +140,8 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
         trust_level="all",
         min_trials=0,
         freshness="all",
+        compatibility="all",
+        health="all",
         sort_by="trace_aware_pass_rate",
         descending=True,
     )
@@ -133,15 +149,33 @@ with gr.Blocks(title="Agent Anvil Leaderboard") as demo:
     table = gr.Dataframe(
         value=initial_table,
         headers=DISPLAY_COLUMNS,
-        datatype=["number", *["str"] * 3, *["number"] * 5, *["str"] * 4],
+        datatype=["str"] * len(DISPLAY_COLUMNS),
         interactive=False,
         wrap=True,
     )
 
-    for control in (search, trust_level, min_trials, freshness, sort_by, descending):
+    for control in (
+        search,
+        trust_level,
+        min_trials,
+        freshness,
+        compatibility,
+        health,
+        sort_by,
+        descending,
+    ):
         control.change(
             render_leaderboard,
-            inputs=[search, trust_level, min_trials, freshness, sort_by, descending],
+            inputs=[
+                search,
+                trust_level,
+                min_trials,
+                freshness,
+                compatibility,
+                health,
+                sort_by,
+                descending,
+            ],
             outputs=[summary, table],
         )
 
