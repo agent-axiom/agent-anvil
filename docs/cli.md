@@ -116,6 +116,8 @@ uv run anvil leaderboard export docs/paper/results.json \
 uv run anvil leaderboard validate leaderboard_submission.json
 uv run anvil leaderboard validate leaderboard_submission.json \
   --require-trust github_actions
+uv run anvil leaderboard inspect leaderboard_submission.json \
+  --out leaderboard_inspection.md
 uv run anvil leaderboard pr leaderboard_submission.json \
   --leaderboard-repo ../agent-anvil-leaderboard
 uv run anvil leaderboard build submissions \
@@ -126,6 +128,9 @@ uv run anvil leaderboard build submissions \
 
 Use `--no-artifacts` on `leaderboard validate` when validating a submitted JSON
 row in a repository that does not also contain the referenced result artifacts.
+`leaderboard inspect` renders a reviewable trust report with benchmark hashes,
+artifact status, warnings, and a reproducibility checklist for maintainers or
+community reviewers.
 `leaderboard pr` validates the compact submission, writes it under
 `submissions/<agent-name>.json` in a local checkout of the public submissions
 repository, and prints the git commands needed to open a reviewable PR.
