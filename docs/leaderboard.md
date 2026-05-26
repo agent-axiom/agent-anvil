@@ -43,6 +43,13 @@ Validate it before publishing:
 uv run anvil leaderboard validate leaderboard_submission.json
 ```
 
+Inspect the submission as a human reviewer:
+
+```bash
+uv run anvil leaderboard inspect leaderboard_submission.json \
+  --out leaderboard_inspection.md
+```
+
 Prepare a local pull-request file for the public submissions repository:
 
 ```bash
@@ -92,13 +99,16 @@ are self-reported, CI-verified, or independently re-run by maintainers.
 1. The user runs the benchmark in their own repository or CI.
 2. The user exports `leaderboard_submission.json`.
 3. The user validates the file locally with `anvil leaderboard validate`.
-4. The user opens a pull request to the leaderboard submissions repository.
-5. The leaderboard CI runs `anvil leaderboard validate --no-artifacts` for schema
+4. The user or maintainer runs `anvil leaderboard inspect` to review trust
+   evidence, benchmark hashes, artifact status, warnings, and the
+   reproducibility checklist.
+5. The user opens a pull request to the leaderboard submissions repository.
+6. The leaderboard CI runs `anvil leaderboard validate --no-artifacts` for schema
    and evidence-hash checks, then verifies `github_actions` evidence through the
    GitHub API before labeling the row by `verification.trust_level`.
-6. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
+7. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
    `leaderboard.csv` and `leaderboard.json`.
-7. Maintainers can optionally re-run the agent and mark the row as
+8. Maintainers can optionally re-run the agent and mark the row as
    `maintainer_rerun` by adding a separate `maintainer_reruns/*.json`
    attestation. The attestation must match the original row evidence hash and
    point to a successful public GitHub Actions rerun.
