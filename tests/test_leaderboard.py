@@ -13,6 +13,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     build_leaderboard_index,
     export_leaderboard_submission,
+    inspect_leaderboard_submission,
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
 )
@@ -143,6 +144,76 @@ def test_cli_leaderboard_validate_checks_artifact_hashes(
 
     assert invalid.exit_code == 1
     assert "artifact hash mismatch" in invalid.stderr
+
+
+def test_inspect_leaderboard_submission_writes_reviewable_trust_report(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    out_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=out_path,
+        agent_name="Support Agent",
+        agent_version="demo",
+        repo_url="https://github.com/example/support-agent",
+        commit_sha="abc123",
+    )
+
+    inspection = inspect_leaderboard_submission(out_path, verify_artifacts=True)
+
+    assert inspection.artifact_status == "verified"
+    assert inspection.warning_count == 1
+    assert "Agent: Support Agent (demo)" in inspection.markdown
+    assert "Trust level: self_reported" in inspection.markdown
+    assert "Artifact hashes: verified" in inspection.markdown
+    assert "git clone https://github.com/example/support-agent" in inspection.markdown
+    assert "git checkout abc123" in inspection.markdown
+    assert f"uv run anvil paper reproduce --manifest {manifest_path}" in inspection.markdown
+    assert "self-reported; prefer a github_actions or maintainer_rerun row" in inspection.markdown
+
+
+def test_cli_leaderboard_inspect_can_write_markdown_report(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    report_path = tmp_path / "leaderboard_inspection.md"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "inspect",
+            str(submission_path),
+            "--no-artifacts",
+            "--out",
+            str(report_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert f"Wrote leaderboard inspection: {report_path}" in result.stdout
+    assert "Artifact hashes: not checked" in result.stdout
+    report = report_path.read_text(encoding="utf-8")
+    assert "## Reproducibility Checklist" in report
+    assert "Artifact hashes: not checked" in report
 
 
 def test_export_leaderboard_submission_marks_github_actions_trust(

@@ -15,6 +15,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     build_leaderboard_index,
     export_leaderboard_submission,
+    inspect_leaderboard_submission,
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
 )
@@ -268,6 +269,11 @@ LEADERBOARD_SUBMISSION_NAME_OPTION = typer.Option(
     help="Output file name under submissions/. Defaults to a slug of the agent name.",
 )
 LEADERBOARD_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite an existing submission.")
+LEADERBOARD_INSPECT_OUT_OPTION = typer.Option(
+    None,
+    "--out",
+    help="Write a Markdown inspection report instead of printing the full report.",
+)
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
 
@@ -527,6 +533,32 @@ def leaderboard_validate(
     typer.echo(f"Evidence SHA-256: {submission.verification.evidence_sha256}")
     typer.echo(f"Benchmark: {submission.benchmark.name}")
     typer.echo(f"Trace-aware pass rate: {submission.metrics.trace_aware_pass_rate:.1f}%")
+
+
+@leaderboard_app.command("inspect")
+def leaderboard_inspect(
+    submission_file: Path,
+    verify_artifacts: bool = LEADERBOARD_VERIFY_ARTIFACTS_OPTION,
+    out: Path | None = LEADERBOARD_INSPECT_OUT_OPTION,
+) -> None:
+    try:
+        inspection = inspect_leaderboard_submission(
+            submission_file,
+            verify_artifacts=verify_artifacts,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(inspection.markdown, encoding="utf-8")
+        typer.echo(f"Wrote leaderboard inspection: {_display_path(out)}")
+        typer.echo(f"Artifact hashes: {inspection.artifact_status}")
+        typer.echo(f"Warnings: {inspection.warning_count}")
+        return
+
+    typer.echo(inspection.markdown)
 
 
 @leaderboard_app.command("build")
