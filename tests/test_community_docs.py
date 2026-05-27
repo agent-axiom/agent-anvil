@@ -159,9 +159,15 @@ def test_leaderboard_submission_workflow_exports_verifiable_github_actions_row()
     assert "--require-trust github_actions" in workflow
     assert "PYTHONPATH: ${{ github.workspace }}" in workflow
     assert "GITHUB_STEP_SUMMARY" in workflow
+    assert "id-token: write" in workflow
+    assert "attestations: write" in workflow
+    assert "actions/attest@v4" in workflow
+    assert "subject-path: leaderboard_submission.json" in workflow
     assert "actions/upload-artifact@v7" in workflow
     assert "submission/" in workflow
     assert "uv sync --group dev" not in workflow
+    leaderboard_doc = Path("docs/leaderboard.md").read_text(encoding="utf-8")
+    assert "gh attestation verify leaderboard_submission.json" in leaderboard_doc
 
 
 def test_leaderboard_uvx_examples_pin_current_release() -> None:

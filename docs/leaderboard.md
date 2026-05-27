@@ -137,7 +137,17 @@ A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).
 It exports a `github_actions` submission, validates that trust level inside the
 same GitHub Actions run, stages the JSON under `submission/`, and writes the
-destination pull-request path into the GitHub Step Summary.
+destination pull-request path into the GitHub Step Summary. It also creates a
+GitHub artifact attestation for `leaderboard_submission.json`, so reviewers can
+verify that the submitted row was produced inside the claimed repository run:
+
+```bash
+gh attestation verify leaderboard_submission.json -R OWNER/REPO
+```
+
+Attestations complement, but do not replace, Agent Anvil's own submission
+validation and artifact hash checks. The leaderboard treats them as provenance
+evidence for `github_actions` rows.
 
 A copy-paste validator/index workflow for a submissions repository is available
 at [`docs/examples/leaderboard-index-workflow.yml`](examples/leaderboard-index-workflow.yml).

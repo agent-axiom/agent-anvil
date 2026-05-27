@@ -6,6 +6,8 @@ on:
 permissions:
   contents: read
   actions: read
+  id-token: write
+  attestations: write
 
 env:
   PYTHONPATH: ${{ github.workspace }}
@@ -48,6 +50,11 @@ jobs:
             anvil leaderboard validate leaderboard_submission.json \
             --require-trust github_actions
 
+      - name: Attest leaderboard submission
+        uses: actions/attest@v4
+        with:
+          subject-path: leaderboard_submission.json
+
       - name: Prepare submission artifact
         run: |
           mkdir -p submission
@@ -66,9 +73,17 @@ jobs:
             echo "\`\`\`"
             echo
             echo "Destination repo: https://github.com/agent-axiom/agent-anvil-leaderboard"
+            echo
+            echo "Verify provenance after download:"
+            echo
+            echo "\`\`\`bash"
+            echo "gh attestation verify leaderboard_submission.json -R ${GITHUB_REPOSITORY}"
+            echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
         with:
           name: agent-anvil-leaderboard-submission
-          path: submission/*.json
+          path: |
+            leaderboard_submission.json
+            submission/*.json
