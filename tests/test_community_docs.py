@@ -88,10 +88,13 @@ def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     assert "leaderboard-index-workflow.yml" in artifacts
     assert "uv run anvil leaderboard build submissions" in cli_doc
     assert "uv run anvil leaderboard inspect leaderboard_submission.json" in cli_doc
+    assert "uv run anvil leaderboard reproduce leaderboard_submission.json" in cli_doc
     assert "leaderboard inspect leaderboard_submission.json" in readme
+    assert "leaderboard reproduce leaderboard_submission.json" in readme
     assert "Hugging Face Dataset" in leaderboard_doc
     assert "LEADERBOARD_INDEX_URL" in leaderboard_doc
     assert "reproducibility checklist" in leaderboard_doc
+    assert "review-first" in leaderboard_doc
     assert "Create Maintainer Rerun Attestation" in leaderboard_doc
     assert "trust-level filters" in leaderboard_doc
     assert "does not execute user agents" in space_readme

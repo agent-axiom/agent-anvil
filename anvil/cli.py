@@ -15,6 +15,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     build_leaderboard_index,
     export_leaderboard_submission,
+    generate_leaderboard_reproduction_script,
     inspect_leaderboard_submission,
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
@@ -273,6 +274,11 @@ LEADERBOARD_INSPECT_OUT_OPTION = typer.Option(
     None,
     "--out",
     help="Write a Markdown inspection report instead of printing the full report.",
+)
+LEADERBOARD_REPRODUCE_OUT_OPTION = typer.Option(
+    Path("reproduce_leaderboard_submission.sh"),
+    "--out",
+    help="Write a reviewable shell script for independently reproducing a submission.",
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
@@ -559,6 +565,24 @@ def leaderboard_inspect(
         return
 
     typer.echo(inspection.markdown)
+
+
+@leaderboard_app.command("reproduce")
+def leaderboard_reproduce(
+    submission_file: Path,
+    out: Path = LEADERBOARD_REPRODUCE_OUT_OPTION,
+) -> None:
+    try:
+        script = generate_leaderboard_reproduction_script(
+            submission_file,
+            out_path=out,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo(f"Wrote leaderboard reproduction script: {_display_path(script.path)}")
+    typer.echo("Review before executing; the script clones and runs the submitted agent repo.")
 
 
 @leaderboard_app.command("build")
