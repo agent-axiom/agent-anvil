@@ -147,8 +147,9 @@ def test_leaderboard_docs_link_verified_end_to_end_demo() -> None:
     for text in (readme, leaderboard_doc):
         assert "https://github.com/agent-axiom/agent-anvil-demo-agent" in text
         assert (
-            "https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349" in text
+            "https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26542584290" in text
         )
+        assert "attested" in text
         assert "https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5" in text
 
 

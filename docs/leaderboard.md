@@ -157,11 +157,12 @@ at [`docs/examples/leaderboard-index-workflow.yml`](examples/leaderboard-index-w
 A public reference repository demonstrates the full flow:
 [agent-axiom/agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent).
 
-The demo repo runs Agent Anvil in GitHub Actions, exports a
-`github_actions` leaderboard submission, uploads the JSON artifact, and then
-submits it to the public leaderboard. The successful source run is
-[26336840349](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349),
-and the accepted leaderboard pull request is
+The demo repo runs Agent Anvil in GitHub Actions, exports an attested
+`github_actions` leaderboard submission, uploads the JSON artifact, and
+publishes provenance status through the public leaderboard row. The current
+attested source run is
+[26542584290](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26542584290),
+and the original accepted leaderboard pull request is
 [agent-anvil-leaderboard#5](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5).
 
 ## Live Hugging Face Leaderboard
