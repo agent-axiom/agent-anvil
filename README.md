@@ -92,9 +92,10 @@ Start here:
 
 Verified leaderboard demo:
 [agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent)
-ran the benchmark in
-[GitHub Actions](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26336840349)
-and submitted the generated JSON through
+ran the benchmark in an attested
+[GitHub Actions run](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26542584290)
+and publishes provenance status through the leaderboard row. The original
+end-to-end submission flow was accepted through
 [agent-anvil-leaderboard#5](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5).
 
 ## How It Works
