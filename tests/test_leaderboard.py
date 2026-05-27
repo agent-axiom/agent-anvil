@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     build_leaderboard_index,
     export_leaderboard_submission,
+    generate_leaderboard_reproduction_script,
     inspect_leaderboard_submission,
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
@@ -214,6 +216,105 @@ def test_cli_leaderboard_inspect_can_write_markdown_report(
     report = report_path.read_text(encoding="utf-8")
     assert "## Reproducibility Checklist" in report
     assert "Artifact hashes: not checked" in report
+
+
+def test_generate_leaderboard_reproduction_script_writes_reviewable_shell_script(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    script_path = tmp_path / "reproduce.sh"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+        agent_version="demo",
+        repo_url="https://github.com/example/support-agent.git",
+        commit_sha="abc123",
+    )
+
+    script = generate_leaderboard_reproduction_script(
+        submission_path,
+        out_path=script_path,
+    )
+
+    assert script.path == script_path
+    assert script_path.read_text(encoding="utf-8") == script.content
+    assert script_path.stat().st_mode & 0o111
+    assert "git clone https://github.com/example/support-agent.git source" in script.content
+    assert "git checkout abc123" in script.content
+    version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
+    assert f"agent-anvil@v{version}" in script.content
+    assert f"anvil paper reproduce --manifest {manifest_path}" in script.content
+    assert "--agent-name 'Support Agent'" in script.content
+    assert "evidence_sha256" in script.content
+    assert "reproduction check passed" in script.content
+
+
+def test_generate_leaderboard_reproduction_script_requires_source_revision(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+    )
+
+    with pytest.raises(LeaderboardValidationError, match="repo_url and commit_sha"):
+        generate_leaderboard_reproduction_script(submission_path, out_path=tmp_path / "r.sh")
+
+
+def test_cli_leaderboard_reproduce_writes_script(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    script_path = tmp_path / "reproduce.sh"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+        repo_url="https://github.com/example/support-agent",
+        commit_sha="abc123",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "reproduce",
+            str(submission_path),
+            "--out",
+            str(script_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert f"Wrote leaderboard reproduction script: {script_path}" in result.stdout
+    assert "Review before executing" in result.stdout
+    assert "git clone https://github.com/example/support-agent source" in script_path.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_export_leaderboard_submission_marks_github_actions_trust(
