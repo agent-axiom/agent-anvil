@@ -229,6 +229,9 @@ Dataset + Space design. The live public submissions repository is
 [agent-axiom/agent-anvil-leaderboard](https://github.com/agent-axiom/agent-anvil-leaderboard),
 with the rendered leaderboard on
 [Hugging Face Spaces](https://huggingface.co/spaces/ifif/agent-anvil-leaderboard).
+The copy-paste GitHub Actions flow can also emit a GitHub artifact attestation
+for `leaderboard_submission.json`, giving reviewers provenance evidence for
+verified `github_actions` rows.
 Use the [copy-paste GitHub Actions submission workflow](docs/examples/leaderboard-submission-workflow.yml)
 to generate a verifiable `github_actions` row.
 
