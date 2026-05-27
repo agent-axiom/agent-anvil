@@ -118,6 +118,8 @@ uv run anvil leaderboard validate leaderboard_submission.json \
   --require-trust github_actions
 uv run anvil leaderboard inspect leaderboard_submission.json \
   --out leaderboard_inspection.md
+uv run anvil leaderboard reproduce leaderboard_submission.json \
+  --out reproduce_leaderboard_submission.sh
 uv run anvil leaderboard pr leaderboard_submission.json \
   --leaderboard-repo ../agent-anvil-leaderboard
 uv run anvil leaderboard build submissions \
@@ -131,6 +133,10 @@ row in a repository that does not also contain the referenced result artifacts.
 `leaderboard inspect` renders a reviewable trust report with benchmark hashes,
 artifact status, warnings, and a reproducibility checklist for maintainers or
 community reviewers.
+`leaderboard reproduce` writes a reviewable shell script that clones the
+submitted repository at the claimed commit, reruns the benchmark, exports a new
+submission, and compares the evidence hash plus headline metrics. Review the
+script before executing it because it runs the submitted agent repository.
 `leaderboard pr` validates the compact submission, writes it under
 `submissions/<agent-name>.json` in a local checkout of the public submissions
 repository, and prints the git commands needed to open a reviewable PR.

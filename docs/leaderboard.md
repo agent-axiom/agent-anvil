@@ -50,6 +50,13 @@ uv run anvil leaderboard inspect leaderboard_submission.json \
   --out leaderboard_inspection.md
 ```
 
+Generate an independent reproduction script for a maintainer rerun:
+
+```bash
+uv run anvil leaderboard reproduce leaderboard_submission.json \
+  --out reproduce_leaderboard_submission.sh
+```
+
 Prepare a local pull-request file for the public submissions repository:
 
 ```bash
@@ -102,13 +109,18 @@ are self-reported, CI-verified, or independently re-run by maintainers.
 4. The user or maintainer runs `anvil leaderboard inspect` to review trust
    evidence, benchmark hashes, artifact status, warnings, and the
    reproducibility checklist.
-5. The user opens a pull request to the leaderboard submissions repository.
-6. The leaderboard CI runs `anvil leaderboard validate --no-artifacts` for schema
+5. A maintainer can run `anvil leaderboard reproduce` to generate a shell script
+   that clones the submitted repository at the claimed commit, reruns the
+   benchmark, exports a new submission, and compares the evidence hash plus
+   headline metrics. The script is intentionally review-first and must be run in
+   a sandbox because it executes submitted code.
+6. The user opens a pull request to the leaderboard submissions repository.
+7. The leaderboard CI runs `anvil leaderboard validate --no-artifacts` for schema
    and evidence-hash checks, then verifies `github_actions` evidence through the
    GitHub API before labeling the row by `verification.trust_level`.
-7. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
+8. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
    `leaderboard.csv` and `leaderboard.json`.
-8. Maintainers can optionally re-run the agent and mark the row as
+9. Maintainers can optionally re-run the agent and mark the row as
    `maintainer_rerun` by adding a separate `maintainer_reruns/*.json`
    attestation. The attestation must match the original row evidence hash and
    point to a successful public GitHub Actions rerun.

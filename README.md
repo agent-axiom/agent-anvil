@@ -220,6 +220,7 @@ uv run anvil leaderboard export docs/paper/results.json \
   --repo-url "https://github.com/acme/my-agent"
 uv run anvil leaderboard validate leaderboard_submission.json
 uv run anvil leaderboard inspect leaderboard_submission.json --out leaderboard_inspection.md
+uv run anvil leaderboard reproduce leaderboard_submission.json --out reproduce_leaderboard_submission.sh
 uv run anvil leaderboard build submissions --out leaderboard.csv --json-out leaderboard.json
 ```
 
