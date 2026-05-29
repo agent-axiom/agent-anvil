@@ -171,6 +171,24 @@ def test_leaderboard_submission_workflow_exports_verifiable_github_actions_row()
     assert "gh attestation verify leaderboard_submission.json" in leaderboard_doc
 
 
+def test_leaderboard_auto_pr_workflow_is_copy_pasteable() -> None:
+    workflow = Path("docs/examples/leaderboard-auto-pr-workflow.yml").read_text(encoding="utf-8")
+    leaderboard_doc = Path("docs/leaderboard.md").read_text(encoding="utf-8")
+
+    assert "LEADERBOARD_PR_TOKEN" in workflow
+    assert "repository: agent-axiom/agent-anvil-leaderboard" in workflow
+    assert "path: leaderboard-repo" in workflow
+    assert "token: ${{ secrets.LEADERBOARD_PR_TOKEN }}" in workflow
+    assert "anvil leaderboard pr leaderboard_submission.json" in workflow
+    assert "--pr-body-out agent-anvil-leaderboard-pr.md" in workflow
+    assert "git push --set-upstream origin" in workflow
+    assert "gh pr create" in workflow
+    assert '--head "$branch"' in workflow
+    assert "GH_TOKEN: ${{ secrets.LEADERBOARD_PR_TOKEN }}" in workflow
+    assert "does not execute arbitrary user agents" in leaderboard_doc
+    assert "docs/examples/leaderboard-auto-pr-workflow.yml" in leaderboard_doc
+
+
 def test_leaderboard_uvx_examples_pin_current_release() -> None:
     version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"][
         "version"
@@ -179,6 +197,7 @@ def test_leaderboard_uvx_examples_pin_current_release() -> None:
 
     for path in (
         Path("docs/examples/leaderboard-submission-workflow.yml"),
+        Path("docs/examples/leaderboard-auto-pr-workflow.yml"),
         Path("docs/examples/leaderboard-index-workflow.yml"),
     ):
         text = path.read_text(encoding="utf-8")

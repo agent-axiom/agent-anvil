@@ -121,7 +121,8 @@ uv run anvil leaderboard inspect leaderboard_submission.json \
 uv run anvil leaderboard reproduce leaderboard_submission.json \
   --out reproduce_leaderboard_submission.sh
 uv run anvil leaderboard pr leaderboard_submission.json \
-  --leaderboard-repo ../agent-anvil-leaderboard
+  --leaderboard-repo ../agent-anvil-leaderboard \
+  --pr-body-out agent-anvil-leaderboard-pr.md
 uv run anvil leaderboard build submissions \
   --out leaderboard.csv \
   --json-out leaderboard.json \
@@ -139,7 +140,8 @@ submission, and compares the evidence hash plus headline metrics. Review the
 script before executing it because it runs the submitted agent repository.
 `leaderboard pr` validates the compact submission, writes it under
 `submissions/<agent-name>.json` in a local checkout of the public submissions
-repository, and prints the git commands needed to open a reviewable PR.
+repository, can write a review-ready PR body with provenance evidence, and
+prints the git commands needed to open a reviewable PR.
 `leaderboard build` validates all `*.json` submissions, rejects duplicate
 evidence hashes, ranks rows per benchmark, and writes CSV/JSON files suitable
 for a Hugging Face Dataset-backed public leaderboard.

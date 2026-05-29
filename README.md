@@ -235,6 +235,9 @@ for `leaderboard_submission.json`, giving reviewers provenance evidence for
 verified `github_actions` rows.
 Use the [copy-paste GitHub Actions submission workflow](docs/examples/leaderboard-submission-workflow.yml)
 to generate a verifiable `github_actions` row.
+Use the [auto-PR workflow](docs/examples/leaderboard-auto-pr-workflow.yml)
+when you want the same run to open a reviewable pull request against the public
+leaderboard repository with a generated PR body and provenance checks.
 
 ## Why AI Was Necessary
 
