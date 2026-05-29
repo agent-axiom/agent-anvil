@@ -280,6 +280,11 @@ LEADERBOARD_REPRODUCE_OUT_OPTION = typer.Option(
     "--out",
     help="Write a reviewable shell script for independently reproducing a submission.",
 )
+LEADERBOARD_PR_BODY_OUT_OPTION = typer.Option(
+    None,
+    "--pr-body-out",
+    help="Write a reviewable pull-request body for gh pr create --body-file.",
+)
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 
 
@@ -614,6 +619,7 @@ def leaderboard_pr(
     submission_file: Path,
     leaderboard_repo: Path = LEADERBOARD_REPO_OPTION,
     submission_name: str | None = LEADERBOARD_SUBMISSION_NAME_OPTION,
+    pr_body_out: Path | None = LEADERBOARD_PR_BODY_OUT_OPTION,
     force: bool = LEADERBOARD_FORCE_OPTION,
     require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
 ) -> None:
@@ -622,6 +628,7 @@ def leaderboard_pr(
             submission_path=submission_file,
             leaderboard_repo=leaderboard_repo,
             submission_name=submission_name,
+            pr_body_out=pr_body_out,
             force=force,
             require_trust_level=require_trust_level,
         )
@@ -630,6 +637,8 @@ def leaderboard_pr(
         raise typer.Exit(1) from error
 
     typer.echo(f"Prepared leaderboard PR file: {_display_path(prepared.target_path)}")
+    if pr_body_out is not None:
+        typer.echo(f"Wrote leaderboard PR body: {_display_path(pr_body_out)}")
     typer.echo(f"Trust level: {prepared.submission.verification.trust_level}")
     typer.echo(f"Evidence SHA-256: {prepared.submission.verification.evidence_sha256}")
     typer.echo("Next steps:")

@@ -140,6 +140,10 @@ class LeaderboardValidationError(ValueError):
 class LeaderboardPrPreparation:
     submission: LeaderboardSubmission
     target_path: Path
+    branch_name: str
+    commit_message: str
+    pr_title: str
+    pr_body: str
     next_steps: str
 
 
@@ -370,6 +374,7 @@ def prepare_leaderboard_pr_submission(
     submission_path: str | Path,
     leaderboard_repo: str | Path,
     submission_name: str | None = None,
+    pr_body_out: str | Path | None = None,
     force: bool = False,
     require_trust_level: str | None = None,
 ) -> LeaderboardPrPreparation:
@@ -389,13 +394,32 @@ def prepare_leaderboard_pr_submission(
             f"{target_path} already exists. Re-run with --force to overwrite it."
         )
     shutil.copyfile(selected_submission_path, target_path)
+    branch_name = f"add-{target_path.stem}-submission"
+    commit_message = f"Add {target_path.stem} leaderboard submission"
+    pr_title = f"Add {submission.submitter.agent_name} leaderboard submission"
+    pr_body = _leaderboard_pr_body(
+        submission=submission,
+        target_path=target_path,
+        leaderboard_repo=selected_leaderboard_repo,
+    )
+    if pr_body_out is not None:
+        selected_pr_body_out = Path(pr_body_out)
+        selected_pr_body_out.parent.mkdir(parents=True, exist_ok=True)
+        selected_pr_body_out.write_text(pr_body, encoding="utf-8")
     return LeaderboardPrPreparation(
         submission=submission,
         target_path=target_path,
+        branch_name=branch_name,
+        commit_message=commit_message,
+        pr_title=pr_title,
+        pr_body=pr_body,
         next_steps=_leaderboard_pr_next_steps(
             target_path=target_path,
             leaderboard_repo=selected_leaderboard_repo,
-            slug=target_path.stem,
+            branch_name=branch_name,
+            commit_message=commit_message,
+            pr_title=pr_title,
+            pr_body_path=Path(pr_body_out) if pr_body_out is not None else None,
         ),
     )
 
@@ -703,18 +727,94 @@ def _leaderboard_pr_next_steps(
     *,
     target_path: Path,
     leaderboard_repo: Path,
-    slug: str,
+    branch_name: str,
+    commit_message: str,
+    pr_title: str,
+    pr_body_path: Path | None,
 ) -> str:
     display_target = target_path.relative_to(leaderboard_repo)
+    create_parts = [
+        "gh pr create",
+        "--repo agent-axiom/agent-anvil-leaderboard",
+        "--head",
+        branch_name,
+        "--title",
+        _shell_quote(pr_title),
+    ]
+    if pr_body_path is not None:
+        create_parts.extend(["--body-file", _shell_quote(str(pr_body_path))])
+    else:
+        create_parts.append("--fill")
     return "\n".join(
         [
             f"cd {leaderboard_repo}",
-            f"git checkout -b add-{slug}-submission",
+            f"git checkout -b {branch_name}",
             f"git add {display_target}",
-            f'git commit -m "Add {slug} leaderboard submission"',
-            "gh pr create --fill --repo agent-axiom/agent-anvil-leaderboard",
+            f"git commit -m {_shell_quote(commit_message)}",
+            f"git push --set-upstream origin {branch_name}",
+            " ".join(create_parts),
         ]
     )
+
+
+def _leaderboard_pr_body(
+    *,
+    submission: LeaderboardSubmission,
+    target_path: Path,
+    leaderboard_repo: Path,
+) -> str:
+    display_target = target_path.relative_to(leaderboard_repo)
+    verification = submission.verification
+    lines = [
+        "## Agent Anvil leaderboard submission",
+        "",
+        "### Summary",
+        "",
+        f"- Agent: {submission.submitter.agent_name}",
+        f"- Agent version: {submission.submitter.agent_version or 'not provided'}",
+        f"- Benchmark: {submission.benchmark.name}",
+        f"- Total trials: {submission.metrics.total_trials}",
+        f"- Trace-aware pass rate: {submission.metrics.trace_aware_pass_rate:.1f}%",
+        f"- Final-answer pass rate: {submission.metrics.final_answer_pass_rate:.1f}%",
+        f"- Answer-only missed failures: {submission.metrics.answer_only_missed_failures}",
+        f"- Trust level: {verification.trust_level}",
+        f"- Evidence SHA-256: {verification.evidence_sha256}",
+        f"- GitHub run: {verification.github_run_url or 'not provided'}",
+        "",
+        "### Submitted file",
+        "",
+        f"`{display_target}`",
+        "",
+        "### Reviewer checks",
+        "",
+        "```bash",
+        f"uv run anvil leaderboard validate {display_target} --no-artifacts",
+        f"uv run anvil leaderboard inspect {display_target} --no-artifacts",
+        "```",
+    ]
+    if verification.trust_level == "github_actions" and verification.github_repository:
+        lines.extend(
+            [
+                "",
+                "Verify the GitHub artifact attestation for the submitted JSON bytes:",
+                "",
+                "```bash",
+                f"gh attestation verify {display_target} -R {verification.github_repository}",
+                "```",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "### Trust boundary",
+            "",
+            "The leaderboard repository validates aggregate metadata and provenance, but it "
+            "does not execute arbitrary user code. Maintainers can run `anvil leaderboard "
+            "reproduce` in a sandbox if independent rerun evidence is needed.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def _row_from_submission(

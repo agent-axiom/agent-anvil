@@ -496,7 +496,60 @@ def test_prepare_leaderboard_pr_submission_copies_slugged_file(
         encoding="utf-8"
     )
     assert prepared.submission.submitter.agent_name == "Support Agent!"
+    assert prepared.branch_name == "add-support-agent-submission"
+    assert prepared.commit_message == "Add support-agent leaderboard submission"
+    assert prepared.pr_title == "Add Support Agent! leaderboard submission"
+    assert "Trace-aware pass rate: 50.0%" in prepared.pr_body
     assert "git checkout -b add-support-agent-submission" in prepared.next_steps
+    assert "git push --set-upstream origin add-support-agent-submission" in prepared.next_steps
+    assert "--head add-support-agent-submission" in prepared.next_steps
+    assert "gh pr create" in prepared.next_steps
+
+
+def test_prepare_leaderboard_pr_submission_writes_reviewable_pr_body(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "agent-axiom/agent-anvil")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    leaderboard_repo = tmp_path / "leaderboard"
+    pr_body_path = tmp_path / "agent-anvil-leaderboard-pr.md"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+        repo_url="https://github.com/agent-axiom/agent-anvil",
+    )
+
+    prepared = prepare_leaderboard_pr_submission(
+        submission_path=submission_path,
+        leaderboard_repo=leaderboard_repo,
+        require_trust_level="github_actions",
+        pr_body_out=pr_body_path,
+    )
+
+    pr_body = pr_body_path.read_text(encoding="utf-8")
+    assert prepared.pr_body == pr_body
+    assert "## Agent Anvil leaderboard submission" in pr_body
+    assert "- Agent: Support Agent" in pr_body
+    assert "- Trust level: github_actions" in pr_body
+    assert "- GitHub run: https://github.com/agent-axiom/agent-anvil/actions/runs/12345" in pr_body
+    assert "- Evidence SHA-256:" in pr_body
+    assert (
+        "uv run anvil leaderboard validate submissions/support-agent.json --no-artifacts" in pr_body
+    )
+    assert (
+        "gh attestation verify submissions/support-agent.json -R agent-axiom/agent-anvil" in pr_body
+    )
+    assert "does not execute arbitrary user code" in pr_body
     assert "gh pr create" in prepared.next_steps
 
 
@@ -537,6 +590,7 @@ def test_cli_leaderboard_pr_prepares_submission_file(
     run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
     submission_path = tmp_path / "leaderboard_submission.json"
     leaderboard_repo = tmp_path / "leaderboard"
+    pr_body_path = tmp_path / "pr-body.md"
     export_leaderboard_submission(
         results_json=tmp_path / "paper" / "results.json",
         manifest_path=manifest_path,
@@ -553,14 +607,18 @@ def test_cli_leaderboard_pr_prepares_submission_file(
             str(submission_path),
             "--leaderboard-repo",
             str(leaderboard_repo),
+            "--pr-body-out",
+            str(pr_body_path),
         ],
     )
 
     assert result.exit_code == 0
     assert "Prepared leaderboard PR file:" in result.stdout
+    assert f"Wrote leaderboard PR body: {pr_body_path}" in result.stdout
     assert "submissions/support-agent.json" in result.stdout
     assert "git checkout -b add-support-agent-submission" in result.stdout
     assert (leaderboard_repo / "submissions" / "support-agent.json").exists()
+    assert "## Agent Anvil leaderboard submission" in pr_body_path.read_text(encoding="utf-8")
 
 
 def _clear_github_env(monkeypatch: pytest.MonkeyPatch) -> None:
