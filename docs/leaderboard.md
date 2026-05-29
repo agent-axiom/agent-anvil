@@ -61,7 +61,8 @@ Prepare a local pull-request file for the public submissions repository:
 
 ```bash
 uv run anvil leaderboard pr leaderboard_submission.json \
-  --leaderboard-repo ../agent-anvil-leaderboard
+  --leaderboard-repo ../agent-anvil-leaderboard \
+  --pr-body-out agent-anvil-leaderboard-pr.md
 ```
 
 Build a public leaderboard index from accepted submissions:
@@ -149,6 +150,15 @@ Attestations complement, but do not replace, Agent Anvil's own submission
 validation and artifact hash checks. The leaderboard treats them as provenance
 evidence for `github_actions` rows.
 
+A second copy-paste workflow,
+[`docs/examples/leaderboard-auto-pr-workflow.yml`](examples/leaderboard-auto-pr-workflow.yml),
+adds the final handoff: it checks out the public leaderboard repository, runs
+`anvil leaderboard pr leaderboard_submission.json --pr-body-out ...`, and opens a
+pull request with `gh pr create`. This requires a repository secret named
+`LEADERBOARD_PR_TOKEN` with permission to push a branch and open pull requests
+against the leaderboard repository. Do not use this token for model calls or
+agent tools; it is only for publishing the already generated aggregate JSON.
+
 A copy-paste validator/index workflow for a submissions repository is available
 at [`docs/examples/leaderboard-index-workflow.yml`](examples/leaderboard-index-workflow.yml).
 
@@ -229,3 +239,5 @@ The safer model is:
 - execution happens in the user's repository or CI;
 - Agent Anvil emits a reproducible, hashed submission artifact;
 - the public leaderboard displays and validates submissions.
+- the automated pull-request flow does not execute arbitrary user agents in the
+  leaderboard repository; it only submits the attested aggregate JSON for review.
