@@ -168,12 +168,12 @@ A public reference repository demonstrates the full flow:
 [agent-axiom/agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent).
 
 The demo repo runs Agent Anvil in GitHub Actions, exports an attested
-`github_actions` leaderboard submission, uploads the JSON artifact, and
-publishes provenance status through the public leaderboard row. The current
-attested source run is
-[26542584290](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26542584290),
-and the original accepted leaderboard pull request is
-[agent-anvil-leaderboard#5](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/5).
+`github_actions` leaderboard submission, uploads the JSON artifact, opens the
+public leaderboard pull request, and publishes provenance status through the
+merged row. The current attested source run is
+[26656805979](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26656805979),
+and the auto-submitted leaderboard pull request is
+[agent-anvil-leaderboard#18](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/18).
 
 ## Live Hugging Face Leaderboard
 
