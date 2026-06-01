@@ -61,6 +61,10 @@ export ANVIL_REDACT_PATTERNS='tenant_[a-z0-9]+;internal-[0-9]+'
 
 Use `--offline` for local heuristic grading when you do not want to call OpenAI.
 
+See [Data Privacy](docs/privacy.md), [Trust Center](docs/trust.md), and
+[SECURITY.md](SECURITY.md) for the supported security boundaries, privacy
+contract, and vulnerability reporting process.
+
 ## Pull Requests
 
 Keep PRs narrow and include:
