@@ -37,7 +37,7 @@ uv run anvil summary runs/latest --github
 
 ## 30-Second Demo
 
-Agent Anvil's core loop is intentionally small:
+Agent Anvil's core loop is intentionally small and CI-shaped:
 
 ```text
 run -> trace -> check -> grade -> report -> CI
@@ -53,6 +53,15 @@ One-command demo:
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline --trials 1 || true
 uv run anvil repair runs/latest
 ```
+
+Verified public proof:
+
+1. A demo agent repository ran Agent Anvil in
+   [GitHub Actions](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26656805979).
+2. The run exported an attested leaderboard submission and opened
+   [agent-anvil-leaderboard#18](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/18).
+3. The leaderboard CI validated the row and published it to the live
+   [Hugging Face Space](https://huggingface.co/spaces/ifif/agent-anvil-leaderboard).
 
 For review, see the [3-minute judges guide](docs/judges-guide.md). For the
 challenge post, see [submission text](docs/submission.md).
@@ -92,11 +101,8 @@ Start here:
 
 Verified leaderboard demo:
 [agent-anvil-demo-agent](https://github.com/agent-axiom/agent-anvil-demo-agent)
-ran the benchmark in an attested
-[GitHub Actions run](https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26656805979)
-and auto-opened a reviewable public leaderboard pull request. The submission
-was validated, merged, and published through
-[agent-anvil-leaderboard#18](https://github.com/agent-axiom/agent-anvil-leaderboard/pull/18).
+ran the benchmark in an attested GitHub Actions run, auto-opened a reviewable
+public leaderboard pull request, and published the validated row to Hugging Face.
 
 ## How It Works
 

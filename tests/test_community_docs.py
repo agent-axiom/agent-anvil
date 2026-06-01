@@ -153,6 +153,20 @@ def test_leaderboard_docs_link_verified_end_to_end_demo() -> None:
         assert "https://github.com/agent-axiom/agent-anvil-leaderboard/pull/18" in text
 
 
+def test_submission_docs_surface_public_proof_path() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    submission = Path("docs/submission.md").read_text(encoding="utf-8")
+    judges_guide = Path("docs/judges-guide.md").read_text(encoding="utf-8")
+
+    for text in (readme, submission, judges_guide):
+        assert "agent-anvil-demo-agent/actions/runs/26656805979" in text
+        assert "agent-anvil-leaderboard/pull/18" in text
+        assert "https://huggingface.co/spaces/ifif/agent-anvil-leaderboard" in text
+
+    assert "Public proof path" in submission
+    assert "Public end-to-end proof" in judges_guide
+
+
 def test_leaderboard_submission_workflow_exports_verifiable_github_actions_row() -> None:
     workflow = Path("docs/examples/leaderboard-submission-workflow.yml").read_text(encoding="utf-8")
 
