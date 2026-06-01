@@ -51,6 +51,12 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 ## Reference Docs
 
 - [3-minute judges guide](judges-guide.md)
+- [Trust Center](trust.md)
+- [Security policy](../SECURITY.md)
+- [Data privacy](privacy.md)
+- [Stability and compatibility](stability.md)
+- [Schema versioning](schema-versioning.md)
+- [Release provenance](release-provenance.md)
 - [Project bootstrap guide](init.md)
 - [Scenario packs](packs.md)
 - [Trace ingest](ingest.md)

@@ -252,6 +252,57 @@ def test_docs_separate_core_from_experimental_helpers() -> None:
     assert "run -> repair -> fix -> learn -> CI" not in readme
 
 
+def test_trust_center_documents_security_privacy_and_stability() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    contributing = Path("CONTRIBUTING.md").read_text(encoding="utf-8")
+    security = Path("SECURITY.md").read_text(encoding="utf-8")
+    trust = Path("docs/trust.md").read_text(encoding="utf-8")
+    privacy = Path("docs/privacy.md").read_text(encoding="utf-8")
+    stability = Path("docs/stability.md").read_text(encoding="utf-8")
+    schema_versioning = Path("docs/schema-versioning.md").read_text(encoding="utf-8")
+    release_provenance = Path("docs/release-provenance.md").read_text(encoding="utf-8")
+
+    for path in (
+        "docs/trust.md",
+        "docs/privacy.md",
+        "docs/stability.md",
+        "docs/schema-versioning.md",
+        "docs/release-provenance.md",
+        "SECURITY.md",
+    ):
+        assert path in readme
+
+    for path in (
+        "trust.md",
+        "privacy.md",
+        "stability.md",
+        "schema-versioning.md",
+        "release-provenance.md",
+        "../SECURITY.md",
+    ):
+        assert path in artifacts
+
+    assert "SECURITY.md" in contributing
+    assert "Supported Versions" in security
+    assert "Reporting a Vulnerability" in security
+    assert "Do not publish secrets" in security
+    assert "Trust Center" in trust
+    assert "Stable Core" in trust
+    assert "Experimental Helpers" in trust
+    assert "OpenAI semantic grading" in privacy
+    assert "ANVIL_REDACT_PATTERNS" in privacy
+    assert "Local run artifacts keep raw traces" in privacy
+    assert "Semantic Versioning" in stability
+    assert "Deprecation Policy" in stability
+    assert "agent-anvil.leaderboard.v1" in schema_versioning
+    assert "anvil.trace.v1" in schema_versioning
+    assert "Scenario files" in schema_versioning
+    assert "Release Checklist" in release_provenance
+    assert "GitHub Actions" in release_provenance
+    assert "artifact attestation" in release_provenance
+
+
 def test_judges_guide_is_linked_and_covers_eval_path() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     doc = Path("docs/judges-guide.md").read_text(encoding="utf-8")
