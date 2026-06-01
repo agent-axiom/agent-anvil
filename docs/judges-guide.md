@@ -108,6 +108,15 @@ The repository also includes copy-paste examples:
 - `docs/examples/pr-comment-workflow.yml`
 - `docs/examples/mcp-harden-workflow.yml`
 
+Public end-to-end proof:
+
+- demo agent source run:
+  <https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26656805979>
+- automatically opened leaderboard PR:
+  <https://github.com/agent-axiom/agent-anvil-leaderboard/pull/18>
+- live public leaderboard:
+  <https://huggingface.co/spaces/ifif/agent-anvil-leaderboard>
+
 ## 7. Why This Is a System, Not a Prompt
 
 Agent Anvil persists state and artifacts across a full evaluation pipeline:

@@ -13,17 +13,32 @@ prompt/tool/guardrail repair plans.
 The demo catches a refund agent calling `issue_refund(order_id="UNKNOWN")`
 before order verification — a workflow bug final-answer evals often miss.
 
-Current `v0.2.23` keeps the core product focused on trace-first CI, and includes
-several experimental workflow helpers:
+Current `v0.2.23` keeps the core product focused on trace-first CI:
+
+- YAML scenario suites and multi-trial runs
+- model/tool trace recording
+- deterministic assertions and destructive-tool policies
+- OpenAI structured semantic grading
+- failure clustering and repair plans
+- external JSONL protocol for bring-your-own-agent workflows
+- reusable GitHub Action with run artifacts, Step Summary, and PR comments
+
+Public proof path:
+
+- demo agent run:
+  https://github.com/agent-axiom/agent-anvil-demo-agent/actions/runs/26656805979
+- auto-submitted leaderboard PR:
+  https://github.com/agent-axiom/agent-anvil-leaderboard/pull/18
+- live Hugging Face leaderboard:
+  https://huggingface.co/spaces/ifif/agent-anvil-leaderboard
+
+It also includes experimental workflow helpers:
 
 - `anvil learn`: bad trace -> draft regression scenario for human review
 - `anvil fix`: demo repair signal -> reviewable prompt/tool patch diff
-- `policies`: deterministic guardrails for destructive tools
 - `anvil mcp audit`: MCP tool schema lint -> draft safety scenarios
 - `anvil mcp harden`: live MCP server -> snapshot, static audit, repair hints
 - `anvil fuzz`: deterministic scenario mutation helper
-- `anvil pr-comment`: PR-ready regression summary
-- GitHub Action with Markdown/JSON/trace artifacts
 
 Repo: https://github.com/agent-axiom/agent-anvil
 
@@ -41,3 +56,6 @@ demo agent and as a structured semantic trace grader. The system evaluates
 workflow behavior that deterministic final-answer checks cannot judge reliably:
 wrong tool timing, unsafe arguments, missing clarification, and business-policy
 violations.
+
+Short line for reviewers: final-answer evals ask whether the answer looked good;
+Agent Anvil asks whether the agent behaved safely while getting there.
