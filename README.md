@@ -161,6 +161,18 @@ uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
 uv run anvil run scenarios/agent_anvil_starter.yaml --offline
 ```
 
+Try the bundled FastAPI HTTP agent example:
+
+```bash
+uv run --with fastapi --with uvicorn \
+  uvicorn examples.http_fastapi_agent.app:app --host 127.0.0.1 --port 8080
+uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+uv run anvil run scenarios/http_fastapi_agent.yaml --offline
+```
+
+See [`examples/http_fastapi_agent`](examples/http_fastapi_agent) and
+[`docs/http-fastapi-agent.md`](docs/http-fastapi-agent.md).
+
 Generate starter adapters for common agent frameworks:
 
 ```bash

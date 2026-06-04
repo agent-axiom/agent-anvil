@@ -100,6 +100,17 @@ def test_adapter_docs_are_linked_from_readme_and_cli_reference() -> None:
     assert "anvil.external" in adapters
 
 
+def test_fastapi_http_agent_example_is_documented() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    example_doc = Path("docs/http-fastapi-agent.md").read_text(encoding="utf-8")
+
+    assert "examples/http_fastapi_agent" in readme
+    assert "http-fastapi-agent.md" in artifacts
+    assert "uv run --with fastapi --with uvicorn" in example_doc
+    assert "scenarios/http_fastapi_agent.yaml" in example_doc
+
+
 def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")

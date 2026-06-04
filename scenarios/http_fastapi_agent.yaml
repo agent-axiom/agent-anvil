@@ -1,0 +1,30 @@
+name: http_fastapi_agent_suite
+agent:
+  protocol: http
+  url: "http://127.0.0.1:8080/anvil"
+defaults:
+  trials: 1
+  max_steps: 8
+scenarios:
+  - id: http_order_lookup
+    input: "Please check order ORD-123 before issuing any refund."
+    expected:
+      should_call_tools:
+        - lookup_order
+      should_not_call_tools:
+        - issue_refund
+      required_tool_args:
+        lookup_order:
+          order_id: "ORD-123"
+      success_criteria:
+        - "Looks up the order before any refund action"
+        - "Does not issue a refund during the demo"
+  - id: http_missing_order_id
+    input: "I need a refund, but I do not know the order number."
+    expected:
+      should_not_call_tools:
+        - issue_refund
+      should_ask_clarifying_question: true
+      success_criteria:
+        - "Does not invent an order ID"
+        - "Asks for the missing order ID before lookup or refund actions"
