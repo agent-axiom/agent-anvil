@@ -1,0 +1,352 @@
+{
+  "$defs": {
+    "BenchmarkAblationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "answer_only_missed_failure_rate": {
+          "title": "Answer Only Missed Failure Rate",
+          "type": "number"
+        },
+        "answer_only_missed_failures": {
+          "title": "Answer Only Missed Failures",
+          "type": "integer"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "evaluator": {
+          "title": "Evaluator",
+          "type": "string"
+        },
+        "pass_rate": {
+          "title": "Pass Rate",
+          "type": "number"
+        },
+        "pass_rate_ci_high": {
+          "title": "Pass Rate Ci High",
+          "type": "number"
+        },
+        "pass_rate_ci_low": {
+          "title": "Pass Rate Ci Low",
+          "type": "number"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "integer"
+        },
+        "total_trials": {
+          "title": "Total Trials",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "evaluator",
+        "description",
+        "total_trials",
+        "passed",
+        "pass_rate",
+        "pass_rate_ci_low",
+        "pass_rate_ci_high",
+        "answer_only_missed_failures",
+        "answer_only_missed_failure_rate"
+      ],
+      "title": "BenchmarkAblationResult",
+      "type": "object"
+    },
+    "LeaderboardArtifacts": {
+      "additionalProperties": false,
+      "properties": {
+        "results_json_path": {
+          "title": "Results Json Path",
+          "type": "string"
+        },
+        "results_json_sha256": {
+          "title": "Results Json Sha256",
+          "type": "string"
+        },
+        "results_markdown_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Results Markdown Path"
+        },
+        "results_markdown_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Results Markdown Sha256"
+        },
+        "table_hashes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Table Hashes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "results_json_path",
+        "results_json_sha256"
+      ],
+      "title": "LeaderboardArtifacts",
+      "type": "object"
+    },
+    "LeaderboardBenchmark": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "manifest_path": {
+          "title": "Manifest Path",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "title": "Manifest Sha256",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "scenario_hashes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Scenario Hashes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "manifest_path",
+        "manifest_sha256",
+        "scenario_hashes"
+      ],
+      "title": "LeaderboardBenchmark",
+      "type": "object"
+    },
+    "LeaderboardMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "answer_only_missed_failure_rate": {
+          "title": "Answer Only Missed Failure Rate",
+          "type": "number"
+        },
+        "answer_only_missed_failure_rate_ci_high": {
+          "title": "Answer Only Missed Failure Rate Ci High",
+          "type": "number"
+        },
+        "answer_only_missed_failure_rate_ci_low": {
+          "title": "Answer Only Missed Failure Rate Ci Low",
+          "type": "number"
+        },
+        "answer_only_missed_failures": {
+          "title": "Answer Only Missed Failures",
+          "type": "integer"
+        },
+        "final_answer_pass_rate": {
+          "title": "Final Answer Pass Rate",
+          "type": "number"
+        },
+        "final_answer_pass_rate_ci_high": {
+          "title": "Final Answer Pass Rate Ci High",
+          "type": "number"
+        },
+        "final_answer_pass_rate_ci_low": {
+          "title": "Final Answer Pass Rate Ci Low",
+          "type": "number"
+        },
+        "outcome_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Outcome Counts",
+          "type": "object"
+        },
+        "total_suites": {
+          "title": "Total Suites",
+          "type": "integer"
+        },
+        "total_trials": {
+          "title": "Total Trials",
+          "type": "integer"
+        },
+        "trace_aware_pass_rate": {
+          "title": "Trace Aware Pass Rate",
+          "type": "number"
+        },
+        "trace_aware_pass_rate_ci_high": {
+          "title": "Trace Aware Pass Rate Ci High",
+          "type": "number"
+        },
+        "trace_aware_pass_rate_ci_low": {
+          "title": "Trace Aware Pass Rate Ci Low",
+          "type": "number"
+        }
+      },
+      "required": [
+        "total_suites",
+        "total_trials",
+        "final_answer_pass_rate",
+        "final_answer_pass_rate_ci_low",
+        "final_answer_pass_rate_ci_high",
+        "trace_aware_pass_rate",
+        "trace_aware_pass_rate_ci_low",
+        "trace_aware_pass_rate_ci_high",
+        "answer_only_missed_failures",
+        "answer_only_missed_failure_rate",
+        "answer_only_missed_failure_rate_ci_low",
+        "answer_only_missed_failure_rate_ci_high",
+        "outcome_counts"
+      ],
+      "title": "LeaderboardMetrics",
+      "type": "object"
+    },
+    "LeaderboardSubmitter": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_name": {
+          "minLength": 1,
+          "title": "Agent Name",
+          "type": "string"
+        },
+        "agent_version": {
+          "default": "",
+          "title": "Agent Version",
+          "type": "string"
+        },
+        "commit_sha": {
+          "default": "",
+          "title": "Commit Sha",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        },
+        "repo_url": {
+          "default": "",
+          "title": "Repo Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent_name"
+      ],
+      "title": "LeaderboardSubmitter",
+      "type": "object"
+    },
+    "LeaderboardVerification": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_sha256": {
+          "title": "Evidence Sha256",
+          "type": "string"
+        },
+        "generated_at": {
+          "title": "Generated At",
+          "type": "string"
+        },
+        "generated_by": {
+          "title": "Generated By",
+          "type": "string"
+        },
+        "github_repository": {
+          "default": "",
+          "title": "Github Repository",
+          "type": "string"
+        },
+        "github_run_url": {
+          "default": "",
+          "title": "Github Run Url",
+          "type": "string"
+        },
+        "github_sha": {
+          "default": "",
+          "title": "Github Sha",
+          "type": "string"
+        },
+        "trust_level": {
+          "enum": [
+            "self_reported",
+            "github_actions",
+            "maintainer_rerun"
+          ],
+          "title": "Trust Level",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trust_level",
+        "evidence_sha256",
+        "generated_at",
+        "generated_by"
+      ],
+      "title": "LeaderboardVerification",
+      "type": "object"
+    }
+  },
+  "$id": "agent-anvil.leaderboard.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Agent Anvil public leaderboard submission schema.",
+  "properties": {
+    "artifacts": {
+      "$ref": "#/$defs/LeaderboardArtifacts"
+    },
+    "benchmark": {
+      "$ref": "#/$defs/LeaderboardBenchmark"
+    },
+    "evaluator_ablation": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkAblationResult"
+      },
+      "title": "Evaluator Ablation",
+      "type": "array"
+    },
+    "metrics": {
+      "$ref": "#/$defs/LeaderboardMetrics"
+    },
+    "schema_version": {
+      "const": "agent-anvil.leaderboard.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "submitter": {
+      "$ref": "#/$defs/LeaderboardSubmitter"
+    },
+    "verification": {
+      "$ref": "#/$defs/LeaderboardVerification"
+    }
+  },
+  "required": [
+    "schema_version",
+    "submitter",
+    "benchmark",
+    "metrics",
+    "evaluator_ablation",
+    "artifacts",
+    "verification"
+  ],
+  "title": "LeaderboardSubmission",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "agent-anvil.leaderboard.v1"
+}

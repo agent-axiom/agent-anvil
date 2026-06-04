@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from anvil.benchmark import format_rate_ci, load_benchmark_manifest, run_benchmark
+from anvil.contracts import export_schema_contracts
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
@@ -45,12 +46,14 @@ pack_app = typer.Typer(help="List and add built-in scenario packs.")
 ingest_app = typer.Typer(help="Ingest production agent logs into Anvil traces.")
 paper_app = typer.Typer(help="Reproduce paper benchmark artifacts.")
 leaderboard_app = typer.Typer(help="Export leaderboard submission artifacts.")
+schema_app = typer.Typer(help="Export stable JSON Schema contracts.")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(trace_app, name="trace")
 app.add_typer(pack_app, name="pack")
 app.add_typer(ingest_app, name="ingest")
 app.add_typer(paper_app, name="paper")
 app.add_typer(leaderboard_app, name="leaderboard")
+app.add_typer(schema_app, name="schema")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -286,6 +289,13 @@ LEADERBOARD_PR_BODY_OUT_OPTION = typer.Option(
     help="Write a reviewable pull-request body for gh pr create --body-file.",
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
+SCHEMA_OUT_OPTION = typer.Option(Path("schemas"), "--out", help="Write schema files here.")
+
+
+@schema_app.command("export")
+def schema_export(out: Path = SCHEMA_OUT_OPTION) -> None:
+    for path in export_schema_contracts(out):
+        typer.echo(f"Wrote {_display_path(path)}")
 
 
 @app.command()

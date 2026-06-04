@@ -1,0 +1,60 @@
+# Stable Contracts
+
+Agent Anvil's public integration surface is built around explicit contracts:
+scenario files, trace artifacts, external JSONL events, leaderboard submissions,
+and generated reports.
+
+## Export JSON Schemas
+
+Export the current stable JSON Schema bundle:
+
+```bash
+uv run anvil schema export --out schemas
+```
+
+The command writes schemas using export metadata version
+`anvil.schema.export.v1`:
+
+- [`schemas/anvil.trace.v1.schema.json`](../schemas/anvil.trace.v1.schema.json)
+- [`schemas/anvil.scenario.v1.schema.json`](../schemas/anvil.scenario.v1.schema.json)
+- [`schemas/agent-anvil.leaderboard.v1.schema.json`](../schemas/agent-anvil.leaderboard.v1.schema.json)
+- [`schemas/agent-anvil.leaderboard.index.v1.schema.json`](../schemas/agent-anvil.leaderboard.index.v1.schema.json)
+
+The source of truth remains the Pydantic models in Agent Anvil. Checked-in
+schemas are generated from those models and protected by tests.
+
+## Golden Fixtures
+
+Use the fixture set when writing adapters or compatibility checks:
+
+- [`fixtures/contracts/trace-valid.json`](../fixtures/contracts/trace-valid.json)
+- [`fixtures/contracts/trace-protocol-error.json`](../fixtures/contracts/trace-protocol-error.json)
+- [`fixtures/contracts/scenario-valid.yaml`](../fixtures/contracts/scenario-valid.yaml)
+- [`fixtures/contracts/leaderboard-submission-valid.json`](../fixtures/contracts/leaderboard-submission-valid.json)
+- [`fixtures/contracts/leaderboard-index-valid.json`](../fixtures/contracts/leaderboard-index-valid.json)
+
+These fixtures are intentionally small. They cover the happy path and one
+controlled external-agent protocol failure.
+
+## External JSONL conformance
+
+A compatible external agent should:
+
+1. read one scenario payload from stdin;
+2. emit one JSON object per stdout line;
+3. use supported event types such as `model_call`, `tool_call`,
+   `agent_protocol_error`, and `final_output`;
+4. include required fields for each event type;
+5. terminate within the configured timeout.
+
+Malformed events must not be hidden. Agent Anvil converts them into controlled
+failed traces with `agent_protocol_error` steps where possible.
+
+## Compatibility Rules
+
+- Optional fields may be added to v1 schemas.
+- Required-field removals or semantic changes require migration notes.
+- CI exit-code behavior must not change silently.
+- Raw traces remain local unless users publish them intentionally.
+
+For the version policy, see [Schema Versioning](schema-versioning.md).

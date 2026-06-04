@@ -1,0 +1,407 @@
+{
+  "$defs": {
+    "AssertionCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Before"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Count"
+        },
+        "equals": {
+          "default": null,
+          "title": "Equals"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool"
+        },
+        "type": {
+          "enum": [
+            "tool_called",
+            "tool_not_called",
+            "tool_called_before",
+            "max_tool_calls",
+            "forbidden_arg_value",
+            "tool_result_matches",
+            "final_output_contains",
+            "final_output_not_contains"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "values": {
+          "items": {},
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "AssertionCheck",
+      "type": "object"
+    },
+    "ExpectedBehavior": {
+      "additionalProperties": false,
+      "properties": {
+        "assertions": {
+          "items": {
+            "$ref": "#/$defs/AssertionCheck"
+          },
+          "title": "Assertions",
+          "type": "array"
+        },
+        "required_tool_args": {
+          "additionalProperties": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Required Tool Args",
+          "type": "object"
+        },
+        "should_ask_clarifying_question": {
+          "default": false,
+          "title": "Should Ask Clarifying Question",
+          "type": "boolean"
+        },
+        "should_call_tools": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Should Call Tools",
+          "type": "array"
+        },
+        "should_not_call_tools": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Should Not Call Tools",
+          "type": "array"
+        },
+        "success_criteria": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Success Criteria",
+          "type": "array"
+        }
+      },
+      "title": "ExpectedBehavior",
+      "type": "object"
+    },
+    "ExternalAgentConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "minLength": 1,
+          "title": "Command",
+          "type": "string"
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cwd"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Env",
+          "type": "object"
+        },
+        "protocol": {
+          "const": "jsonl",
+          "default": "jsonl",
+          "title": "Protocol",
+          "type": "string"
+        },
+        "timeout_seconds": {
+          "default": 60,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "title": "ExternalAgentConfig",
+      "type": "object"
+    },
+    "LearnedFrom": {
+      "additionalProperties": false,
+      "properties": {
+        "failure_type": {
+          "minLength": 1,
+          "title": "Failure Type",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "trace_path": {
+          "minLength": 1,
+          "title": "Trace Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_path",
+        "failure_type",
+        "rationale"
+      ],
+      "title": "LearnedFrom",
+      "type": "object"
+    },
+    "PolicyConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "destructive_tools": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Destructive Tools",
+          "type": "array"
+        },
+        "require_before": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/ToolPrecondition"
+            },
+            "type": "array"
+          },
+          "title": "Require Before",
+          "type": "object"
+        },
+        "require_human_approval": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Require Human Approval",
+          "type": "array"
+        }
+      },
+      "title": "PolicyConfig",
+      "type": "object"
+    },
+    "ScenarioCase": {
+      "additionalProperties": false,
+      "properties": {
+        "expected": {
+          "$ref": "#/$defs/ExpectedBehavior"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "input": {
+          "minLength": 1,
+          "title": "Input",
+          "type": "string"
+        },
+        "learned_from": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LearnedFrom"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Steps"
+        },
+        "trials": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trials"
+        }
+      },
+      "required": [
+        "id",
+        "input"
+      ],
+      "title": "ScenarioCase",
+      "type": "object"
+    },
+    "ScenarioDefaults": {
+      "additionalProperties": false,
+      "properties": {
+        "max_steps": {
+          "default": 8,
+          "minimum": 1,
+          "title": "Max Steps",
+          "type": "integer"
+        },
+        "trials": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Trials",
+          "type": "integer"
+        }
+      },
+      "title": "ScenarioDefaults",
+      "type": "object"
+    },
+    "ToolPrecondition": {
+      "additionalProperties": false,
+      "properties": {
+        "result": {
+          "additionalProperties": true,
+          "title": "Result",
+          "type": "object"
+        },
+        "tool": {
+          "minLength": 1,
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "ToolPrecondition",
+      "type": "object"
+    }
+  },
+  "$id": "anvil.scenario.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Agent Anvil YAML scenario suite schema.",
+  "properties": {
+    "agent": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/ExternalAgentConfig"
+        }
+      ],
+      "title": "Agent"
+    },
+    "defaults": {
+      "$ref": "#/$defs/ScenarioDefaults"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "policies": {
+      "$ref": "#/$defs/PolicyConfig"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/ScenarioCase"
+      },
+      "minItems": 1,
+      "title": "Scenarios",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "agent",
+    "scenarios"
+  ],
+  "title": "ScenarioSuite",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "anvil.scenario.v1"
+}

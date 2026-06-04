@@ -1,0 +1,58 @@
+{
+  "schema_version": "anvil.trace.v1",
+  "run_id": "contract_trace_valid",
+  "scenario_id": "contract_valid_order",
+  "trial": 1,
+  "input": "Please refund order ORD-123. It arrived broken.",
+  "started_at": "2026-06-04T10:00:00Z",
+  "ended_at": "2026-06-04T10:00:02Z",
+  "status": "completed",
+  "steps": [
+    {
+      "type": "model_call",
+      "model": "contract-demo-agent",
+      "input": "Please refund order ORD-123. It arrived broken.",
+      "output_text": "I will look up the order before issuing a refund.",
+      "tool_calls": [
+        {
+          "name": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-123"
+          }
+        }
+      ]
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-123"
+      },
+      "result": {
+        "status": "found",
+        "eligible": true
+      }
+    },
+    {
+      "type": "tool_call",
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-123",
+        "reason": "Item arrived broken"
+      },
+      "result": {
+        "status": "refunded"
+      }
+    }
+  ],
+  "final_output": "Refund issued for ORD-123.",
+  "metrics": {
+    "latency_ms": 2000,
+    "tool_call_count": 2,
+    "model_call_count": 1,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "estimated_cost_usd": 0.0
+  }
+}
