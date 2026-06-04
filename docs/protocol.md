@@ -1,23 +1,26 @@
-# External JSONL Agent Protocol
+# External Agent Protocol
 
-Agent Anvil can evaluate agents written in any language by spawning an external
-command and exchanging JSON over stdin/stdout.
+Agent Anvil can evaluate agents written in any language by either spawning an
+external JSONL command or POSTing to an already-running HTTP endpoint.
 
-Before wiring an agent into a full scenario suite, run the conformance check:
+For JSONL command agents, run the conformance check before wiring them into a
+full scenario suite:
 
 ```bash
 uv run anvil conformance external-agent --agent-command "python my_agent.py"
 ```
 
 See [External Agent Conformance](conformance.md) for exit codes, report output,
-and fixture examples.
+and fixture examples. HTTP endpoint agents are configured directly in scenario
+YAML and are smoke-tested with `anvil run`.
 
 ## Trust Boundary
 
-Agent Anvil executes the configured external command. Do not run untrusted
-scenario files or agent commands outside a sandboxed environment.
+Agent Anvil executes configured external commands and can send scenario payloads
+to configured HTTP endpoints. Do not run untrusted scenario files, agent
+commands, or endpoint targets outside a sandboxed environment.
 
-## Scenario Configuration
+## JSONL Command Configuration
 
 ```yaml
 agent:
@@ -28,13 +31,29 @@ agent:
     AGENT_MODE: test
 ```
 
-`command` is split like a shell command. `protocol` currently supports `jsonl`.
-`cwd` is optional and sets the external process working directory. `env` is
-optional and is merged into the inherited environment for that command.
+`command` is split like a shell command. `cwd` is optional and sets the external
+process working directory. `env` is optional and is merged into the inherited
+environment for that command.
+
+## HTTP Endpoint Configuration
+
+```yaml
+agent:
+  protocol: http
+  url: "http://127.0.0.1:8080/anvil"
+  timeout_seconds: 10
+  headers:
+    Authorization: "Bearer $ANVIL_AGENT_TOKEN"
+```
+
+`url` receives a POST request for each trial. `headers` are optional and support
+standard environment expansion such as `$ANVIL_AGENT_TOKEN` or
+`${ANVIL_AGENT_TOKEN}`.
 
 ## Input
 
-Agent Anvil sends one JSON object to stdin:
+Agent Anvil sends the same JSON object to stdin for JSONL commands and as the
+HTTP POST body for HTTP endpoints:
 
 ```json
 {
@@ -46,7 +65,7 @@ Agent Anvil sends one JSON object to stdin:
 }
 ```
 
-## Output Events
+## JSONL Output Events
 
 The agent writes one JSON object per line to stdout.
 Each event must include a supported `type`. Invalid events are recorded as
@@ -110,10 +129,51 @@ Required fields: `type` and either `text` or `final_output`.
 - Non-zero exit code marks the trace as failed.
 - Malformed JSONL or a command timeout marks the trace as failed and records an
   `agent_protocol_error` event in the trace artifact.
+- HTTP non-2xx responses, network errors, timeouts, and malformed JSON responses
+  mark the trace as failed and record an `agent_protocol_error` event.
 - Deterministic grading checks `trace.status == "completed"`, so failed external
   agent processes fail the scenario even if their partial output looked valid.
 - `anvil run` exits with code `1` when any graded trial fails, which makes it
   suitable for CI.
+
+## HTTP Response
+
+HTTP endpoints can return a trace-like object:
+
+```json
+{
+  "steps": [
+    {
+      "type": "model_call",
+      "model": "my-agent",
+      "output_text": "I will look up the order.",
+      "tool_calls": []
+    }
+  ],
+  "final_output": "Order verified."
+}
+```
+
+Or an event list using the same event objects as JSONL command output:
+
+```json
+{
+  "events": [
+    {
+      "type": "model_call",
+      "model": "my-agent",
+      "output_text": "Done.",
+      "tool_calls": []
+    },
+    {
+      "type": "final_output",
+      "text": "Done."
+    }
+  ]
+}
+```
+
+Optional `status` may be `completed` or `failed`.
 
 ## Minimal Agent
 

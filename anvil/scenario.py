@@ -114,11 +114,21 @@ class ScenarioCase(BaseModel):
 class ExternalAgentConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    command: str = Field(min_length=1)
-    protocol: Literal["jsonl"] = "jsonl"
+    command: str | None = Field(default=None, min_length=1)
+    protocol: Literal["jsonl", "http"] = "jsonl"
+    url: str | None = Field(default=None, min_length=1)
+    headers: dict[str, str] = Field(default_factory=dict)
     timeout_seconds: int = Field(default=60, ge=1)
     cwd: str | None = None
     env: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_protocol_config(self) -> ExternalAgentConfig:
+        if self.protocol == "jsonl" and not self.command:
+            raise ValueError("agent.command is required when protocol is jsonl")
+        if self.protocol == "http" and not self.url:
+            raise ValueError("agent.url is required when protocol is http")
+        return self
 
 
 AgentConfig = str | ExternalAgentConfig
