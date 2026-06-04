@@ -69,14 +69,16 @@ uv run anvil conformance external-agent \
   --agent-command "python agent.py" \
   --cwd examples/my_agent \
   --env AGENT_MODE=test
+uv run anvil conformance external-agent \
+  --url "http://127.0.0.1:8080/anvil" \
+  --header "Authorization=Bearer $ANVIL_AGENT_TOKEN"
 ```
 
-The conformance command verifies that a bring-your-own external JSONL agent emits
-parseable trace events and a `final_output` before you add it to a scenario
-suite. See [External Agent Conformance](conformance.md).
+The conformance command verifies that a bring-your-own JSONL command agent or
+HTTP endpoint agent emits parseable trace events and a `final_output` before you
+add it to a scenario suite. See [External Agent Conformance](conformance.md).
 
-HTTP agents are configured in scenario YAML rather than through the conformance
-subcommand:
+HTTP agents are configured in scenario YAML for full eval runs:
 
 ```yaml
 agent:

@@ -10,6 +10,7 @@ from anvil.adapter_templates import list_adapter_templates, write_adapter_templa
 from anvil.benchmark import format_rate_ci, load_benchmark_manifest, run_benchmark
 from anvil.conformance import (
     parse_env_overrides,
+    parse_header_overrides,
     run_external_agent_conformance,
     write_conformance_report,
 )
@@ -304,9 +305,19 @@ SCHEMA_OUT_OPTION = typer.Option(Path("schemas"), "--out", help="Write schema fi
 ADAPTER_OUT_OPTION = typer.Option(..., "--out", help="Write the adapter template here.")
 ADAPTER_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite an existing adapter file.")
 CONFORMANCE_AGENT_COMMAND_OPTION = typer.Option(
-    ...,
+    None,
     "--agent-command",
     help="External JSONL agent command to run.",
+)
+CONFORMANCE_URL_OPTION = typer.Option(
+    None,
+    "--url",
+    help="HTTP agent endpoint URL to POST conformance payloads to.",
+)
+CONFORMANCE_HEADER_OPTION = typer.Option(
+    None,
+    "--header",
+    help="HTTP request header for --url. Repeatable KEY=VALUE.",
 )
 CONFORMANCE_CWD_OPTION = typer.Option(
     None,
@@ -370,7 +381,9 @@ def adapter_add(
 
 @conformance_app.command("external-agent")
 def conformance_external_agent(
-    agent_command: str = CONFORMANCE_AGENT_COMMAND_OPTION,
+    agent_command: str | None = CONFORMANCE_AGENT_COMMAND_OPTION,
+    url: str | None = CONFORMANCE_URL_OPTION,
+    header: list[str] | None = CONFORMANCE_HEADER_OPTION,
     cwd: Path | None = CONFORMANCE_CWD_OPTION,
     env: list[str] | None = CONFORMANCE_ENV_OPTION,
     timeout: int = CONFORMANCE_TIMEOUT_OPTION,
@@ -379,17 +392,36 @@ def conformance_external_agent(
 ) -> None:
     try:
         env_overrides = parse_env_overrides(env)
+        header_overrides = parse_header_overrides(header)
     except ValueError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(2) from error
 
-    result = run_external_agent_conformance(
-        ExternalAgentConfig(
+    if bool(agent_command) == bool(url):
+        typer.echo("Use either --agent-command or --url.", err=True)
+        raise typer.Exit(2)
+
+    if url is not None and (cwd is not None or env_overrides):
+        typer.echo("--cwd and --env only apply to --agent-command.", err=True)
+        raise typer.Exit(2)
+
+    if url is not None:
+        config = ExternalAgentConfig(
+            protocol="http",
+            url=url,
+            headers=header_overrides,
+            timeout_seconds=timeout,
+        )
+    else:
+        config = ExternalAgentConfig(
             command=agent_command,
             timeout_seconds=timeout,
             cwd=str(cwd) if cwd is not None else None,
             env=env_overrides,
-        ),
+        )
+
+    result = run_external_agent_conformance(
+        config,
         max_steps=max_steps,
     )
     status = "PASS" if result.passed else "FAIL"
