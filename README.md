@@ -97,6 +97,7 @@ Start here:
 - [Data privacy](docs/privacy.md)
 - [Stable contracts and schemas](docs/contracts.md)
 - [External agent conformance](docs/conformance.md)
+- [External agent adapters](docs/adapters.md)
 - [Stability and compatibility](docs/stability.md)
 - [Schema versioning](docs/schema-versioning.md)
 - [Release provenance](docs/release-provenance.md)
@@ -147,6 +148,13 @@ Check that your own external JSONL agent is compatible before writing a suite:
 
 ```bash
 uv run anvil conformance external-agent --agent-command "python my_agent.py"
+```
+
+Generate starter adapters for common agent frameworks:
+
+```bash
+uv run anvil adapter add openai-agents --out adapters/openai_agents_adapter.py
+uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py
 ```
 
 Run the intentional regression demo and inspect the repair plan:

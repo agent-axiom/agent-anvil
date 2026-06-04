@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from anvil.adapter_templates import list_adapter_templates, write_adapter_template
 from anvil.benchmark import format_rate_ci, load_benchmark_manifest, run_benchmark
 from anvil.conformance import (
     parse_env_overrides,
@@ -46,6 +47,7 @@ from anvil.terminal import print_run_summary
 from anvil.trace_bridge import export_openai_trace, import_openai_trace
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
+adapter_app = typer.Typer(help="Generate external-agent adapter templates.")
 mcp_app = typer.Typer(help="Audit MCP tools and generate safety scenarios.")
 trace_app = typer.Typer(help="Import and export trace formats.")
 pack_app = typer.Typer(help="List and add built-in scenario packs.")
@@ -54,6 +56,7 @@ paper_app = typer.Typer(help="Reproduce paper benchmark artifacts.")
 leaderboard_app = typer.Typer(help="Export leaderboard submission artifacts.")
 schema_app = typer.Typer(help="Export stable JSON Schema contracts.")
 conformance_app = typer.Typer(help="Check external agent protocol compatibility.")
+app.add_typer(adapter_app, name="adapter")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(trace_app, name="trace")
 app.add_typer(pack_app, name="pack")
@@ -298,6 +301,8 @@ LEADERBOARD_PR_BODY_OUT_OPTION = typer.Option(
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 SCHEMA_OUT_OPTION = typer.Option(Path("schemas"), "--out", help="Write schema files here.")
+ADAPTER_OUT_OPTION = typer.Option(..., "--out", help="Write the adapter template here.")
+ADAPTER_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite an existing adapter file.")
 CONFORMANCE_AGENT_COMMAND_OPTION = typer.Option(
     ...,
     "--agent-command",
@@ -336,6 +341,31 @@ CONFORMANCE_OUT_OPTION = typer.Option(
 def schema_export(out: Path = SCHEMA_OUT_OPTION) -> None:
     for path in export_schema_contracts(out):
         typer.echo(f"Wrote {_display_path(path)}")
+
+
+@adapter_app.command("list")
+def adapter_list() -> None:
+    for template in list_adapter_templates():
+        typer.echo(f"{template.name}: {template.description}")
+        typer.echo(f"  {template.dependency_hint}")
+
+
+@adapter_app.command("add")
+def adapter_add(
+    template_name: str,
+    out: Path = ADAPTER_OUT_OPTION,
+    force: bool = ADAPTER_FORCE_OPTION,
+) -> None:
+    try:
+        adapter_path = write_adapter_template(template_name, out_path=out, force=force)
+    except (FileExistsError, ValueError) as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"Wrote adapter template: {_display_path(adapter_path)}")
+    typer.echo(
+        "Next: edit the generated adapter, then run "
+        f'`uv run anvil conformance external-agent --agent-command "python {adapter_path}"`.'
+    )
 
 
 @conformance_app.command("external-agent")

@@ -74,6 +74,22 @@ def test_artifacts_and_cli_docs_are_linked_from_readme() -> None:
     assert "uv run anvil mcp harden" in cli_doc
 
 
+def test_adapter_docs_are_linked_from_readme_and_cli_reference() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    cli_doc = Path("docs/cli.md").read_text(encoding="utf-8")
+    adapters = Path("docs/adapters.md").read_text(encoding="utf-8")
+
+    assert "docs/adapters.md" in readme
+    assert "adapters.md" in artifacts
+    assert "uv run anvil adapter list" in cli_doc
+    assert "uv run anvil adapter add openai-agents" in cli_doc
+    assert "uv run anvil adapter add langgraph" in cli_doc
+    assert "OpenAI Agents SDK" in adapters
+    assert "LangGraph" in adapters
+    assert "anvil.external" in adapters
+
+
 def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")

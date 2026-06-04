@@ -42,8 +42,8 @@ A compatible external agent should:
 
 1. read one scenario payload from stdin;
 2. emit one JSON object per stdout line;
-3. use supported event types such as `model_call`, `tool_call`,
-   `agent_protocol_error`, and `final_output`;
+3. use supported stdout event types: `model_call`, `tool_call`, and
+   `final_output`;
 4. include required fields for each event type;
 5. terminate within the configured timeout.
 
