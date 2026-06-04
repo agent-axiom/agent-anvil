@@ -47,6 +47,22 @@ uv run anvil pack add tool-safety \
   --out scenarios/tool_safety_starter.yaml
 ```
 
+## External Agent Conformance
+
+```bash
+uv run anvil conformance external-agent \
+  --agent-command "python my_agent.py" \
+  --out reports/external-agent-conformance.md
+uv run anvil conformance external-agent \
+  --agent-command "python agent.py" \
+  --cwd examples/my_agent \
+  --env AGENT_MODE=test
+```
+
+The conformance command verifies that a bring-your-own external JSONL agent emits
+parseable trace events and a `final_output` before you add it to a scenario
+suite. See [External Agent Conformance](conformance.md).
+
 ## Production Trace Ingest
 
 ```bash

@@ -96,6 +96,7 @@ Start here:
 - [Security policy](SECURITY.md)
 - [Data privacy](docs/privacy.md)
 - [Stable contracts and schemas](docs/contracts.md)
+- [External agent conformance](docs/conformance.md)
 - [Stability and compatibility](docs/stability.md)
 - [Schema versioning](docs/schema-versioning.md)
 - [Release provenance](docs/release-provenance.md)
@@ -140,6 +141,12 @@ Run the deterministic demo without OpenAI credentials:
 
 ```bash
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
+```
+
+Check that your own external JSONL agent is compatible before writing a suite:
+
+```bash
+uv run anvil conformance external-agent --agent-command "python my_agent.py"
 ```
 
 Run the intentional regression demo and inspect the repair plan:

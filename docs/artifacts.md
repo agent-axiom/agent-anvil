@@ -63,6 +63,8 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Trace ingest](ingest.md)
 - [Scenario authoring guide](scenarios.md)
 - [External agent protocol](protocol.md)
+- [External agent conformance](conformance.md)
+- [External agent conformance report](conformance-report.md)
 - [Engineering details](engineering.md)
 - [GitHub Action marketplace notes](marketplace.md)
 - [Leaderboard submission workflow](examples/leaderboard-submission-workflow.yml)
