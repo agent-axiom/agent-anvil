@@ -8,6 +8,14 @@ scenario in CI.
 uv run anvil init --agent-command "python my_agent.py"
 ```
 
+For an already-running HTTP endpoint agent:
+
+```bash
+uv run anvil init \
+  --agent-url "http://127.0.0.1:8080/anvil" \
+  --header "Authorization=Bearer $ANVIL_AGENT_TOKEN"
+```
+
 Generated files:
 
 - `scenarios/agent_anvil_starter.yaml`
@@ -17,6 +25,21 @@ The starter scenario uses the external JSONL protocol, so your agent receives a
 scenario payload on stdin and writes trace events on stdout. Edit the generated
 scenario to replace the placeholder input and risky tool name with your own
 business invariant.
+
+When using `--agent-url`, the starter scenario uses `protocol: http`, stores the
+endpoint URL and headers under `agent:`, and the generated GitHub Actions
+workflow runs HTTP conformance before the eval. If your URL is localhost, add a
+workflow step that starts your HTTP agent server before the conformance step.
+Header values such as `$ANVIL_AGENT_TOKEN` are mapped to same-named GitHub
+Secrets in the generated workflow.
+
+The HTTP onboarding flow is:
+
+```bash
+uv run anvil init --agent-url "http://127.0.0.1:8080/anvil"
+uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+uv run anvil run scenarios/agent_anvil_starter.yaml --offline
+```
 
 To start from reusable tool-safety scenarios:
 

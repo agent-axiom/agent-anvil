@@ -32,6 +32,9 @@ def test_init_doc_is_linked_from_readme() -> None:
 
     assert "init.md" in artifacts
     assert "uv run anvil init --agent-command" in readme
+    assert "uv run anvil init --agent-url" in readme
+    assert "--agent-url" in doc
+    assert "--header" in doc
     assert "--pack tool-safety" in doc
     assert "post-pr-comment" in doc
     assert "--force" in doc

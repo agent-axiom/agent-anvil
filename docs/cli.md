@@ -35,6 +35,9 @@ uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
 
 ```bash
 uv run anvil init --agent-command "python my_agent.py"
+uv run anvil init --agent-url "http://127.0.0.1:8080/anvil"
+uv run anvil init --agent-url "http://127.0.0.1:8080/anvil" \
+  --header "Authorization=Bearer $ANVIL_AGENT_TOKEN"
 uv run anvil init --agent-command "python my_agent.py" \
   --pack tool-safety \
   --risky-tool issue_refund \
