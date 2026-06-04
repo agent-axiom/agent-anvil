@@ -12,6 +12,15 @@ uv run anvil conformance external-agent \
 
 Sample output: [External agent conformance report](conformance-report.md).
 
+If you use a common framework, generate a starter adapter first:
+
+```bash
+uv run anvil adapter add openai-agents --out adapters/openai_agents_adapter.py
+uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py
+```
+
+See [External Agent Adapters](adapters.md).
+
 The command sends the same stdin payload shape used by `anvil run`, parses JSONL
 events from stdout, and returns:
 

@@ -47,6 +47,18 @@ uv run anvil pack add tool-safety \
   --out scenarios/tool_safety_starter.yaml
 ```
 
+## External Agent Adapters
+
+```bash
+uv run anvil adapter list
+uv run anvil adapter add openai-agents --out adapters/openai_agents_adapter.py
+uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py
+uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py --force
+```
+
+Adapter templates help bridge common frameworks into the external JSONL
+protocol. See [External Agent Adapters](adapters.md).
+
 ## External Agent Conformance
 
 ```bash
