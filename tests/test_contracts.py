@@ -86,6 +86,7 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "uv run anvil schema export --out schemas" in contracts
     assert "uv run anvil schema export --out schemas" in cli_doc
     assert "fixtures/contracts/trace-valid.json" in contracts
-    assert "External JSONL conformance" in contracts
+    assert "External Agent Conformance" in contracts
+    assert "compatible HTTP endpoint agent" in contracts
     assert "anvil.schema.export.v1" in contracts
     assert "contracts.md" in schema_versioning

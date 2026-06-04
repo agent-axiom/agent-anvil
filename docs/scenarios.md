@@ -24,6 +24,34 @@ scenarios:
         - "Asks for email, phone, or order lookup information"
 ```
 
+## Agent Configurations
+
+Use an import path for bundled Python agents:
+
+```yaml
+agent: examples.support_agent
+```
+
+Use `protocol: jsonl` for a subprocess agent:
+
+```yaml
+agent:
+  command: "python my_agent.py"
+  protocol: jsonl
+```
+
+Use `protocol: http` for an already-running HTTP agent endpoint:
+
+```yaml
+agent:
+  protocol: http
+  url: "http://127.0.0.1:8080/anvil"
+  headers:
+    Authorization: "Bearer $ANVIL_AGENT_TOKEN"
+```
+
+See the [external agent protocol](protocol.md) for request and response shapes.
+
 ## Expected Behavior Fields
 
 - `should_call_tools`: tools that must appear in the trace

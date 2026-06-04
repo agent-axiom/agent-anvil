@@ -36,9 +36,9 @@ Use the fixture set when writing adapters or compatibility checks:
 These fixtures are intentionally small. They cover the happy path and one
 controlled external-agent protocol failure.
 
-## External JSONL conformance
+## External Agent Conformance
 
-A compatible external agent should:
+A compatible JSONL command agent should:
 
 1. read one scenario payload from stdin;
 2. emit one JSON object per stdout line;
@@ -49,6 +49,13 @@ A compatible external agent should:
 
 Malformed events must not be hidden. Agent Anvil converts them into controlled
 failed traces with `agent_protocol_error` steps where possible.
+
+A compatible HTTP endpoint agent should:
+
+1. accept the same scenario payload as a JSON POST body;
+2. return either `steps` plus `final_output`, or an `events` list;
+3. use the same event object shapes as JSONL command output;
+4. return non-2xx status codes for endpoint-level failures.
 
 ## Compatibility Rules
 

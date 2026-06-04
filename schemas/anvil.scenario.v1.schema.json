@@ -158,9 +158,17 @@
       "additionalProperties": false,
       "properties": {
         "command": {
-          "minLength": 1,
-          "title": "Command",
-          "type": "string"
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Command"
         },
         "cwd": {
           "anyOf": [
@@ -181,9 +189,19 @@
           "title": "Env",
           "type": "object"
         },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Headers",
+          "type": "object"
+        },
         "protocol": {
-          "const": "jsonl",
           "default": "jsonl",
+          "enum": [
+            "jsonl",
+            "http"
+          ],
           "title": "Protocol",
           "type": "string"
         },
@@ -192,11 +210,21 @@
           "minimum": 1,
           "title": "Timeout Seconds",
           "type": "integer"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
         }
       },
-      "required": [
-        "command"
-      ],
       "title": "ExternalAgentConfig",
       "type": "object"
     },

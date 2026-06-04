@@ -70,6 +70,33 @@ scenarios:
     assert suite.agent.env == {"AGENT_MODE": "test"}
 
 
+def test_load_scenario_file_accepts_http_agent_config(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "http-agent.yaml"
+    scenario_file.write_text(
+        """
+name: http_agent_suite
+agent:
+  protocol: http
+  url: "http://127.0.0.1:8080/anvil"
+  timeout_seconds: 3
+  headers:
+    X-Agent-Anvil: test
+scenarios:
+  - id: smoke
+    input: "hello"
+""",
+        encoding="utf-8",
+    )
+
+    suite = load_scenario_file(scenario_file)
+
+    assert isinstance(suite.agent, ExternalAgentConfig)
+    assert suite.agent.protocol == "http"
+    assert suite.agent.url == "http://127.0.0.1:8080/anvil"
+    assert suite.agent.timeout_seconds == 3
+    assert suite.agent.headers == {"X-Agent-Anvil": "test"}
+
+
 def test_load_scenario_file_accepts_tool_safety_policies(tmp_path: Path) -> None:
     scenario_file = tmp_path / "policy.yaml"
     scenario_file.write_text(

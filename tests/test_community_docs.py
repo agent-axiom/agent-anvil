@@ -72,6 +72,8 @@ def test_artifacts_and_cli_docs_are_linked_from_readme() -> None:
     assert "MCP Tool Safety Audit" in artifacts
     assert "uv run anvil compare runs/baseline runs/latest" in cli_doc
     assert "uv run anvil mcp harden" in cli_doc
+    assert "protocol: http" in Path("docs/protocol.md").read_text(encoding="utf-8")
+    assert "protocol: http" in Path("docs/scenarios.md").read_text(encoding="utf-8")
 
 
 def test_adapter_docs_are_linked_from_readme_and_cli_reference() -> None:
