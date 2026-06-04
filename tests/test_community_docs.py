@@ -111,6 +111,17 @@ def test_fastapi_http_agent_example_is_documented() -> None:
     assert "scenarios/http_fastapi_agent.yaml" in example_doc
 
 
+def test_node_http_agent_example_is_documented() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    example_doc = Path("docs/node-http-agent.md").read_text(encoding="utf-8")
+
+    assert "examples/node_http_agent" in readme
+    assert "node-http-agent.md" in artifacts
+    assert "npm --prefix examples/node_http_agent install" in example_doc
+    assert "scenarios/node_http_agent.yaml" in example_doc
+
+
 def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
