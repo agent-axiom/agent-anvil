@@ -3,16 +3,16 @@
 Agent Anvil can evaluate agents written in any language by either spawning an
 external JSONL command or POSTing to an already-running HTTP endpoint.
 
-For JSONL command agents, run the conformance check before wiring them into a
-full scenario suite:
+Run the conformance check before wiring an external agent into a full scenario
+suite:
 
 ```bash
 uv run anvil conformance external-agent --agent-command "python my_agent.py"
+uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
 ```
 
 See [External Agent Conformance](conformance.md) for exit codes, report output,
-and fixture examples. HTTP endpoint agents are configured directly in scenario
-YAML and are smoke-tested with `anvil run`.
+and fixture examples.
 
 ## Trust Boundary
 

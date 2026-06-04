@@ -33,14 +33,28 @@ class ConformanceResult:
 
 
 def parse_env_overrides(values: list[str] | None) -> dict[str, str]:
-    env: dict[str, str] = {}
+    try:
+        return _parse_key_value_overrides(values, option_name="--env")
+    except ValueError as error:
+        raise ValueError(str(error)) from error
+
+
+def parse_header_overrides(values: list[str] | None) -> dict[str, str]:
+    try:
+        return _parse_key_value_overrides(values, option_name="--header")
+    except ValueError as error:
+        raise ValueError(str(error)) from error
+
+
+def _parse_key_value_overrides(values: list[str] | None, *, option_name: str) -> dict[str, str]:
+    overrides: dict[str, str] = {}
     for value in values or []:
-        key, separator, env_value = value.partition("=")
+        key, separator, override_value = value.partition("=")
         if not separator or not key:
-            msg = f"--env must use KEY=VALUE, got: {value}"
+            msg = f"{option_name} must use KEY=VALUE, got: {value}"
             raise ValueError(msg)
-        env[key] = env_value
-    return env
+        overrides[key] = override_value
+    return overrides
 
 
 def run_external_agent_conformance(
