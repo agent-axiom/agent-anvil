@@ -3,6 +3,15 @@
 Agent Anvil can evaluate agents written in any language by spawning an external
 command and exchanging JSON over stdin/stdout.
 
+Before wiring an agent into a full scenario suite, run the conformance check:
+
+```bash
+uv run anvil conformance external-agent --agent-command "python my_agent.py"
+```
+
+See [External Agent Conformance](conformance.md) for exit codes, report output,
+and fixture examples.
+
 ## Trust Boundary
 
 Agent Anvil executes the configured external command. Do not run untrusted

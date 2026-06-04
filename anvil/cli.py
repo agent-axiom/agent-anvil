@@ -7,6 +7,11 @@ from pathlib import Path
 import typer
 
 from anvil.benchmark import format_rate_ci, load_benchmark_manifest, run_benchmark
+from anvil.conformance import (
+    parse_env_overrides,
+    run_external_agent_conformance,
+    write_conformance_report,
+)
 from anvil.contracts import export_schema_contracts
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
@@ -35,6 +40,7 @@ from anvil.runner import (
     regenerate_report,
     run_suite,
 )
+from anvil.scenario import ExternalAgentConfig
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
 from anvil.trace_bridge import export_openai_trace, import_openai_trace
@@ -47,6 +53,7 @@ ingest_app = typer.Typer(help="Ingest production agent logs into Anvil traces.")
 paper_app = typer.Typer(help="Reproduce paper benchmark artifacts.")
 leaderboard_app = typer.Typer(help="Export leaderboard submission artifacts.")
 schema_app = typer.Typer(help="Export stable JSON Schema contracts.")
+conformance_app = typer.Typer(help="Check external agent protocol compatibility.")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(trace_app, name="trace")
 app.add_typer(pack_app, name="pack")
@@ -54,6 +61,7 @@ app.add_typer(ingest_app, name="ingest")
 app.add_typer(paper_app, name="paper")
 app.add_typer(leaderboard_app, name="leaderboard")
 app.add_typer(schema_app, name="schema")
+app.add_typer(conformance_app, name="conformance")
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -290,12 +298,80 @@ LEADERBOARD_PR_BODY_OUT_OPTION = typer.Option(
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 SCHEMA_OUT_OPTION = typer.Option(Path("schemas"), "--out", help="Write schema files here.")
+CONFORMANCE_AGENT_COMMAND_OPTION = typer.Option(
+    ...,
+    "--agent-command",
+    help="External JSONL agent command to run.",
+)
+CONFORMANCE_CWD_OPTION = typer.Option(
+    None,
+    "--cwd",
+    help="Working directory for the external agent command.",
+)
+CONFORMANCE_ENV_OPTION = typer.Option(
+    None,
+    "--env",
+    help="Environment override for the external agent command. Repeatable KEY=VALUE.",
+)
+CONFORMANCE_TIMEOUT_OPTION = typer.Option(
+    10,
+    "--timeout",
+    min=1,
+    help="External agent command timeout seconds.",
+)
+CONFORMANCE_MAX_STEPS_OPTION = typer.Option(
+    8,
+    "--max-steps",
+    min=1,
+    help="Maximum trace events accepted during conformance.",
+)
+CONFORMANCE_OUT_OPTION = typer.Option(
+    None,
+    "--out",
+    help="Write a Markdown conformance report here.",
+)
 
 
 @schema_app.command("export")
 def schema_export(out: Path = SCHEMA_OUT_OPTION) -> None:
     for path in export_schema_contracts(out):
         typer.echo(f"Wrote {_display_path(path)}")
+
+
+@conformance_app.command("external-agent")
+def conformance_external_agent(
+    agent_command: str = CONFORMANCE_AGENT_COMMAND_OPTION,
+    cwd: Path | None = CONFORMANCE_CWD_OPTION,
+    env: list[str] | None = CONFORMANCE_ENV_OPTION,
+    timeout: int = CONFORMANCE_TIMEOUT_OPTION,
+    max_steps: int = CONFORMANCE_MAX_STEPS_OPTION,
+    out: Path | None = CONFORMANCE_OUT_OPTION,
+) -> None:
+    try:
+        env_overrides = parse_env_overrides(env)
+    except ValueError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(2) from error
+
+    result = run_external_agent_conformance(
+        ExternalAgentConfig(
+            command=agent_command,
+            timeout_seconds=timeout,
+            cwd=str(cwd) if cwd is not None else None,
+            env=env_overrides,
+        ),
+        max_steps=max_steps,
+    )
+    status = "PASS" if result.passed else "FAIL"
+    typer.echo(f"External agent conformance: {status}")
+    for check in result.checks:
+        check_status = "PASS" if check.passed else "FAIL"
+        typer.echo(f"- {check.name}: {check_status} - {check.message}")
+    if out is not None:
+        write_conformance_report(result, out)
+        typer.echo(f"Wrote conformance report: {_display_path(out)}")
+    if not result.passed:
+        raise typer.Exit(1)
 
 
 @app.command()
