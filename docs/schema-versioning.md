@@ -3,6 +3,9 @@
 Agent Anvil uses explicit schema identifiers for persisted artifacts that are
 intended to cross process, repository, or CI boundaries.
 
+For export commands, checked-in JSON Schemas, and golden fixtures, see
+[Stable Contracts](contracts.md).
+
 ## Trace Schema
 
 Current trace artifacts use:
@@ -78,3 +81,9 @@ When a schema changes, release notes should include:
 - example old and new shapes;
 - whether existing `runs/` artifacts still load;
 - recommended migration command or manual edit, if needed.
+
+The checked-in schema export bundle is generated with:
+
+```bash
+uv run anvil schema export --out schemas
+```

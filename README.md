@@ -95,6 +95,7 @@ Start here:
 - [Trust Center](docs/trust.md)
 - [Security policy](SECURITY.md)
 - [Data privacy](docs/privacy.md)
+- [Stable contracts and schemas](docs/contracts.md)
 - [Stability and compatibility](docs/stability.md)
 - [Schema versioning](docs/schema-versioning.md)
 - [Release provenance](docs/release-provenance.md)
@@ -267,12 +268,24 @@ regexes with `ANVIL_REDACT_PATTERNS`. Use `--no-redact` or `ANVIL_REDACT=false`
 only when debugging exact grader payloads. Local run artifacts keep raw traces,
 so review them before sharing outside your team.
 
+## Stable Contracts
+
+Export checked-in JSON Schemas for adapters and CI compatibility checks:
+
+```bash
+uv run anvil schema export --out schemas
+```
+
+Start with [`schemas/anvil.trace.v1.schema.json`](schemas/anvil.trace.v1.schema.json)
+and the [stable contracts guide](docs/contracts.md).
+
 ## More
 
 - [Engineering details](docs/engineering.md)
 - [Trust Center](docs/trust.md)
 - [Security policy](SECURITY.md)
 - [Data privacy](docs/privacy.md)
+- [Stable contracts and schemas](docs/contracts.md)
 - [Stability and compatibility](docs/stability.md)
 - [Schema versioning](docs/schema-versioning.md)
 - [Release provenance](docs/release-provenance.md)

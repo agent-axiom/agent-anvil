@@ -1,0 +1,44 @@
+name: contract_scenario_suite
+agent:
+  command: "python my_agent.py"
+  protocol: jsonl
+  timeout_seconds: 30
+  cwd: "."
+  env:
+    AGENT_MODE: test
+defaults:
+  trials: 1
+  max_steps: 6
+policies:
+  destructive_tools:
+    - issue_refund
+  require_before:
+    issue_refund:
+      - tool: lookup_order
+        result:
+          eligible: true
+  require_human_approval: []
+scenarios:
+  - id: contract_valid_order
+    input: "Please refund order ORD-123. It arrived broken."
+    expected:
+      should_call_tools:
+        - lookup_order
+        - issue_refund
+      should_not_call_tools: []
+      required_tool_args:
+        issue_refund:
+          order_id: "ORD-123"
+      should_ask_clarifying_question: false
+      success_criteria:
+        - "Looks up the order before issuing refund"
+      assertions:
+        - type: tool_called_before
+          before: lookup_order
+          after: issue_refund
+        - type: forbidden_arg_value
+          tool: issue_refund
+          path: "$.order_id"
+          values:
+            - "UNKNOWN"
+            - ""

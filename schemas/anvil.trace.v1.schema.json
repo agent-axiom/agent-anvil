@@ -1,0 +1,156 @@
+{
+  "$defs": {
+    "TraceMetrics": {
+      "properties": {
+        "estimated_cost_usd": {
+          "default": 0.0,
+          "title": "Estimated Cost Usd",
+          "type": "number"
+        },
+        "input_tokens": {
+          "default": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "latency_ms": {
+          "default": 0,
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "model_call_count": {
+          "default": 0,
+          "title": "Model Call Count",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        },
+        "tool_call_count": {
+          "default": 0,
+          "title": "Tool Call Count",
+          "type": "integer"
+        },
+        "total_tokens": {
+          "default": 0,
+          "title": "Total Tokens",
+          "type": "integer"
+        }
+      },
+      "title": "TraceMetrics",
+      "type": "object"
+    },
+    "TraceStep": {
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TraceStep",
+      "type": "object"
+    }
+  },
+  "$id": "anvil.trace.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Agent Anvil trace artifact schema.",
+  "properties": {
+    "ended_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ended At"
+    },
+    "final_output": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Final Output"
+    },
+    "input": {
+      "title": "Input",
+      "type": "string"
+    },
+    "metrics": {
+      "$ref": "#/$defs/TraceMetrics"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "scenario_id": {
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "anvil.trace.v1",
+      "default": "anvil.trace.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "running",
+        "completed",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/TraceStep"
+          },
+          {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        ]
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "trial": {
+      "minimum": 1,
+      "title": "Trial",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "run_id",
+    "scenario_id",
+    "trial",
+    "input",
+    "started_at",
+    "status"
+  ],
+  "title": "TraceRun",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "anvil.trace.v1"
+}
