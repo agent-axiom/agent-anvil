@@ -150,6 +150,17 @@ Check that your own external JSONL agent is compatible before writing a suite:
 uv run anvil conformance external-agent --agent-command "python my_agent.py"
 ```
 
+Or bootstrap an already-running HTTP endpoint agent:
+
+```bash
+uv run anvil init --agent-url "http://127.0.0.1:8080/anvil"
+uv run anvil init \
+  --agent-url "http://127.0.0.1:8080/anvil" \
+  --header "Authorization=Bearer $ANVIL_AGENT_TOKEN"
+uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+uv run anvil run scenarios/agent_anvil_starter.yaml --offline
+```
+
 Generate starter adapters for common agent frameworks:
 
 ```bash

@@ -139,6 +139,21 @@ FUZZ_MUTATIONS_OPTION = typer.Option(10, "--mutations", min=1, help="Number of m
 FUZZ_FOCUS_OPTION = typer.Option("tool_safety", "--focus", help="Mutation focus.")
 PR_COMMENT_OUT_OPTION = typer.Option(..., "--out", help="Write PR-ready Markdown here.")
 INIT_AGENT_COMMAND_OPTION = typer.Option(
+    None,
+    "--agent-command",
+    help="Command Agent Anvil should run for your external JSONL agent.",
+)
+INIT_AGENT_URL_OPTION = typer.Option(
+    None,
+    "--agent-url",
+    help="HTTP endpoint URL Agent Anvil should POST scenario payloads to.",
+)
+INIT_HEADER_OPTION = typer.Option(
+    None,
+    "--header",
+    help="HTTP request header for --agent-url. Repeatable KEY=VALUE.",
+)
+PACK_AGENT_COMMAND_OPTION = typer.Option(
     ...,
     "--agent-command",
     help="Command Agent Anvil should run for your external JSONL agent.",
@@ -438,7 +453,9 @@ def conformance_external_agent(
 
 @app.command()
 def init(
-    agent_command: str = INIT_AGENT_COMMAND_OPTION,
+    agent_command: str | None = INIT_AGENT_COMMAND_OPTION,
+    agent_url: str | None = INIT_AGENT_URL_OPTION,
+    header: list[str] | None = INIT_HEADER_OPTION,
     scenario_path: Path = INIT_SCENARIO_OPTION,
     workflow_path: Path = INIT_WORKFLOW_OPTION,
     force: bool = INIT_FORCE_OPTION,
@@ -449,8 +466,11 @@ def init(
     approval_required_tools: list[str] | None = APPROVAL_TOOL_OPTION,
 ) -> None:
     try:
+        headers = parse_header_overrides(header)
         written_paths = initialize_project(
             agent_command=agent_command,
+            agent_url=agent_url,
+            headers=headers,
             scenario_path=scenario_path,
             workflow_path=workflow_path,
             force=force,
@@ -466,9 +486,19 @@ def init(
 
     for path in written_paths:
         typer.echo(f"Wrote {path}")
-    typer.echo(
-        f"Next: edit the starter scenario, then run `uv run anvil run {scenario_path} --offline`."
-    )
+    if agent_url is not None:
+        typer.echo(
+            "Next: start your HTTP agent endpoint, then run "
+            f'`uv run anvil conformance external-agent --url "{agent_url}"`.'
+        )
+        typer.echo(
+            f"Then edit the starter scenario and run `uv run anvil run {scenario_path} --offline`."
+        )
+    else:
+        typer.echo(
+            "Next: edit the starter scenario, then run "
+            f"`uv run anvil run {scenario_path} --offline`."
+        )
 
 
 @pack_app.command("list")
@@ -480,7 +510,7 @@ def pack_list() -> None:
 @pack_app.command("add")
 def pack_add(
     pack_name: str,
-    agent_command: str = INIT_AGENT_COMMAND_OPTION,
+    agent_command: str = PACK_AGENT_COMMAND_OPTION,
     out: Path = PACK_OUT_OPTION,
     force: bool = INIT_FORCE_OPTION,
     risky_tools: list[str] | None = RISKY_TOOL_OPTION,

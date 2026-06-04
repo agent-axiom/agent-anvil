@@ -5,6 +5,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from anvil.cli import app
+from anvil.scenario import ExternalAgentConfig, load_scenario_file
 
 
 def test_cli_init_writes_starter_scenario_and_workflow(tmp_path: Path) -> None:
@@ -36,6 +37,83 @@ def test_cli_init_writes_starter_scenario_and_workflow(tmp_path: Path) -> None:
     assert "agent-axiom/agent-anvil@v" in workflow_text
     assert "pull-requests: write" in workflow_text
     assert 'post-pr-comment: "true"' in workflow_text
+
+
+def test_cli_init_writes_http_starter_scenario_and_workflow(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--agent-url",
+            "http://127.0.0.1:8080/anvil",
+            "--header",
+            "Authorization=Bearer $ANVIL_AGENT_TOKEN",
+            "--scenario",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+        ],
+    )
+
+    suite = load_scenario_file(scenario_path)
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    assert result.exit_code == 0
+    assert "Next: start your HTTP agent endpoint" in result.stdout
+    assert "anvil conformance external-agent --url" in result.stdout
+    assert isinstance(suite.agent, ExternalAgentConfig)
+    assert suite.agent.protocol == "http"
+    assert suite.agent.url == "http://127.0.0.1:8080/anvil"
+    assert suite.agent.headers == {"Authorization": "Bearer $ANVIL_AGENT_TOKEN"}
+    assert "Run HTTP agent conformance" in workflow_text
+    assert "uvx --from git+https://github.com/agent-axiom/agent-anvil@v" in workflow_text
+    assert "ANVIL_AGENT_TOKEN: ${{ secrets.ANVIL_AGENT_TOKEN }}" in workflow_text
+    assert "anvil conformance external-agent" in workflow_text
+    assert '--url "http://127.0.0.1:8080/anvil"' in workflow_text
+    assert '--header "Authorization=Bearer $ANVIL_AGENT_TOKEN"' in workflow_text
+    assert "scenario: " + scenario_path.as_posix() in workflow_text
+
+
+def test_cli_init_rejects_ambiguous_agent_targets(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python my_agent.py",
+            "--agent-url",
+            "http://127.0.0.1:8080/anvil",
+            "--scenario",
+            str(tmp_path / "scenario.yaml"),
+            "--workflow",
+            str(tmp_path / "workflow.yml"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Use either --agent-command or --agent-url" in result.stderr
+
+
+def test_cli_init_rejects_headers_without_http_agent(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python my_agent.py",
+            "--header",
+            "Authorization=Bearer $ANVIL_AGENT_TOKEN",
+            "--scenario",
+            str(tmp_path / "scenario.yaml"),
+            "--workflow",
+            str(tmp_path / "workflow.yml"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "--header only applies to --agent-url" in result.stderr
 
 
 def test_cli_init_refuses_to_overwrite_without_force(tmp_path: Path) -> None:
