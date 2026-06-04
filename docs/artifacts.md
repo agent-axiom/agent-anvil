@@ -67,6 +67,7 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [External agent conformance report](conformance-report.md)
 - [External agent adapters](adapters.md)
 - [FastAPI HTTP agent example](http-fastapi-agent.md)
+- [Node / Express HTTP agent example](node-http-agent.md)
 - [Engineering details](engineering.md)
 - [GitHub Action marketplace notes](marketplace.md)
 - [Leaderboard submission workflow](examples/leaderboard-submission-workflow.yml)

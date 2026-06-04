@@ -173,6 +173,18 @@ uv run anvil run scenarios/http_fastapi_agent.yaml --offline
 See [`examples/http_fastapi_agent`](examples/http_fastapi_agent) and
 [`docs/http-fastapi-agent.md`](docs/http-fastapi-agent.md).
 
+Try the bundled Node / Express HTTP agent example:
+
+```bash
+npm --prefix examples/node_http_agent install
+npm --prefix examples/node_http_agent start
+uv run anvil conformance external-agent --url "http://127.0.0.1:8081/anvil"
+uv run anvil run scenarios/node_http_agent.yaml --offline
+```
+
+See [`examples/node_http_agent`](examples/node_http_agent) and
+[`docs/node-http-agent.md`](docs/node-http-agent.md).
+
 Generate starter adapters for common agent frameworks:
 
 ```bash
