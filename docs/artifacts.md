@@ -68,6 +68,7 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [External agent adapters](adapters.md)
 - [FastAPI HTTP agent example](http-fastapi-agent.md)
 - [Node / Express HTTP agent example](node-http-agent.md)
+- [OpenAI Agents SDK HTTP agent example](openai-agents-sdk-agent.md)
 - [Engineering details](engineering.md)
 - [GitHub Action marketplace notes](marketplace.md)
 - [Leaderboard submission workflow](examples/leaderboard-submission-workflow.yml)
