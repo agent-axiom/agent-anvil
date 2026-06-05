@@ -185,6 +185,18 @@ uv run anvil run scenarios/node_http_agent.yaml --offline
 See [`examples/node_http_agent`](examples/node_http_agent) and
 [`docs/node-http-agent.md`](docs/node-http-agent.md).
 
+Try the bundled OpenAI Agents SDK HTTP agent example:
+
+```bash
+uv run --with fastapi --with uvicorn \
+  uvicorn examples.openai_agents_sdk_agent.app:app --host 127.0.0.1 --port 8082
+uv run anvil conformance external-agent --url "http://127.0.0.1:8082/anvil"
+uv run anvil run scenarios/openai_agents_sdk_agent.yaml --offline
+```
+
+See [`examples/openai_agents_sdk_agent`](examples/openai_agents_sdk_agent) and
+[`docs/openai-agents-sdk-agent.md`](docs/openai-agents-sdk-agent.md).
+
 Generate starter adapters for common agent frameworks:
 
 ```bash

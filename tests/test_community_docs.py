@@ -122,6 +122,18 @@ def test_node_http_agent_example_is_documented() -> None:
     assert "scenarios/node_http_agent.yaml" in example_doc
 
 
+def test_openai_agents_sdk_agent_example_is_documented() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    example_doc = Path("docs/openai-agents-sdk-agent.md").read_text(encoding="utf-8")
+
+    assert "examples/openai_agents_sdk_agent" in readme
+    assert "openai-agents-sdk-agent.md" in artifacts
+    assert "--with openai-agents --with fastapi --with uvicorn" in example_doc
+    assert "ANVIL_OPENAI_AGENTS_MODE=openai" in example_doc
+    assert "scenarios/openai_agents_sdk_agent.yaml" in example_doc
+
+
 def test_leaderboard_docs_cover_public_huggingface_flow() -> None:
     readme = Path("README.md").read_text(encoding="utf-8")
     artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
