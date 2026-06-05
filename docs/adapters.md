@@ -49,13 +49,30 @@ emit_final_output("Order verified.")
 
 ## OpenAI Agents SDK
 
-`openai-agents` generates a starter that imports `Agent` and `Runner`, runs
-`Runner.run_sync(...)`, emits one `model_call`, then emits `final_output`.
+`openai-agents` generates a starter that follows the checked
+[OpenAI Agents SDK HTTP example](openai-agents-sdk-agent.md): it exposes
+`handle_anvil(payload)`, supports deterministic offline protocol checks, and
+uses `ANVIL_OPENAI_AGENTS_MODE=openai` to run `Agent`, `Runner.run_sync(...)`,
+and a wrapped `@function_tool(name_override="lookup_order")`.
 
-The template intentionally does not pretend to recover every internal SDK trace
-event. If you need exact tool-call events, wrap your local tools and call
-`emit_tool_call(...)` after each tool execution, or map your own trace export
-into Agent Anvil JSONL.
+The same generated file can be used in JSONL mode:
+
+```bash
+uv run anvil conformance external-agent \
+  --agent-command "python adapters/openai_agents_adapter.py"
+```
+
+Or as an HTTP adapter without changing the file:
+
+```bash
+uv run --with fastapi --with uvicorn \
+  uvicorn adapters.openai_agents_adapter:create_fastapi_app \
+  --factory --host 127.0.0.1 --port 8080
+uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+```
+
+Replace the demo `lookup_order` tool with your production tools. Keep the
+wrapper pattern when you need exact `tool_call` events in Agent Anvil traces.
 
 Reference: [OpenAI Agents SDK running agents](https://openai.github.io/openai-agents-python/running_agents/).
 

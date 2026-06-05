@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -28,10 +31,47 @@ def test_adapter_add_writes_openai_agents_template(tmp_path: Path) -> None:
     assert "Wrote adapter template:" in result.output
     content = out_path.read_text(encoding="utf-8")
     compile(content, str(out_path), "exec")
-    assert "from agents import Agent, Runner" in content
-    assert "Runner.run_sync" in content
+    assert "def handle_anvil(payload: dict[str, Any]) -> dict[str, Any]:" in content
+    assert 'ANVIL_OPENAI_AGENTS_MODE", "offline"' in content
+    assert 'function_tool(name_override="lookup_order")' in content
+    assert "agents.Runner.run_sync" in content
+    assert "def create_fastapi_app() -> Any:" in content
     assert "emit_final_output" in content
-    assert "Agent Anvil external JSONL adapter for OpenAI Agents SDK" in content
+    assert "Agent Anvil adapter starter for OpenAI Agents SDK" in content
+
+
+def test_generated_openai_agents_template_runs_offline_jsonl(tmp_path: Path) -> None:
+    out_path = tmp_path / "openai_agents_adapter.py"
+    result = CliRunner().invoke(app, ["adapter", "add", "openai-agents", "--out", str(out_path)])
+    assert result.exit_code == 0
+
+    completed = subprocess.run(
+        [sys.executable, str(out_path)],
+        input=json.dumps(
+            {
+                "scenario_id": "generated_openai_agents",
+                "input": "Please check order ORD-123 before issuing any refund.",
+                "trial": 1,
+                "run_id": "run_test",
+                "max_steps": 8,
+            }
+        ),
+        text=True,
+        capture_output=True,
+        check=True,
+        env={**os.environ, "ANVIL_OPENAI_AGENTS_MODE": "offline"},
+    )
+
+    events = [json.loads(line) for line in completed.stdout.splitlines()]
+    assert events[0]["type"] == "model_call"
+    assert events[0]["model"] == "openai-agents-sdk-offline-demo"
+    assert events[1] == {
+        "type": "tool_call",
+        "tool_name": "lookup_order",
+        "arguments": {"order_id": "ORD-123"},
+        "result": {"order_id": "ORD-123", "status": "found", "verified": True},
+    }
+    assert events[-1]["type"] == "final_output"
 
 
 def test_adapter_add_writes_langgraph_template(tmp_path: Path) -> None:
