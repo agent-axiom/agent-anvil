@@ -78,9 +78,31 @@ Reference: [OpenAI Agents SDK running agents](https://openai.github.io/openai-ag
 
 ## LangGraph
 
-`langgraph` generates a starter around `StateGraph`, `START`, `END`,
-`compile()`, and `graph.invoke(...)`. It expects your graph to return
-`final_output` and optionally a `tool_calls` list in state.
+`langgraph` generates a starter with the same JSONL/HTTP shape as the OpenAI
+Agents SDK template: it exposes `handle_anvil(payload)`, defaults to
+deterministic offline protocol checks, and uses `ANVIL_LANGGRAPH_MODE=langgraph`
+to lazily import `langgraph.graph`, build a `StateGraph`, and run
+`graph.invoke(...)`.
+
+The same generated file can be used in JSONL mode:
+
+```bash
+uv run anvil conformance external-agent \
+  --agent-command "python adapters/langgraph_adapter.py"
+```
+
+Or as an HTTP adapter:
+
+```bash
+uv run --with fastapi --with uvicorn \
+  uvicorn adapters.langgraph_adapter:create_fastapi_app \
+  --factory --host 127.0.0.1 --port 8080
+uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+```
+
+Replace `agent_node` with your production graph. Keep tool executions in a
+`tool_calls` list with `tool_name`, `arguments`, and `result` when you want
+exact `tool_call` events in Agent Anvil traces.
 
 Reference: [LangGraph Graph API](https://docs.langchain.com/oss/python/langgraph/use-graph-api).
 
