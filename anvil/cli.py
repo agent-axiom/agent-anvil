@@ -148,6 +148,16 @@ INIT_AGENT_URL_OPTION = typer.Option(
     "--agent-url",
     help="HTTP endpoint URL Agent Anvil should POST scenario payloads to.",
 )
+INIT_ADAPTER_OPTION = typer.Option(
+    None,
+    "--adapter",
+    help="Generate a starter adapter template and wire it into the starter scenario.",
+)
+INIT_ADAPTER_OUT_OPTION = typer.Option(
+    None,
+    "--adapter-out",
+    help="Adapter path to create when using --adapter. Defaults to adapters/<name>_adapter.py.",
+)
 INIT_HEADER_OPTION = typer.Option(
     None,
     "--header",
@@ -455,6 +465,8 @@ def conformance_external_agent(
 def init(
     agent_command: str | None = INIT_AGENT_COMMAND_OPTION,
     agent_url: str | None = INIT_AGENT_URL_OPTION,
+    adapter: str | None = INIT_ADAPTER_OPTION,
+    adapter_out: Path | None = INIT_ADAPTER_OUT_OPTION,
     header: list[str] | None = INIT_HEADER_OPTION,
     scenario_path: Path = INIT_SCENARIO_OPTION,
     workflow_path: Path = INIT_WORKFLOW_OPTION,
@@ -470,6 +482,8 @@ def init(
         written_paths = initialize_project(
             agent_command=agent_command,
             agent_url=agent_url,
+            adapter=adapter,
+            adapter_out=adapter_out,
             headers=headers,
             scenario_path=scenario_path,
             workflow_path=workflow_path,
@@ -486,7 +500,16 @@ def init(
 
     for path in written_paths:
         typer.echo(f"Wrote {path}")
-    if agent_url is not None:
+    if adapter is not None:
+        typer.echo(
+            "Next: edit the generated adapter, then run "
+            f"`uv run anvil conformance external-agent --agent-command "
+            f'"python {written_paths[-1].as_posix()}"`.'
+        )
+        typer.echo(
+            f"Then edit the starter scenario and run `uv run anvil run {scenario_path} --offline`."
+        )
+    elif agent_url is not None:
         typer.echo(
             "Next: start your HTTP agent endpoint, then run "
             f'`uv run anvil conformance external-agent --url "{agent_url}"`.'

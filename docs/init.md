@@ -8,6 +8,27 @@ scenario in CI.
 uv run anvil init --agent-command "python my_agent.py"
 ```
 
+If you do not have an adapter yet, generate one and wire it into the starter
+scenario in one command:
+
+```bash
+uv run anvil init --adapter http-python
+```
+
+This writes:
+
+- `adapters/http_python_adapter.py`
+- `scenarios/agent_anvil_starter.yaml`
+- `.github/workflows/agent-anvil.yml`
+
+Use `--adapter-out` to choose a custom adapter path:
+
+```bash
+uv run anvil init \
+  --adapter openai-agents \
+  --adapter-out adapters/openai_agents_adapter.py
+```
+
 For an already-running HTTP endpoint agent:
 
 ```bash
@@ -67,7 +88,8 @@ repair hint, and first failing trace path directly to the PR.
 
 ## Existing Files
 
-`anvil init` refuses to overwrite existing files:
+`anvil init` refuses to overwrite existing files, including generated adapter
+files:
 
 ```bash
 uv run anvil init --agent-command "python my_agent.py"

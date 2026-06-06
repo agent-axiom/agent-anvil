@@ -696,15 +696,29 @@ def list_adapter_templates() -> tuple[AdapterTemplate, ...]:
     return tuple(ADAPTER_TEMPLATES.values())
 
 
+def default_adapter_out_path(name: str) -> Path:
+    _get_adapter_template(name)
+    return Path("adapters") / f"{name.replace('-', '_')}_adapter.py"
+
+
+def render_adapter_template(name: str) -> str:
+    return _get_adapter_template(name).content
+
+
 def write_adapter_template(name: str, *, out_path: Path, force: bool = False) -> Path:
-    template = ADAPTER_TEMPLATES.get(name)
-    if template is None:
-        known = ", ".join(sorted(ADAPTER_TEMPLATES))
-        msg = f"Unknown adapter template '{name}'. Available templates: {known}."
-        raise ValueError(msg)
+    template = _get_adapter_template(name)
     if out_path.exists() and not force:
         msg = f"{out_path} already exists. Pass --force to overwrite it."
         raise FileExistsError(msg)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(template.content, encoding="utf-8")
     return out_path
+
+
+def _get_adapter_template(name: str) -> AdapterTemplate:
+    template = ADAPTER_TEMPLATES.get(name)
+    if template is None:
+        known = ", ".join(sorted(ADAPTER_TEMPLATES))
+        msg = f"Unknown adapter template '{name}'. Available templates: {known}."
+        raise ValueError(msg)
+    return template

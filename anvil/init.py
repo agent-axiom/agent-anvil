@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from importlib import metadata
 from pathlib import Path
 
+from anvil.adapter_templates import default_adapter_out_path, render_adapter_template
 from anvil.packs import render_pack
 
 DEFAULT_SCENARIO_PATH = Path("scenarios/agent_anvil_starter.yaml")
@@ -18,6 +19,8 @@ def initialize_project(
     *,
     agent_command: str | None = None,
     agent_url: str | None = None,
+    adapter: str | None = None,
+    adapter_out: Path | None = None,
     headers: dict[str, str] | None = None,
     scenario_path: Path = DEFAULT_SCENARIO_PATH,
     workflow_path: Path = DEFAULT_WORKFLOW_PATH,
@@ -29,23 +32,30 @@ def initialize_project(
     approval_required_tools: list[str] | None = None,
 ) -> list[Path]:
     headers = headers or {}
-    if bool(agent_command) == bool(agent_url):
-        raise ValueError("Use either --agent-command or --agent-url.")
+    target_count = sum(value is not None for value in (agent_command, agent_url, adapter))
+    if target_count != 1:
+        raise ValueError("Use only one of --agent-command, --agent-url, or --adapter.")
+    if adapter_out is not None and adapter is None:
+        raise ValueError("--adapter-out only applies to --adapter.")
     if headers and agent_url is None:
         raise ValueError("--header only applies to --agent-url.")
     if pack and agent_url is not None:
         raise ValueError("--pack currently requires --agent-command.")
 
+    adapter_path = _resolve_adapter_out(adapter, adapter_out)
+    resolved_agent_command = (
+        f"python {adapter_path.as_posix()}" if adapter_path is not None else agent_command
+    )
     action_ref = f"agent-axiom/agent-anvil@v{_package_version()}"
     scenario_content = (
         _jsonl_scenario_content(
-            agent_command=agent_command or "",
+            agent_command=resolved_agent_command or "",
             pack=pack,
             risky_tools=risky_tools,
             verification_tools=verification_tools,
             approval_required_tools=approval_required_tools,
         )
-        if agent_command is not None
+        if resolved_agent_command is not None
         else _starter_http_scenario(agent_url or "", headers=headers)
     )
     writes = {
@@ -59,16 +69,25 @@ def initialize_project(
             headers=headers,
         ),
     }
+    if adapter is not None and adapter_path is not None:
+        writes[adapter_path] = render_adapter_template(adapter)
 
     written_paths: list[Path] = []
-    for path, content in writes.items():
+    for path in writes:
         if path.exists() and not force:
             raise FileExistsError(f"{path} already exists. Re-run with --force to overwrite it.")
+    for path, content in writes.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         written_paths.append(path)
 
     return written_paths
+
+
+def _resolve_adapter_out(adapter: str | None, adapter_out: Path | None) -> Path | None:
+    if adapter is None:
+        return None
+    return adapter_out or default_adapter_out_path(adapter)
 
 
 def _jsonl_scenario_content(
