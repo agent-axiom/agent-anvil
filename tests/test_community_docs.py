@@ -93,6 +93,8 @@ def test_adapter_docs_are_linked_from_readme_and_cli_reference() -> None:
     assert "docs/adapters.md" in readme
     assert "adapters.md" in artifacts
     assert "uv run anvil adapter list" in cli_doc
+    assert "uv run anvil adapter add http-python" in readme
+    assert "uv run anvil adapter add http-python" in cli_doc
     assert "uv run anvil adapter add openai-agents" in cli_doc
     assert "uv run anvil adapter add langgraph" in cli_doc
     assert "OpenAI Agents SDK" in adapters

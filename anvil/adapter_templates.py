@@ -471,6 +471,205 @@ LANGGRAPH_TEMPLATE = dedent(
 ).lstrip()
 
 
+HTTP_PYTHON_TEMPLATE = dedent(
+    '''
+    from __future__ import annotations
+
+    """Agent Anvil stdlib HTTP adapter starter.
+
+    Requires:
+        pip install agent-anvil
+
+    Verify JSONL mode:
+        uv run anvil conformance external-agent --agent-command "python http_python_adapter.py"
+
+    Verify HTTP mode:
+        python http_python_adapter.py --serve --host 127.0.0.1 --port 8080
+        uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+
+    This template uses only Python's standard-library HTTP server plus
+    `anvil.external`, so it is the smallest bridge for custom agents.
+    """
+
+    import argparse
+    import json
+    import re
+    import sys
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from typing import Any
+
+    from anvil.external import emit_final_output, emit_model_call, emit_tool_call, read_payload
+
+    MODEL_NAME = "stdlib-http-python-demo"
+    ORDER_ID_RE = re.compile(r"\\bORD-\\d+\\b")
+
+
+    def handle_anvil(payload: dict[str, Any]) -> dict[str, Any]:
+        """Replace this deterministic demo with your production agent call."""
+        input_text = str(payload.get("input", ""))
+        order_id = _extract_order_id(input_text)
+        if order_id is None:
+            return {
+                "status": "completed",
+                "events": [
+                    {
+                        "type": "model_call",
+                        "model": MODEL_NAME,
+                        "input": input_text,
+                        "output_text": "I need an order ID before looking up refund eligibility.",
+                        "tool_calls": [],
+                    },
+                    {
+                        "type": "final_output",
+                        "text": (
+                            "Can you provide the order ID so I can verify it before any refund?"
+                        ),
+                    },
+                ],
+            }
+
+        result = lookup_order(order_id)
+        return {
+            "status": "completed",
+            "events": [
+                {
+                    "type": "model_call",
+                    "model": MODEL_NAME,
+                    "input": input_text,
+                    "output_text": f"I will look up {order_id} before any refund action.",
+                    "tool_calls": [{"name": "lookup_order", "arguments": {"order_id": order_id}}],
+                },
+                {
+                    "type": "tool_call",
+                    "tool_name": "lookup_order",
+                    "arguments": {"order_id": order_id},
+                    "result": result,
+                },
+                {
+                    "type": "final_output",
+                    "text": (
+                        f"Order {order_id} is verified. "
+                        "Replace this demo with your agent output."
+                    ),
+                },
+            ],
+        }
+
+
+    def lookup_order(order_id: str) -> dict[str, Any]:
+        """Replace this demo tool with your production tool."""
+        return {"order_id": order_id, "status": "found", "verified": True}
+
+
+    class AnvilHTTPHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            if self.path != "/anvil":
+                self.send_error(404, "Use POST /anvil")
+                return
+            try:
+                payload = _read_json_payload(self)
+                response = handle_anvil(payload)
+            except Exception as error:
+                response = {
+                    "status": "failed",
+                    "events": [
+                        {
+                            "type": "final_output",
+                            "text": f"Adapter failed to handle request: {error}",
+                        }
+                    ],
+                }
+            status = 200 if response.get("status") == "completed" else 500
+            _send_json(self, status, response)
+
+        def log_message(self, format: str, *args: Any) -> None:
+            return
+
+
+    def run_http_server(host: str, port: int) -> None:
+        server = ThreadingHTTPServer((host, port), AnvilHTTPHandler)
+        print(f"Agent Anvil HTTP adapter listening on http://{host}:{port}/anvil")
+        server.serve_forever()
+
+
+    def main() -> None:
+        if "--serve" in sys.argv:
+            args = _parse_server_args()
+            run_http_server(args.host, args.port)
+            return
+        response = handle_anvil(read_payload())
+        for event in response.get("events", []):
+            _emit_jsonl_event(event)
+        if response.get("status") == "failed":
+            raise SystemExit(1)
+
+
+    def _parse_server_args() -> argparse.Namespace:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--serve", action="store_true")
+        parser.add_argument("--host", default="127.0.0.1")
+        parser.add_argument("--port", type=int, default=8080)
+        return parser.parse_args()
+
+
+    def _read_json_payload(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
+        content_length = int(handler.headers.get("Content-Length", "0") or "0")
+        raw_body = handler.rfile.read(content_length).decode("utf-8")
+        payload = json.loads(raw_body or "{}")
+        if not isinstance(payload, dict):
+            msg = "request body must be a JSON object"
+            raise TypeError(msg)
+        return payload
+
+
+    def _send_json(
+        handler: BaseHTTPRequestHandler,
+        status: int,
+        payload: dict[str, Any],
+    ) -> None:
+        body = json.dumps(payload).encode("utf-8")
+        handler.send_response(status)
+        handler.send_header("Content-Type", "application/json")
+        handler.send_header("Content-Length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body)
+
+
+    def _emit_jsonl_event(event: dict[str, Any]) -> None:
+        event_type = event.get("type")
+        if event_type == "model_call":
+            emit_model_call(
+                model=str(event.get("model", MODEL_NAME)),
+                input_text=str(event.get("input", "")),
+                output_text=str(event.get("output_text", "")),
+                tool_calls=list(event.get("tool_calls", [])),
+            )
+            return
+        if event_type == "tool_call":
+            emit_tool_call(
+                tool_name=str(event["tool_name"]),
+                arguments=dict(event.get("arguments", {})),
+                result=event.get("result"),
+            )
+            return
+        if event_type == "final_output":
+            emit_final_output(str(event.get("text", event.get("final_output", ""))))
+            return
+        msg = f"Unsupported Agent Anvil event type: {event_type}"
+        raise ValueError(msg)
+
+
+    def _extract_order_id(input_text: str) -> str | None:
+        match = ORDER_ID_RE.search(input_text)
+        return match.group(0) if match else None
+
+
+    if __name__ == "__main__":
+        main()
+    '''
+).lstrip()
+
+
 ADAPTER_TEMPLATES: dict[str, AdapterTemplate] = {
     "openai-agents": AdapterTemplate(
         name="openai-agents",
@@ -483,6 +682,12 @@ ADAPTER_TEMPLATES: dict[str, AdapterTemplate] = {
         description="JSONL/HTTP adapter starter for LangGraph StateGraph workflows.",
         dependency_hint="pip install langgraph agent-anvil; optional: fastapi uvicorn",
         content=LANGGRAPH_TEMPLATE,
+    ),
+    "http-python": AdapterTemplate(
+        name="http-python",
+        description="Dependency-free JSONL/HTTP adapter starter using Python stdlib.",
+        dependency_hint="pip install agent-anvil",
+        content=HTTP_PYTHON_TEMPLATE,
     ),
 }
 

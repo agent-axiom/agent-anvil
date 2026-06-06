@@ -13,6 +13,7 @@ uv run anvil adapter list
 Generate a template:
 
 ```bash
+uv run anvil adapter add http-python --out adapters/http_python_adapter.py
 uv run anvil adapter add openai-agents --out adapters/openai_agents_adapter.py
 uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py
 ```
@@ -46,6 +47,29 @@ emit_tool_call(
 )
 emit_final_output("Order verified.")
 ```
+
+## Plain Python HTTP
+
+`http-python` generates the smallest adapter: no framework dependency, no model
+SDK dependency, just Python's standard-library `ThreadingHTTPServer` and
+`anvil.external`.
+
+The same generated file can be used in JSONL mode:
+
+```bash
+uv run anvil conformance external-agent \
+  --agent-command "python adapters/http_python_adapter.py"
+```
+
+Or as an HTTP server:
+
+```bash
+python adapters/http_python_adapter.py --serve --host 127.0.0.1 --port 8080
+uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+```
+
+Replace `handle_anvil(payload)` with your production agent call and keep
+emitting `model_call`, `tool_call`, and `final_output` events.
 
 ## OpenAI Agents SDK
 
