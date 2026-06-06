@@ -8,6 +8,23 @@ scenario in CI.
 uv run anvil init --agent-command "python my_agent.py"
 ```
 
+For the fastest CI-safe scaffold, use the built-in profile:
+
+```bash
+uv run anvil init --profile ci-safe
+```
+
+The `ci-safe` profile creates the default `http-python` adapter, writes the
+`tool-safety` scenario pack, and enables PR comments in the generated workflow.
+Edit the generated adapter and scenario pack before treating the eval result as
+your agent's safety signal.
+You can still choose a different JSONL target:
+
+```bash
+uv run anvil init --profile ci-safe --agent-command "python my_agent.py"
+uv run anvil init --profile ci-safe --adapter openai-agents
+```
+
 If you do not have an adapter yet, generate one and wire it into the starter
 scenario in one command:
 

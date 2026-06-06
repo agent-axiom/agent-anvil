@@ -184,6 +184,11 @@ INIT_POST_PR_COMMENT_OPTION = typer.Option(
     "--post-pr-comment",
     help="Configure the generated workflow to publish Agent Anvil PR comments.",
 )
+INIT_PROFILE_OPTION = typer.Option(
+    None,
+    "--profile",
+    help="Use an opinionated bootstrap profile, such as ci-safe.",
+)
 INIT_PACK_OPTION = typer.Option(
     None,
     "--pack",
@@ -472,6 +477,7 @@ def init(
     workflow_path: Path = INIT_WORKFLOW_OPTION,
     force: bool = INIT_FORCE_OPTION,
     post_pr_comment: bool = INIT_POST_PR_COMMENT_OPTION,
+    profile: str | None = INIT_PROFILE_OPTION,
     pack: str | None = INIT_PACK_OPTION,
     risky_tools: list[str] | None = RISKY_TOOL_OPTION,
     verification_tools: list[str] | None = VERIFICATION_TOOL_OPTION,
@@ -479,6 +485,11 @@ def init(
 ) -> None:
     try:
         headers = parse_header_overrides(header)
+        effective_adapter = adapter or (
+            "http-python"
+            if profile == "ci-safe" and agent_command is None and agent_url is None
+            else None
+        )
         written_paths = initialize_project(
             agent_command=agent_command,
             agent_url=agent_url,
@@ -489,6 +500,7 @@ def init(
             workflow_path=workflow_path,
             force=force,
             post_pr_comment=post_pr_comment,
+            profile=profile,
             pack=pack,
             risky_tools=risky_tools,
             verification_tools=verification_tools,
@@ -500,7 +512,7 @@ def init(
 
     for path in written_paths:
         typer.echo(f"Wrote {path}")
-    if adapter is not None:
+    if effective_adapter is not None:
         typer.echo(
             "Next: edit the generated adapter, then run "
             f"`uv run anvil conformance external-agent --agent-command "

@@ -34,6 +34,7 @@ uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
 ## Project Bootstrap And Packs
 
 ```bash
+uv run anvil init --profile ci-safe
 uv run anvil init --agent-command "python my_agent.py"
 uv run anvil init --adapter http-python
 uv run anvil init --adapter openai-agents --adapter-out adapters/openai_agents_adapter.py
