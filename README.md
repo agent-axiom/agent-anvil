@@ -27,8 +27,9 @@ ordered tool calls, max call counts, forbidden argument values, tool-result
 checks, and final-output text checks.
 
 ```bash
-uv run anvil init --adapter http-python
+uv run anvil init --profile ci-safe
 uv run anvil conformance external-agent --agent-command "python adapters/http_python_adapter.py"
+# Edit scenarios/agent_anvil_starter.yaml and adapters/http_python_adapter.py.
 uv run anvil run scenarios/agent_anvil_starter.yaml --offline
 uv run anvil report runs/latest
 uv run anvil summary runs/latest --github
@@ -201,6 +202,7 @@ See [`examples/openai_agents_sdk_agent`](examples/openai_agents_sdk_agent) and
 Generate starter adapters for common agent frameworks:
 
 ```bash
+uv run anvil init --profile ci-safe
 uv run anvil init --agent-command "python my_agent.py"
 uv run anvil init --adapter http-python
 uv run anvil adapter add http-python --out adapters/http_python_adapter.py

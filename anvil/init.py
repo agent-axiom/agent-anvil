@@ -10,6 +10,7 @@ from anvil.packs import render_pack
 
 DEFAULT_SCENARIO_PATH = Path("scenarios/agent_anvil_starter.yaml")
 DEFAULT_WORKFLOW_PATH = Path(".github/workflows/agent-anvil.yml")
+CI_SAFE_PROFILE = "ci-safe"
 _ENV_REF_RE = re.compile(
     r"\$(?:\{(?P<brace>[A-Za-z_][A-Za-z0-9_]*)\}|(?P<plain>[A-Za-z_][A-Za-z0-9_]*))"
 )
@@ -21,6 +22,7 @@ def initialize_project(
     agent_url: str | None = None,
     adapter: str | None = None,
     adapter_out: Path | None = None,
+    profile: str | None = None,
     headers: dict[str, str] | None = None,
     scenario_path: Path = DEFAULT_SCENARIO_PATH,
     workflow_path: Path = DEFAULT_WORKFLOW_PATH,
@@ -32,6 +34,17 @@ def initialize_project(
     approval_required_tools: list[str] | None = None,
 ) -> list[Path]:
     headers = headers or {}
+    if profile is not None and profile != CI_SAFE_PROFILE:
+        raise ValueError(
+            f"Unknown init profile '{profile}'. Available profiles: {CI_SAFE_PROFILE}."
+        )
+    if profile == CI_SAFE_PROFILE:
+        if agent_url is not None:
+            raise ValueError("ci-safe profile requires a JSONL agent command or adapter.")
+        if agent_command is None and adapter is None:
+            adapter = "http-python"
+        pack = pack or "tool-safety"
+        post_pr_comment = True
     target_count = sum(value is not None for value in (agent_command, agent_url, adapter))
     if target_count != 1:
         raise ValueError("Use only one of --agent-command, --agent-url, or --adapter.")
@@ -40,7 +53,7 @@ def initialize_project(
     if headers and agent_url is None:
         raise ValueError("--header only applies to --agent-url.")
     if pack and agent_url is not None:
-        raise ValueError("--pack currently requires --agent-command.")
+        raise ValueError("--pack currently requires a JSONL agent command or adapter.")
 
     adapter_path = _resolve_adapter_out(adapter, adapter_out)
     resolved_agent_command = (
