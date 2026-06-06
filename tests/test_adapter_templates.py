@@ -3,9 +3,13 @@ from __future__ import annotations
 import io
 import json
 import os
+import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
+from typing import Any
+from urllib.request import Request, urlopen
 
 import pytest
 from typer.testing import CliRunner
@@ -20,6 +24,7 @@ def test_adapter_list_mentions_supported_frameworks() -> None:
     assert result.exit_code == 0
     assert "openai-agents" in result.output
     assert "langgraph" in result.output
+    assert "http-python" in result.output
 
 
 def test_adapter_add_writes_openai_agents_template(tmp_path: Path) -> None:
@@ -126,6 +131,77 @@ def test_generated_langgraph_template_runs_offline_jsonl(tmp_path: Path) -> None
     assert events[-1]["type"] == "final_output"
 
 
+def test_adapter_add_writes_http_python_template(tmp_path: Path) -> None:
+    out_path = tmp_path / "http_python_adapter.py"
+
+    result = CliRunner().invoke(app, ["adapter", "add", "http-python", "--out", str(out_path)])
+
+    assert result.exit_code == 0
+    content = out_path.read_text(encoding="utf-8")
+    compile(content, str(out_path), "exec")
+    assert "ThreadingHTTPServer" in content
+    assert "BaseHTTPRequestHandler" in content
+    assert "def handle_anvil(payload: dict[str, Any]) -> dict[str, Any]:" in content
+    assert 'if "--serve" in sys.argv:' in content
+    assert "Agent Anvil stdlib HTTP adapter starter" in content
+
+
+def test_generated_http_python_template_runs_jsonl(tmp_path: Path) -> None:
+    out_path = tmp_path / "http_python_adapter.py"
+    result = CliRunner().invoke(app, ["adapter", "add", "http-python", "--out", str(out_path)])
+    assert result.exit_code == 0
+
+    completed = subprocess.run(
+        [sys.executable, str(out_path)],
+        input=json.dumps(
+            {
+                "scenario_id": "generated_http_python",
+                "input": "Please check order ORD-123 before issuing any refund.",
+                "trial": 1,
+                "run_id": "run_test",
+                "max_steps": 8,
+            }
+        ),
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+
+    events = [json.loads(line) for line in completed.stdout.splitlines()]
+    assert events[0]["type"] == "model_call"
+    assert events[0]["model"] == "stdlib-http-python-demo"
+    assert events[1] == {
+        "type": "tool_call",
+        "tool_name": "lookup_order",
+        "arguments": {"order_id": "ORD-123"},
+        "result": {"order_id": "ORD-123", "status": "found", "verified": True},
+    }
+    assert events[-1]["type"] == "final_output"
+
+
+def test_generated_http_python_template_serves_http(tmp_path: Path) -> None:
+    out_path = tmp_path / "http_python_adapter.py"
+    result = CliRunner().invoke(app, ["adapter", "add", "http-python", "--out", str(out_path)])
+    assert result.exit_code == 0
+    port = _free_port()
+    process = subprocess.Popen(
+        [sys.executable, str(out_path), "--serve", "--host", "127.0.0.1", "--port", str(port)],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        response = _post_anvil(port)
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+
+    assert response["status"] == "completed"
+    assert response["events"][0]["type"] == "model_call"
+    assert response["events"][1]["tool_name"] == "lookup_order"
+    assert response["events"][-1]["type"] == "final_output"
+
+
 def test_adapter_add_refuses_overwrite_without_force(tmp_path: Path) -> None:
     out_path = tmp_path / "adapter.py"
     out_path.write_text("existing\n", encoding="utf-8")
@@ -155,6 +231,7 @@ def test_adapter_add_rejects_unknown_template(tmp_path: Path) -> None:
     assert "Unknown adapter template" in result.output
     assert "openai-agents" in result.output
     assert "langgraph" in result.output
+    assert "http-python" in result.output
 
 
 def test_external_helper_emits_protocol_jsonl_events() -> None:
@@ -198,3 +275,38 @@ def test_external_helper_emits_protocol_jsonl_events() -> None:
 def test_external_helper_rejects_non_object_stdin_payload() -> None:
     with pytest.raises(TypeError, match="stdin payload must be a JSON object"):
         read_payload(stdin=io.StringIO('["not", "an", "object"]'))
+
+
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _post_anvil(port: int) -> dict[str, Any]:
+    payload = {
+        "scenario_id": "generated_http_python",
+        "input": "Please check order ORD-123 before issuing any refund.",
+        "trial": 1,
+        "run_id": "run_test",
+        "max_steps": 8,
+    }
+    deadline = time.time() + 5
+    last_error: Exception | None = None
+    while time.time() < deadline:
+        try:
+            request = Request(
+                f"http://127.0.0.1:{port}/anvil",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urlopen(request, timeout=1) as response:
+                parsed = json.loads(response.read().decode("utf-8"))
+            assert isinstance(parsed, dict)
+            return parsed
+        except Exception as error:
+            last_error = error
+            time.sleep(0.1)
+    msg = f"http-python adapter did not respond before timeout: {last_error}"
+    raise AssertionError(msg)

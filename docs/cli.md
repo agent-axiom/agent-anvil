@@ -54,6 +54,7 @@ uv run anvil pack add tool-safety \
 
 ```bash
 uv run anvil adapter list
+uv run anvil adapter add http-python --out adapters/http_python_adapter.py
 uv run anvil adapter add openai-agents --out adapters/openai_agents_adapter.py
 uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py
 uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py --force

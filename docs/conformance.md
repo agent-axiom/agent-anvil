@@ -24,6 +24,7 @@ Sample output: [External agent conformance report](conformance-report.md).
 If you use a common framework, generate a starter adapter first:
 
 ```bash
+uv run anvil adapter add http-python --out adapters/http_python_adapter.py
 uv run anvil adapter add openai-agents --out adapters/openai_agents_adapter.py
 uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py
 ```

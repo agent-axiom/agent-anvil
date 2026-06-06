@@ -200,6 +200,7 @@ See [`examples/openai_agents_sdk_agent`](examples/openai_agents_sdk_agent) and
 Generate starter adapters for common agent frameworks:
 
 ```bash
+uv run anvil adapter add http-python --out adapters/http_python_adapter.py
 uv run anvil adapter add openai-agents --out adapters/openai_agents_adapter.py
 uv run anvil adapter add langgraph --out adapters/langgraph_adapter.py
 ```
