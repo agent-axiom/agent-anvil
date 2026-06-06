@@ -238,24 +238,33 @@ LANGGRAPH_TEMPLATE = dedent(
     '''
     from __future__ import annotations
 
-    """Agent Anvil external JSONL adapter for LangGraph.
+    """Agent Anvil adapter starter for LangGraph.
 
     Requires:
         pip install langgraph agent-anvil
 
-    Verify:
+    Verify JSONL mode:
         uv run anvil conformance external-agent --agent-command "python langgraph_adapter.py"
 
-    Replace `agent_node` with your production graph nodes. If your graph records
-    tool calls in state, keep them in the `tool_calls` key using dictionaries with
-    `tool_name`, `arguments`, and `result`.
+    Verify HTTP mode:
+        uv run --with fastapi --with uvicorn \\
+          uvicorn langgraph_adapter:create_fastapi_app --factory --host 127.0.0.1 --port 8080
+        uv run anvil conformance external-agent --url "http://127.0.0.1:8080/anvil"
+
+    The adapter defaults to deterministic offline mode so protocol conformance
+    does not require LangGraph. Set ANVIL_LANGGRAPH_MODE=langgraph to run the
+    real LangGraph path.
     """
 
+    import os
+    import re
+    from importlib import import_module
     from typing import Any, TypedDict
 
-    from langgraph.graph import END, START, StateGraph
-
     from anvil.external import emit_final_output, emit_model_call, emit_tool_call, read_payload
+
+    OFFLINE_MODEL = "langgraph-offline-demo"
+    ORDER_ID_RE = re.compile(r"\\bORD-\\d+\\b")
 
 
     class AgentState(TypedDict, total=False):
@@ -264,42 +273,196 @@ LANGGRAPH_TEMPLATE = dedent(
         tool_calls: list[dict[str, Any]]
 
 
-    def agent_node(state: AgentState) -> AgentState:
+    def handle_anvil(payload: dict[str, Any]) -> dict[str, Any]:
+        """Return an Agent Anvil HTTP response with trace events."""
+        mode = os.getenv("ANVIL_LANGGRAPH_MODE", "offline").strip().lower()
+        if mode == "langgraph":
+            return _handle_langgraph(payload)
+        return _handle_offline(payload)
+
+
+    def _handle_offline(payload: dict[str, Any]) -> dict[str, Any]:
+        input_text = str(payload.get("input", ""))
+        order_id = _extract_order_id(input_text)
+        if order_id is None:
+            return {
+                "status": "completed",
+                "events": [
+                    {
+                        "type": "model_call",
+                        "model": OFFLINE_MODEL,
+                        "input": input_text,
+                        "output_text": "I need an order ID before looking up refund eligibility.",
+                        "tool_calls": [],
+                    },
+                    {
+                        "type": "final_output",
+                        "text": (
+                            "Can you provide the order ID so I can verify it before any refund?"
+                        ),
+                    },
+                ],
+            }
+
+        result = lookup_order(order_id)
         return {
-            "final_output": f"Replace this node with your LangGraph agent for: {state['input']}",
-            "tool_calls": [],
+            "status": "completed",
+            "events": [
+                {
+                    "type": "model_call",
+                    "model": OFFLINE_MODEL,
+                    "input": input_text,
+                    "output_text": f"I will look up {order_id} before any refund action.",
+                    "tool_calls": [{"name": "lookup_order", "arguments": {"order_id": order_id}}],
+                },
+                {
+                    "type": "tool_call",
+                    "tool_name": "lookup_order",
+                    "arguments": {"order_id": order_id},
+                    "result": result,
+                },
+                {
+                    "type": "final_output",
+                    "text": (
+                        f"Order {order_id} is verified. "
+                        "Replace this demo with your graph output."
+                    ),
+                },
+            ],
         }
 
 
-    def build_graph():
-        builder = StateGraph(AgentState)
+    def _handle_langgraph(payload: dict[str, Any]) -> dict[str, Any]:
+        input_text = str(payload.get("input", ""))
+        try:
+            graph = build_graph()
+            result = graph.invoke({"input": input_text})
+        except Exception as error:
+            return {
+                "status": "failed",
+                "events": [
+                    {
+                        "type": "final_output",
+                        "text": f"LangGraph run failed: {error}",
+                    }
+                ],
+            }
+
+        tool_calls = list(result.get("tool_calls", []))
+        final_output = str(result.get("final_output", ""))
+        return {
+            "status": "completed",
+            "events": [
+                {
+                    "type": "model_call",
+                    "model": "langgraph",
+                    "input": input_text,
+                    "output_text": final_output,
+                    "tool_calls": [
+                        {
+                            "name": str(tool_call["tool_name"]),
+                            "arguments": dict(tool_call.get("arguments", {})),
+                        }
+                        for tool_call in tool_calls
+                    ],
+                },
+                *[
+                    {
+                        "type": "tool_call",
+                        "tool_name": str(tool_call["tool_name"]),
+                        "arguments": dict(tool_call.get("arguments", {})),
+                        "result": tool_call.get("result"),
+                    }
+                    for tool_call in tool_calls
+                ],
+                {"type": "final_output", "text": final_output},
+            ],
+        }
+
+
+    def agent_node(state: AgentState) -> AgentState:
+        input_text = state["input"]
+        order_id = _extract_order_id(input_text)
+        if order_id is None:
+            return {
+                "final_output": "Can you provide the order ID so I can verify it first?",
+                "tool_calls": [],
+            }
+        result = lookup_order(order_id)
+        return {
+            "final_output": f"Order {order_id} is verified. Replace this node with your graph.",
+            "tool_calls": [
+                {
+                    "tool_name": "lookup_order",
+                    "arguments": {"order_id": order_id},
+                    "result": result,
+                }
+            ],
+        }
+
+
+    def build_graph() -> Any:
+        graph_module: Any = import_module("langgraph.graph")
+        builder = graph_module.StateGraph(AgentState)
         builder.add_node("agent", agent_node)
-        builder.add_edge(START, "agent")
-        builder.add_edge("agent", END)
+        builder.add_edge(graph_module.START, "agent")
+        builder.add_edge("agent", graph_module.END)
         return builder.compile()
+
+
+    def lookup_order(order_id: str) -> dict[str, Any]:
+        """Replace this demo tool with your production tool."""
+        return {"order_id": order_id, "status": "found", "verified": True}
+
+
+    def create_fastapi_app() -> Any:
+        """Create a FastAPI app lazily so JSONL mode has no FastAPI dependency."""
+        fastapi: Any = import_module("fastapi")
+        app = fastapi.FastAPI(title="Agent Anvil LangGraph Adapter")
+
+        @app.post("/anvil")
+        def anvil_endpoint(payload: dict[str, Any]) -> dict[str, Any]:
+            return handle_anvil(payload)
+
+        return app
 
 
     def main() -> None:
         payload = read_payload()
-        input_text = str(payload["input"])
-        graph = build_graph()
-        result = graph.invoke({"input": input_text})
+        response = handle_anvil(payload)
+        for event in response.get("events", []):
+            _emit_jsonl_event(event)
+        if response.get("status") == "failed":
+            raise SystemExit(1)
 
-        tool_calls = result.get("tool_calls", [])
-        final_output = str(result.get("final_output", ""))
-        for tool_call in tool_calls:
-            emit_tool_call(
-                tool_name=str(tool_call["tool_name"]),
-                arguments=tool_call.get("arguments", {}),
-                result=tool_call.get("result"),
+
+    def _emit_jsonl_event(event: dict[str, Any]) -> None:
+        event_type = event.get("type")
+        if event_type == "model_call":
+            emit_model_call(
+                model=str(event.get("model", "langgraph")),
+                input_text=str(event.get("input", "")),
+                output_text=str(event.get("output_text", "")),
+                tool_calls=list(event.get("tool_calls", [])),
             )
-        emit_model_call(
-            model="langgraph",
-            input_text=input_text,
-            output_text=final_output,
-            tool_calls=tool_calls,
-        )
-        emit_final_output(final_output)
+            return
+        if event_type == "tool_call":
+            emit_tool_call(
+                tool_name=str(event["tool_name"]),
+                arguments=dict(event.get("arguments", {})),
+                result=event.get("result"),
+            )
+            return
+        if event_type == "final_output":
+            emit_final_output(str(event.get("text", event.get("final_output", ""))))
+            return
+        msg = f"Unsupported Agent Anvil event type: {event_type}"
+        raise ValueError(msg)
+
+
+    def _extract_order_id(input_text: str) -> str | None:
+        match = ORDER_ID_RE.search(input_text)
+        return match.group(0) if match else None
 
 
     if __name__ == "__main__":
@@ -317,8 +480,8 @@ ADAPTER_TEMPLATES: dict[str, AdapterTemplate] = {
     ),
     "langgraph": AdapterTemplate(
         name="langgraph",
-        description="External JSONL adapter starter for LangGraph StateGraph workflows.",
-        dependency_hint="pip install langgraph agent-anvil",
+        description="JSONL/HTTP adapter starter for LangGraph StateGraph workflows.",
+        dependency_hint="pip install langgraph agent-anvil; optional: fastapi uvicorn",
         content=LANGGRAPH_TEMPLATE,
     ),
 }
