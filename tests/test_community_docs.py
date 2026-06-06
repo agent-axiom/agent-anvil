@@ -32,6 +32,8 @@ def test_init_doc_is_linked_from_readme() -> None:
 
     assert "init.md" in artifacts
     assert "uv run anvil init --agent-command" in readme
+    assert "uv run anvil init --adapter http-python" in readme
+    assert "uv run anvil init --adapter http-python" in doc
     assert "uv run anvil init --agent-url" in readme
     assert "--agent-url" in doc
     assert "--header" in doc

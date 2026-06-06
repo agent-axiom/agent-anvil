@@ -76,6 +76,61 @@ def test_cli_init_writes_http_starter_scenario_and_workflow(tmp_path: Path) -> N
     assert "scenario: " + scenario_path.as_posix() in workflow_text
 
 
+def test_cli_init_with_adapter_writes_adapter_scenario_and_workflow(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+    adapter_path = tmp_path / "adapters" / "http_python_adapter.py"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--adapter",
+            "http-python",
+            "--adapter-out",
+            str(adapter_path),
+            "--scenario",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+        ],
+    )
+
+    scenario_text = scenario_path.read_text(encoding="utf-8")
+    adapter_text = adapter_path.read_text(encoding="utf-8")
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    assert result.exit_code == 0
+    assert "Wrote" in result.stdout
+    assert "Next: edit the generated adapter" in result.stdout
+    assert "Agent Anvil stdlib HTTP adapter starter" in adapter_text
+    assert f'command: "python {adapter_path.as_posix()}"' in scenario_text
+    assert "protocol: jsonl" in scenario_text
+    assert "scenario: " + scenario_path.as_posix() in workflow_text
+
+
+def test_cli_init_with_adapter_uses_default_adapter_path(tmp_path: Path) -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(
+            app,
+            [
+                "init",
+                "--adapter",
+                "langgraph",
+                "--scenario",
+                "scenarios/starter.yaml",
+                "--workflow",
+                ".github/workflows/agent-anvil.yml",
+            ],
+        )
+
+        adapter_path = Path("adapters/langgraph_adapter.py")
+        scenario_text = Path("scenarios/starter.yaml").read_text(encoding="utf-8")
+        assert result.exit_code == 0
+        assert adapter_path.exists()
+        assert f'command: "python {adapter_path.as_posix()}"' in scenario_text
+
+
 def test_cli_init_rejects_ambiguous_agent_targets(tmp_path: Path) -> None:
     result = CliRunner().invoke(
         app,
@@ -93,7 +148,47 @@ def test_cli_init_rejects_ambiguous_agent_targets(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 1
-    assert "Use either --agent-command or --agent-url" in result.stderr
+    assert "Use only one of --agent-command, --agent-url, or --adapter" in result.stderr
+
+
+def test_cli_init_rejects_adapter_with_agent_command(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--adapter",
+            "http-python",
+            "--agent-command",
+            "python my_agent.py",
+            "--scenario",
+            str(tmp_path / "scenario.yaml"),
+            "--workflow",
+            str(tmp_path / "workflow.yml"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Use only one of --agent-command, --agent-url, or --adapter" in result.stderr
+
+
+def test_cli_init_rejects_adapter_out_without_adapter(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "init",
+            "--agent-command",
+            "python my_agent.py",
+            "--adapter-out",
+            str(tmp_path / "adapters" / "agent.py"),
+            "--scenario",
+            str(tmp_path / "scenario.yaml"),
+            "--workflow",
+            str(tmp_path / "workflow.yml"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "--adapter-out only applies to --adapter" in result.stderr
 
 
 def test_cli_init_rejects_headers_without_http_agent(tmp_path: Path) -> None:

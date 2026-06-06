@@ -35,6 +35,8 @@ uv run anvil learn runs/latest/traces/refund_missing_order_id_trial_1.json \
 
 ```bash
 uv run anvil init --agent-command "python my_agent.py"
+uv run anvil init --adapter http-python
+uv run anvil init --adapter openai-agents --adapter-out adapters/openai_agents_adapter.py
 uv run anvil init --agent-url "http://127.0.0.1:8080/anvil"
 uv run anvil init --agent-url "http://127.0.0.1:8080/anvil" \
   --header "Authorization=Bearer $ANVIL_AGENT_TOKEN"
