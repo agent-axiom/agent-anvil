@@ -15,6 +15,7 @@ from anvil.conformance import (
     write_conformance_report,
 )
 from anvil.contracts import export_schema_contracts
+from anvil.doctor import render_doctor_report, run_doctor
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
@@ -138,6 +139,26 @@ FUZZ_OUT_OPTION = typer.Option(..., "--out", help="Write the fuzzed scenario YAM
 FUZZ_MUTATIONS_OPTION = typer.Option(10, "--mutations", min=1, help="Number of mutations.")
 FUZZ_FOCUS_OPTION = typer.Option("tool_safety", "--focus", help="Mutation focus.")
 PR_COMMENT_OUT_OPTION = typer.Option(..., "--out", help="Write PR-ready Markdown here.")
+DOCTOR_SCENARIO_ARGUMENT = typer.Argument(
+    DEFAULT_SCENARIO_PATH,
+    help="Scenario file to diagnose.",
+)
+DOCTOR_WORKFLOW_OPTION = typer.Option(
+    DEFAULT_WORKFLOW_PATH,
+    "--workflow",
+    help="GitHub Actions workflow to check.",
+)
+DOCTOR_MAX_STEPS_OPTION = typer.Option(
+    8,
+    "--max-steps",
+    min=1,
+    help="Maximum trace steps allowed during conformance checks.",
+)
+DOCTOR_SKIP_CONFORMANCE_OPTION = typer.Option(
+    False,
+    "--skip-conformance",
+    help="Skip active external-agent conformance checks.",
+)
 INIT_AGENT_COMMAND_OPTION = typer.Option(
     None,
     "--agent-command",
@@ -463,6 +484,24 @@ def conformance_external_agent(
         write_conformance_report(result, out)
         typer.echo(f"Wrote conformance report: {_display_path(out)}")
     if not result.passed:
+        raise typer.Exit(1)
+
+
+@app.command()
+def doctor(
+    scenario_file: Path = DOCTOR_SCENARIO_ARGUMENT,
+    workflow: Path = DOCTOR_WORKFLOW_OPTION,
+    max_steps: int = DOCTOR_MAX_STEPS_OPTION,
+    skip_conformance: bool = DOCTOR_SKIP_CONFORMANCE_OPTION,
+) -> None:
+    report = run_doctor(
+        scenario_file,
+        workflow_path=workflow,
+        max_steps=max_steps,
+        skip_conformance=skip_conformance,
+    )
+    typer.echo(render_doctor_report(report))
+    if not report.passed:
         raise typer.Exit(1)
 
 

@@ -29,6 +29,7 @@ checks, and final-output text checks.
 ```bash
 uv run anvil init --profile ci-safe
 uv run anvil conformance external-agent --agent-command "python adapters/http_python_adapter.py"
+uv run anvil doctor scenarios/agent_anvil_starter.yaml
 # Edit scenarios/agent_anvil_starter.yaml and adapters/http_python_adapter.py.
 uv run anvil run scenarios/agent_anvil_starter.yaml --offline
 uv run anvil report runs/latest

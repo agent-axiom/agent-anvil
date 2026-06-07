@@ -51,6 +51,8 @@ uv run anvil pack add tool-safety \
   --risky-tool issue_refund \
   --verification-tool lookup_order \
   --out scenarios/tool_safety_starter.yaml
+uv run anvil doctor scenarios/agent_anvil_starter.yaml
+uv run anvil doctor scenarios/agent_anvil_starter.yaml --skip-conformance
 ```
 
 ## External Agent Adapters
