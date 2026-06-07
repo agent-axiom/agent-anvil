@@ -80,6 +80,8 @@ def test_artifacts_and_cli_docs_are_linked_from_readme() -> None:
     assert "uv run anvil compare runs/baseline runs/latest" in cli_doc
     assert "uv run anvil mcp harden" in cli_doc
     assert "uv run anvil conformance external-agent" in cli_doc
+    assert "uv run anvil doctor" in readme
+    assert "uv run anvil doctor" in cli_doc
     assert '--url "http://127.0.0.1:8080/anvil"' in cli_doc
     assert "protocol: http" in Path("docs/protocol.md").read_text(encoding="utf-8")
     assert "protocol: http" in Path("docs/scenarios.md").read_text(encoding="utf-8")

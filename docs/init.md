@@ -18,6 +18,12 @@ The `ci-safe` profile creates the default `http-python` adapter, writes the
 `tool-safety` scenario pack, and enables PR comments in the generated workflow.
 Edit the generated adapter and scenario pack before treating the eval result as
 your agent's safety signal.
+Run `doctor` to check local wiring before opening a PR:
+
+```bash
+uv run anvil doctor scenarios/agent_anvil_starter.yaml
+```
+
 You can still choose a different JSONL target:
 
 ```bash
