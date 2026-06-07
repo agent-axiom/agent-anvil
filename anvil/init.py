@@ -45,6 +45,7 @@ def initialize_project(
             adapter = "http-python"
         pack = pack or "tool-safety"
         post_pr_comment = True
+    run_doctor = profile == CI_SAFE_PROFILE
     target_count = sum(value is not None for value in (agent_command, agent_url, adapter))
     if target_count != 1:
         raise ValueError("Use only one of --agent-command, --agent-url, or --adapter.")
@@ -75,9 +76,11 @@ def initialize_project(
         scenario_path: scenario_content,
         workflow_path: _starter_workflow(
             scenario_path=scenario_path,
+            workflow_path=workflow_path,
             action_ref=action_ref,
             package_ref=_package_git_ref(),
             post_pr_comment=post_pr_comment,
+            run_doctor=run_doctor,
             agent_url=agent_url,
             headers=headers,
         ),
@@ -170,9 +173,11 @@ scenarios:
 def _starter_workflow(
     *,
     scenario_path: Path,
+    workflow_path: Path,
     action_ref: str,
     package_ref: str,
     post_pr_comment: bool,
+    run_doctor: bool,
     agent_url: str | None,
     headers: dict[str, str],
 ) -> str:
@@ -187,6 +192,12 @@ def _starter_workflow(
         package_ref=package_ref,
         agent_url=agent_url,
         headers=headers,
+    )
+    doctor_step = _doctor_step(
+        package_ref=package_ref,
+        scenario_path=scenario_path,
+        workflow_path=workflow_path,
+        enabled=run_doctor,
     )
     return f"""name: Agent Anvil
 
@@ -209,7 +220,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-{http_conformance_step}      - name: Run Agent Anvil
+{http_conformance_step}{doctor_step}      - name: Run Agent Anvil
         uses: {action_ref}
         with:
           scenario: {scenario_path.as_posix()}
@@ -221,6 +232,30 @@ jobs:
           name: agent-anvil-runs
           path: runs/
           if-no-files-found: error
+"""
+
+
+def _doctor_step(
+    *,
+    package_ref: str,
+    scenario_path: Path,
+    workflow_path: Path,
+    enabled: bool,
+) -> str:
+    if not enabled:
+        return ""
+    scenario_arg = _shell_double_quoted(scenario_path.as_posix())
+    workflow_arg = _shell_double_quoted(workflow_path.as_posix())
+    return f"""      - name: Set up uv for Agent Anvil doctor
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Run Agent Anvil doctor
+        run: |
+          uvx --from {package_ref} anvil doctor "{scenario_arg}" \\
+            --workflow "{workflow_arg}"
+
 """
 
 

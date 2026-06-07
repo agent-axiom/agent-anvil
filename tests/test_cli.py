@@ -106,6 +106,7 @@ def test_cli_init_with_adapter_writes_adapter_scenario_and_workflow(tmp_path: Pa
     assert f'command: "python {adapter_path.as_posix()}"' in scenario_text
     assert "protocol: jsonl" in scenario_text
     assert "scenario: " + scenario_path.as_posix() in workflow_text
+    assert "Run Agent Anvil doctor" not in workflow_text
 
 
 def test_cli_init_with_adapter_uses_default_adapter_path(tmp_path: Path) -> None:
