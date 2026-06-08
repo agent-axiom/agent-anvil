@@ -24,14 +24,14 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run passing external agent eval
-        uses: agent-axiom/agent-anvil-action@v1.0.4
+        uses: agent-axiom/agent-anvil-action@v1.0.5
         with:
           scenario: scenarios/external_jsonl_agent.yaml
           offline: "true"
           runs-dir: runs/external
 
       - name: Run intentional refund regression demo
-        uses: agent-axiom/agent-anvil-action@v1.0.4
+        uses: agent-axiom/agent-anvil-action@v1.0.5
         with:
           scenario: scenarios/refund_agent.yaml
           offline: "true"
