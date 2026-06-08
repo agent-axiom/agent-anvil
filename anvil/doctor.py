@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from anvil.conformance import run_external_agent_conformance
 from anvil.scenario import ExternalAgentConfig, ScenarioSuite, load_scenario_file
 
@@ -188,21 +190,31 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
             ),
         )
     text = workflow_path.read_text(encoding="utf-8")
-    if "agent-axiom/agent-anvil" not in text:
+    workflow = _load_workflow_yaml(text)
+    if workflow is None:
         return DoctorCheck(
             name="github_workflow",
             passed=False,
-            message="workflow does not reference the Agent Anvil action",
+            message="could not parse workflow YAML",
+            hint="Fix the GitHub Actions YAML syntax and rerun `uv run anvil doctor`.",
+        )
+    action_steps = _agent_anvil_action_steps(workflow)
+    if not action_steps:
+        return DoctorCheck(
+            name="github_workflow",
+            passed=False,
+            message="workflow does not contain an Agent Anvil action step",
             hint=(
                 "Add `uses: agent-axiom/agent-anvil-action@v1.0.0` to the workflow "
                 "or regenerate it with `uv run anvil init --profile ci-safe`."
             ),
         )
-    if scenario_path.as_posix() not in text:
+    scenario_ref = scenario_path.as_posix()
+    if not any(_step_scenario_ref(step) == scenario_ref for step in action_steps):
         return DoctorCheck(
             name="github_workflow",
             passed=False,
-            message=f"workflow does not reference scenario {scenario_path.as_posix()}",
+            message=f"Agent Anvil action step does not reference scenario {scenario_ref}",
             hint=(
                 "Update the action `scenario` input or regenerate the workflow with "
                 "`uv run anvil init --profile ci-safe`."
@@ -213,6 +225,51 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
         passed=True,
         message="workflow references Agent Anvil and the scenario file",
     )
+
+
+def _load_workflow_yaml(text: str) -> dict[str, Any] | None:
+    try:
+        workflow = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return None
+    return workflow if isinstance(workflow, dict) else None
+
+
+def _agent_anvil_action_steps(workflow: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        step for step in _workflow_steps(workflow) if _is_agent_anvil_action_ref(step.get("uses"))
+    ]
+
+
+def _workflow_steps(workflow: dict[str, Any]) -> list[dict[str, Any]]:
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return []
+    steps: list[dict[str, Any]] = []
+    for job in jobs.values():
+        if not isinstance(job, dict):
+            continue
+        job_steps = job.get("steps")
+        if not isinstance(job_steps, list):
+            continue
+        steps.extend(step for step in job_steps if isinstance(step, dict))
+    return steps
+
+
+def _is_agent_anvil_action_ref(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    return value.startswith("agent-axiom/agent-anvil-action@") or value.startswith(
+        "agent-axiom/agent-anvil@"
+    )
+
+
+def _step_scenario_ref(step: dict[str, Any]) -> str | None:
+    inputs = step.get("with")
+    if not isinstance(inputs, dict):
+        return None
+    scenario = inputs.get("scenario")
+    return scenario if isinstance(scenario, str) else None
 
 
 def _escape_table_cell(value: str) -> str:
