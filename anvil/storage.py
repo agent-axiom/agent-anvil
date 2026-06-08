@@ -4,9 +4,9 @@ import json
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from anvil.clustering import FailureCluster
 from anvil.flakiness import detect_flaky_scenarios
@@ -14,6 +14,10 @@ from anvil.grading import GradeResult
 from anvil.trace import TraceRun
 
 RESULTS_SCHEMA_VERSION = "anvil.results.v1"
+
+
+class ResultsArtifactError(ValueError):
+    pass
 
 
 class ResultsFlakyScenarioPayload(BaseModel):
@@ -117,4 +121,36 @@ def update_latest_link(runs_dir: str | Path, run_dir: Path) -> Path:
 
 
 def load_results(run_dir: str | Path) -> dict[str, Any]:
-    return json.loads((Path(run_dir) / "results.json").read_text(encoding="utf-8"))
+    results_path = Path(run_dir) / "results.json"
+    try:
+        payload = json.loads(results_path.read_text(encoding="utf-8"))
+    except OSError as error:
+        msg = f"could not read results artifact {results_path}: {error}"
+        raise ResultsArtifactError(msg) from error
+    except json.JSONDecodeError as error:
+        msg = f"could not parse results artifact {results_path} as JSON: {error}"
+        raise ResultsArtifactError(msg) from error
+
+    if not isinstance(payload, dict):
+        msg = f"results artifact {results_path} did not contain a JSON object"
+        raise ResultsArtifactError(msg)
+
+    return _validated_results_payload(results_path, cast(dict[str, Any], payload))
+
+
+def _validated_results_payload(
+    results_path: Path,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    schema_version = payload.get("schema_version")
+    if schema_version is None:
+        return payload
+    if schema_version != RESULTS_SCHEMA_VERSION:
+        msg = f"results artifact {results_path} uses unsupported schema_version {schema_version!r}"
+        raise ResultsArtifactError(msg)
+    try:
+        validated = ResultsPayload.model_validate(payload)
+    except ValidationError as error:
+        msg = f"results artifact {results_path} did not match {RESULTS_SCHEMA_VERSION}: {error}"
+        raise ResultsArtifactError(msg) from error
+    return cast(dict[str, Any], validated.model_dump(mode="json"))
