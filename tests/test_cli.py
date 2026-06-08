@@ -341,6 +341,68 @@ scenarios:
     assert "tools cannot be both required and forbidden" in result.stderr
 
 
+def test_cli_validate_json_reports_valid_scenario_without_writing_runs(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "valid.yaml"
+    scenario_file.write_text(
+        """
+name: valid_suite
+agent: examples.support_agent
+defaults:
+  trials: 3
+scenarios:
+  - id: smoke
+    input: "hello"
+    expected:
+      should_not_call_tools:
+        - issue_refund
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["validate", "--json", str(scenario_file)])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "status": "valid",
+        "suite": "valid_suite",
+        "scenario_count": 1,
+        "trial_count": 3,
+    }
+    assert result.stderr == ""
+    assert not (tmp_path / "runs").exists()
+
+
+def test_cli_validate_json_reports_invalid_scenario(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "invalid.yaml"
+    scenario_file.write_text(
+        """
+name: invalid_suite
+agent: examples.support_agent
+scenarios:
+  - id: refund
+    input: "refund"
+    expected:
+      should_call_tools:
+        - issue_refund
+      should_not_call_tools:
+        - issue_refund
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["validate", "--json", str(scenario_file)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["suite"] is None
+    assert payload["scenario_count"] is None
+    assert payload["trial_count"] is None
+    assert "tools cannot be both required and forbidden" in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,
