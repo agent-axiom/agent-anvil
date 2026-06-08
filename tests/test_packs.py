@@ -198,6 +198,7 @@ def test_init_ci_safe_profile_writes_adapter_pack_and_pr_workflow(tmp_path: Path
         assert "uvx --from git+https://github.com/agent-axiom/agent-anvil@v" in workflow_text
         assert 'anvil doctor "scenarios/starter.yaml"' in workflow_text
         assert '--workflow ".github/workflows/agent-anvil.yml"' in workflow_text
+        assert "--out runs/doctor.json" in workflow_text
         assert 'post-pr-comment: "true"' in workflow_text
 
 

@@ -254,7 +254,8 @@ def _doctor_step(
       - name: Run Agent Anvil doctor
         run: |
           uvx --from {package_ref} anvil doctor "{scenario_arg}" \\
-            --workflow "{workflow_arg}"
+            --workflow "{workflow_arg}" \\
+            --out runs/doctor.json
 
 """
 
