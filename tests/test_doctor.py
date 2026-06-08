@@ -43,7 +43,7 @@ def test_doctor_passes_for_marketplace_action_workflow(tmp_path: Path) -> None:
     _write_workflow(
         workflow_path,
         scenario_path=scenario_path,
-        action_ref="agent-axiom/agent-anvil-action@v1.0.5",
+        action_ref="agent-axiom/agent-anvil-action@v1.0.6",
     )
 
     result = CliRunner().invoke(
@@ -85,7 +85,7 @@ def test_doctor_rejects_stale_marketplace_action_ref(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "- github_workflow: FAIL" in result.stdout
     assert "workflow uses stale Agent Anvil Marketplace action ref v1.0.1" in result.stdout
-    assert "agent-axiom/agent-anvil-action@v1.0.5" in result.stdout
+    assert "agent-axiom/agent-anvil-action@v1.0.6" in result.stdout
     assert "agent-axiom/agent-anvil-action@v1" in result.stdout
 
 
@@ -132,7 +132,7 @@ jobs:
   agent-anvil:
     steps:
       - uses: actions/checkout@v6
-      - uses: agent-axiom/agent-anvil-action@v1.0.5
+      - uses: agent-axiom/agent-anvil-action@v1.0.6
         with:
           scenario: {scenario_path.as_posix()}
           post-pr-comment: "true"
@@ -174,7 +174,7 @@ jobs:
   agent-anvil:
     steps:
       - uses: actions/checkout@v6
-      - uses: agent-axiom/agent-anvil-action@v1.0.5
+      - uses: agent-axiom/agent-anvil-action@v1.0.6
         with:
           scenario: {scenario_path.as_posix()}
           post-pr-comment: "true"
@@ -210,7 +210,7 @@ def test_doctor_rejects_workflow_without_checkout_before_agent_anvil_action(
 jobs:
   agent-anvil:
     steps:
-      - uses: agent-axiom/agent-anvil-action@v1.0.5
+      - uses: agent-axiom/agent-anvil-action@v1.0.6
         with:
           scenario: {scenario_path.as_posix()}
 """,
@@ -242,7 +242,7 @@ def test_doctor_rejects_workflow_with_action_only_in_comments(tmp_path: Path) ->
     workflow_path.parent.mkdir(parents=True, exist_ok=True)
     workflow_path.write_text(
         f"""name: Agent Anvil
-# uses: agent-axiom/agent-anvil-action@v1.0.5
+# uses: agent-axiom/agent-anvil-action@v1.0.6
 # scenario: {scenario_path.as_posix()}
 jobs:
   agent-anvil:
