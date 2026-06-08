@@ -230,7 +230,7 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
             passed=False,
             message="workflow does not contain an Agent Anvil action step",
             hint=(
-                "Add `uses: agent-axiom/agent-anvil-action@v1.0.2` to the workflow "
+                "Add `uses: agent-axiom/agent-anvil-action@v1.0.3` to the workflow "
                 "or regenerate it with `uv run anvil init --profile ci-safe`."
             ),
         )
