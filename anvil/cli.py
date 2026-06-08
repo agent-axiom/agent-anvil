@@ -927,14 +927,46 @@ def _load_run_artifacts(run_dir: Path) -> tuple[dict[str, Any], int]:
         msg = f"run artifact {run_dir} does not contain trace JSON files"
         raise TraceArtifactError(msg)
 
+    observed_traces: set[tuple[str, int]] = set()
     for trace_path in trace_paths:
         try:
-            load_trace_artifact(trace_path)
+            trace = load_trace_artifact(trace_path)
         except TraceArtifactError as error:
             msg = f"{trace_path.name}: {error}"
             raise TraceArtifactError(msg) from error
+        observed_traces.add((trace.scenario_id, trace.trial))
+
+    expected_traces = {
+        (str(grade.get("scenario_id")), int(grade.get("trial", 0)))
+        for grade in payload.get("grades", [])
+        if isinstance(grade, dict)
+    }
+    _validate_run_trace_index(expected_traces=expected_traces, observed_traces=observed_traces)
 
     return payload, len(trace_paths)
+
+
+def _validate_run_trace_index(
+    *,
+    expected_traces: set[tuple[str, int]],
+    observed_traces: set[tuple[str, int]],
+) -> None:
+    missing = sorted(expected_traces - observed_traces)
+    unexpected = sorted(observed_traces - expected_traces)
+    if not missing and not unexpected:
+        return
+
+    parts: list[str] = []
+    if missing:
+        parts.append(f"missing trace {_format_trace_key(missing[0])}")
+    if unexpected:
+        parts.append(f"unexpected trace {_format_trace_key(unexpected[0])}")
+    raise TraceArtifactError("; ".join(parts))
+
+
+def _format_trace_key(trace_key: tuple[str, int]) -> str:
+    scenario_id, trial = trace_key
+    return f"{scenario_id}/trial_{trial}"
 
 
 def _results_run_dir(results_path: Path) -> Path:
