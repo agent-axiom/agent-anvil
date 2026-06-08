@@ -927,21 +927,31 @@ def _load_run_artifacts(run_dir: Path) -> tuple[dict[str, Any], int]:
         msg = f"run artifact {run_dir} does not contain trace JSON files"
         raise TraceArtifactError(msg)
 
-    observed_traces: set[tuple[str, int]] = set()
+    observed_trace_paths: dict[tuple[str, int], str] = {}
     for trace_path in trace_paths:
         try:
             trace = load_trace_artifact(trace_path)
         except TraceArtifactError as error:
             msg = f"{trace_path.name}: {error}"
             raise TraceArtifactError(msg) from error
-        observed_traces.add((trace.scenario_id, trace.trial))
+        trace_key = (trace.scenario_id, trace.trial)
+        if trace_key in observed_trace_paths:
+            msg = (
+                f"duplicate trace {_format_trace_key(trace_key)} in "
+                f"{observed_trace_paths[trace_key]} and {trace_path.name}"
+            )
+            raise TraceArtifactError(msg)
+        observed_trace_paths[trace_key] = trace_path.name
 
     expected_traces = {
         (str(grade.get("scenario_id")), int(grade.get("trial", 0)))
         for grade in payload.get("grades", [])
         if isinstance(grade, dict)
     }
-    _validate_run_trace_index(expected_traces=expected_traces, observed_traces=observed_traces)
+    _validate_run_trace_index(
+        expected_traces=expected_traces,
+        observed_traces=set(observed_trace_paths),
+    )
 
     return payload, len(trace_paths)
 
