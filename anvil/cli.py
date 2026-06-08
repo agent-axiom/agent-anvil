@@ -31,6 +31,7 @@ from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
 from anvil.leaderboard import (
     LeaderboardValidationError,
+    audit_leaderboard_submissions,
     build_leaderboard_index,
     export_leaderboard_submission,
     generate_leaderboard_reproduction_script,
@@ -399,6 +400,16 @@ LEADERBOARD_VERIFY_ALL_OUT_OPTION = typer.Option(
     ...,
     "--out",
     help="Write one GitHub run verification report JSON file per submission here.",
+)
+LEADERBOARD_AUDIT_JSON_OUT_OPTION = typer.Option(
+    Path("leaderboard_audit.json"),
+    "--json-out",
+    help="Write the leaderboard maintainer audit JSON report here.",
+)
+LEADERBOARD_AUDIT_MARKDOWN_OUT_OPTION = typer.Option(
+    Path("leaderboard_audit.md"),
+    "--markdown-out",
+    help="Write the leaderboard maintainer audit Markdown report here.",
 )
 LEADERBOARD_INDEX_OUT_OPTION = typer.Option(
     Path("leaderboard.csv"),
@@ -951,6 +962,37 @@ def leaderboard_verify_all(
     for report_path in reports:
         typer.echo(f"Wrote GitHub run verification report: {_display_path(report_path)}")
     typer.echo(f"Verified GitHub Actions runs: {len(reports)}")
+
+
+@leaderboard_app.command("audit")
+def leaderboard_audit(
+    submissions_dir: Path,
+    verify_artifacts: bool = LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION,
+    verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
+    json_out: Path = LEADERBOARD_AUDIT_JSON_OUT_OPTION,
+    markdown_out: Path = LEADERBOARD_AUDIT_MARKDOWN_OUT_OPTION,
+) -> None:
+    try:
+        audit = audit_leaderboard_submissions(
+            submissions_dir,
+            verify_artifacts=verify_artifacts,
+            verify_github_run=verify_github_run,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    json_out.parent.mkdir(parents=True, exist_ok=True)
+    json_out.write_text(audit.model_dump_json(indent=2), encoding="utf-8")
+    markdown_out.parent.mkdir(parents=True, exist_ok=True)
+    markdown_out.write_text(audit.markdown, encoding="utf-8")
+    typer.echo(f"Wrote leaderboard audit JSON: {_display_path(json_out)}")
+    typer.echo(f"Wrote leaderboard audit Markdown: {_display_path(markdown_out)}")
+    typer.echo(f"Accept: {audit.summary.accept}")
+    typer.echo(f"Review: {audit.summary.review}")
+    typer.echo(f"Reject: {audit.summary.reject}")
+    if audit.summary.review or audit.summary.reject:
+        raise typer.Exit(1)
 
 
 @leaderboard_app.command("inspect")

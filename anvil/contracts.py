@@ -9,9 +9,11 @@ from pydantic import BaseModel
 
 from anvil.doctor import DOCTOR_REPORT_SCHEMA_VERSION, DoctorReportPayload
 from anvil.leaderboard import (
+    LEADERBOARD_AUDIT_SCHEMA_VERSION,
     LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION,
     LEADERBOARD_INDEX_SCHEMA_VERSION,
     LEADERBOARD_SCHEMA_VERSION,
+    LeaderboardAuditReport,
     LeaderboardGithubRunVerification,
     LeaderboardIndex,
     LeaderboardSubmission,
@@ -82,6 +84,12 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         filename="agent-anvil.leaderboard.github_run_verification.v1.schema.json",
         model=LeaderboardGithubRunVerification,
         description="Agent Anvil GitHub Actions run verification report schema.",
+    ),
+    SchemaContract(
+        schema_id=LEADERBOARD_AUDIT_SCHEMA_VERSION,
+        filename="agent-anvil.leaderboard.audit.v1.schema.json",
+        model=LeaderboardAuditReport,
+        description="Agent Anvil public leaderboard maintainer audit report schema.",
     ),
 )
 

@@ -1,0 +1,39 @@
+{
+  "schema_version": "agent-anvil.leaderboard.audit.v1",
+  "generated_at": "2026-06-08T13:30:00Z",
+  "generated_by": "agent-anvil/0.2.37",
+  "submissions_dir": "submissions",
+  "summary": {
+    "total": 2,
+    "accept": 1,
+    "review": 1,
+    "reject": 0
+  },
+  "rows": [
+    {
+      "submission_path": "submissions/verified-agent.json",
+      "decision": "accept",
+      "reason": "submission provenance checks passed",
+      "agent_name": "Verified Agent",
+      "benchmark_name": "paper_benchmark",
+      "trust_level": "github_actions",
+      "trace_aware_pass_rate": 83.3,
+      "evidence_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "artifact_status": "not checked",
+      "github_run_status": "verified"
+    },
+    {
+      "submission_path": "submissions/self-reported-agent.json",
+      "decision": "review",
+      "reason": "self-reported rows require human review",
+      "agent_name": "Self Reported Agent",
+      "benchmark_name": "paper_benchmark",
+      "trust_level": "self_reported",
+      "trace_aware_pass_rate": 50.0,
+      "evidence_sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "artifact_status": "not checked",
+      "github_run_status": "not checked"
+    }
+  ],
+  "markdown": "# Agent Anvil Leaderboard Audit\n\n## Summary\n\n- Total: 2\n- Accept: 1\n- Review: 1\n- Reject: 0\n"
+}
