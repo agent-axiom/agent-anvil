@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from anvil.grading import GradeResult, SemanticGrade
-from anvil.storage import write_results
+from anvil.storage import ResultsArtifactError, load_results, write_results
 
 
 def test_write_results_persists_flaky_scenario_summary(tmp_path) -> None:
@@ -61,3 +63,42 @@ def test_write_results_persists_flaky_scenario_summary(tmp_path) -> None:
             "pass_rate": 50.0,
         }
     ]
+
+
+def test_load_results_accepts_legacy_unversioned_results(tmp_path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        json.dumps(
+            {
+                "suite": "legacy_suite",
+                "run_id": "legacy_run",
+                "summary": {"pass_rate": 100.0},
+                "grades": [],
+                "clusters": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    payload = load_results(run_dir)
+
+    assert payload["suite"] == "legacy_suite"
+    assert "schema_version" not in payload
+
+
+def test_load_results_rejects_invalid_versioned_results(tmp_path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "anvil.results.v1",
+                "suite": "broken_suite",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ResultsArtifactError, match=r"did not match anvil\.results\.v1"):
+        load_results(run_dir)
