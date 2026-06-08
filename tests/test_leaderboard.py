@@ -345,6 +345,31 @@ def test_export_leaderboard_submission_marks_github_actions_trust(
     assert submission.submitter.commit_sha == "abc123"
 
 
+def test_validate_leaderboard_submission_rejects_github_actions_commit_sha_mismatch(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "agent-axiom/agent-anvil")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    out_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=out_path,
+        agent_name="Support Agent",
+        commit_sha="def456",
+    )
+
+    with pytest.raises(LeaderboardValidationError, match=r"submitter\.commit_sha"):
+        validate_leaderboard_submission(out_path, verify_artifacts=False)
+
+
 @pytest.mark.parametrize(
     ("field", "match"),
     [
