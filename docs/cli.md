@@ -12,6 +12,7 @@ uv run anvil validate trace runs/latest/traces/refund_valid_order_trial_1.json
 uv run anvil validate --json results runs/latest
 uv run anvil validate run runs/latest
 uv run anvil validate --json run runs/latest
+uv run anvil validate --require-manifest run runs/latest
 uv run anvil run scenarios/refund_agent.yaml
 uv run anvil run scenarios/refund_agent.yaml --trials 5
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
@@ -33,7 +34,8 @@ artifact in a persisted run directory, including that every `results.grades`
 entry has a matching `scenario_id` / `trial` trace, every trace belongs to the
 same `run_id`, and there are no orphan or duplicate traces. When `manifest.json`
 exists, run validation also verifies the SHA-256 hash and byte size of every
-manifested artifact.
+manifested artifact. Use `--require-manifest` in CI when the run directory must
+include tamper-evident artifact hashes.
 Use `--json` for machine-readable preflight output in CI/editor integrations.
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent

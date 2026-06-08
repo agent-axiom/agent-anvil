@@ -748,6 +748,11 @@ def validate_scenario(
         "--json",
         help="Write machine-readable validation status to stdout.",
     ),
+    require_manifest: bool = typer.Option(
+        False,
+        "--require-manifest",
+        help="Fail run artifact validation when manifest.json is missing.",
+    ),
 ) -> None:
     try:
         target_kind, target_path = _parse_validate_target(targets)
@@ -766,7 +771,11 @@ def validate_scenario(
         _validate_results_artifact(target_path, json_output=json_output)
         return
     if target_kind == "run":
-        _validate_run_artifacts(target_path, json_output=json_output)
+        _validate_run_artifacts(
+            target_path,
+            json_output=json_output,
+            require_manifest=require_manifest,
+        )
         return
     _validate_scenario_file(target_path, json_output=json_output)
 
@@ -884,9 +893,14 @@ def _validate_results_artifact(results_path: Path, *, json_output: bool) -> None
     typer.echo(f"Pass rate: {summary.get('pass_rate')}%")
 
 
-def _validate_run_artifacts(run_dir: Path, *, json_output: bool) -> None:
+def _validate_run_artifacts(
+    run_dir: Path,
+    *,
+    json_output: bool,
+    require_manifest: bool = False,
+) -> None:
     try:
-        payload, trace_count = _load_run_artifacts(run_dir)
+        payload, trace_count = _load_run_artifacts(run_dir, require_manifest=require_manifest)
     except (ResultsArtifactError, RunManifestError, TraceArtifactError, ValueError) as error:
         _write_validation_error(kind="run", error=error, json_output=json_output)
         raise typer.Exit(1) from error
@@ -916,13 +930,18 @@ def _validate_run_artifacts(run_dir: Path, *, json_output: bool) -> None:
     typer.echo(f"Traces: {trace_count}")
 
 
-def _load_run_artifacts(run_dir: Path) -> tuple[dict[str, Any], int]:
+def _load_run_artifacts(
+    run_dir: Path, *, require_manifest: bool = False
+) -> tuple[dict[str, Any], int]:
     if not run_dir.is_dir():
         msg = "run validation expects a run directory"
         raise ValueError(msg)
 
     payload = load_results(run_dir)
-    validate_run_manifest(run_dir)
+    manifest = validate_run_manifest(run_dir)
+    if require_manifest and manifest is None:
+        msg = f"manifest.json is required for run artifact validation: {run_dir}"
+        raise RunManifestError(msg)
     traces_dir = run_dir / "traces"
     if not traces_dir.is_dir():
         msg = f"run artifact {run_dir} is missing traces directory"
