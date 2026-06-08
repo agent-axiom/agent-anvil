@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -69,6 +70,70 @@ def test_doctor_fails_for_invalid_scenario_yaml(tmp_path: Path) -> None:
     assert "- scenario_file: FAIL" in result.stdout
     assert "could not load scenario" in result.stdout
     assert "external_agent_conformance" not in result.stdout
+
+
+def test_doctor_can_print_json_report(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+    _write_workflow(workflow_path, scenario_path=scenario_path)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+            "--json",
+        ],
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.exit_code == 0
+    assert payload["passed"] is True
+    assert payload["checks"][0] == {
+        "name": "scenario_file",
+        "passed": True,
+        "message": f"loaded {scenario_path.as_posix()}",
+    }
+    assert {check["name"] for check in payload["checks"]} == {
+        "scenario_file",
+        "agent_target",
+        "external_agent_conformance",
+        "github_workflow",
+    }
+
+
+def test_doctor_writes_json_report_to_out_path(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+    out_path = tmp_path / "reports" / "doctor.json"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+    _write_workflow(workflow_path, scenario_path=scenario_path)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert result.exit_code == 0
+    assert "Agent Anvil doctor: PASS" in result.stdout
+    assert "Wrote doctor report:" in result.stdout
+    assert payload["passed"] is True
+    assert payload["checks"][-1]["name"] == "github_workflow"
 
 
 def _write_jsonl_scenario(path: Path, *, command: str) -> None:
