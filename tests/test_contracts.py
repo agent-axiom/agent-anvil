@@ -8,7 +8,11 @@ from typer.testing import CliRunner
 
 from anvil.cli import app
 from anvil.doctor import DoctorReportPayload
-from anvil.leaderboard import LeaderboardIndex, LeaderboardSubmission
+from anvil.leaderboard import (
+    LeaderboardGithubRunVerification,
+    LeaderboardIndex,
+    LeaderboardSubmission,
+)
 from anvil.runner import CompareResultPayload
 from anvil.scenario import ScenarioSuite
 from anvil.storage import ResultsPayload
@@ -22,6 +26,9 @@ CONTRACT_SCHEMAS = {
     "anvil.compare.result.v1": "anvil.compare.result.v1.schema.json",
     "agent-anvil.leaderboard.v1": "agent-anvil.leaderboard.v1.schema.json",
     "agent-anvil.leaderboard.index.v1": "agent-anvil.leaderboard.index.v1.schema.json",
+    "agent-anvil.leaderboard.github_run_verification.v1": (
+        "agent-anvil.leaderboard.github_run_verification.v1.schema.json"
+    ),
 }
 
 
@@ -68,6 +75,11 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     index = LeaderboardIndex.model_validate_json(
         Path("fixtures/contracts/leaderboard-index-valid.json").read_text(encoding="utf-8")
     )
+    verification = LeaderboardGithubRunVerification.model_validate_json(
+        Path("fixtures/contracts/leaderboard-github-run-verification-valid.json").read_text(
+            encoding="utf-8"
+        )
+    )
     doctor = DoctorReportPayload.model_validate_json(
         Path("fixtures/contracts/doctor-report-valid.json").read_text(encoding="utf-8")
     )
@@ -90,6 +102,8 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     assert compare.new_failures[0].failure_type == "invalid_tool_args"
     assert submission.schema_version == "agent-anvil.leaderboard.v1"
     assert index.schema_version == "agent-anvil.leaderboard.index.v1"
+    assert verification.schema_version == "agent-anvil.leaderboard.github_run_verification.v1"
+    assert verification.status == "verified"
 
 
 def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
@@ -105,6 +119,7 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
         assert "schemas/anvil.trace.v1.schema.json" in text
     assert "schemas/anvil.results.v1.schema.json" in artifacts
     assert "schemas/anvil.compare.result.v1.schema.json" in artifacts
+    assert "schemas/agent-anvil.leaderboard.github_run_verification.v1.schema.json" in artifacts
 
     assert "uv run anvil schema export --out schemas" in contracts
     assert "uv run anvil schema export --out schemas" in cli_doc
@@ -112,6 +127,7 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "fixtures/contracts/results-valid.json" in contracts
     assert "fixtures/contracts/doctor-report-valid.json" in contracts
     assert "fixtures/contracts/compare-result-valid.json" in contracts
+    assert "fixtures/contracts/leaderboard-github-run-verification-valid.json" in contracts
     assert "External Agent Conformance" in contracts
     assert "compatible HTTP endpoint agent" in contracts
     assert "anvil.schema.export.v1" in contracts

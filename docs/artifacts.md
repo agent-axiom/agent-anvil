@@ -80,3 +80,4 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Compare result JSON Schema](../schemas/anvil.compare.result.v1.schema.json)
 - [Leaderboard submission JSON Schema](../schemas/agent-anvil.leaderboard.v1.schema.json)
 - [Leaderboard index JSON Schema](../schemas/agent-anvil.leaderboard.index.v1.schema.json)
+- [Leaderboard GitHub run verification JSON Schema](../schemas/agent-anvil.leaderboard.github_run_verification.v1.schema.json)
