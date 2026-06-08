@@ -533,6 +533,24 @@ def test_cli_validate_json_rejects_run_grade_trace_mismatch(tmp_path: Path) -> N
     assert result.stderr == ""
 
 
+def test_cli_validate_json_rejects_duplicate_run_traces(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+    traces_dir = run_dir / "traces"
+    original = traces_dir / "refund_valid_order_trial_1.json"
+    duplicate = traces_dir / "copy_of_refund_valid_order_trial_1.json"
+    duplicate.write_text(original.read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "duplicate trace refund_valid_order/trial_1" in payload["error"]
+    assert "copy_of_refund_valid_order_trial_1.json" in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,
