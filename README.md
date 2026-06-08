@@ -148,6 +148,7 @@ uv run anvil validate scenarios/external_jsonl_agent.yaml
 uv run anvil validate --json scenarios/external_jsonl_agent.yaml
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 uv run anvil validate run runs/latest
+uv run anvil validate --require-manifest run runs/latest
 ```
 
 Check that your own external JSONL agent is compatible before writing a suite:

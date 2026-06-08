@@ -485,6 +485,48 @@ def test_cli_validate_json_reports_valid_run_artifacts(tmp_path: Path) -> None:
     assert result.stderr == ""
 
 
+def test_cli_validate_json_can_require_run_manifest(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+
+    result = CliRunner().invoke(
+        app,
+        ["validate", "--json", "--require-manifest", "run", str(run_dir)],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "manifest.json is required" in payload["error"]
+    assert result.stderr == ""
+
+
+def test_cli_validate_json_accepts_required_run_manifest(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "runs"
+    CliRunner().invoke(
+        app,
+        [
+            "run",
+            "scenarios/external_jsonl_agent.yaml",
+            "--runs-dir",
+            str(runs_dir),
+            "--offline",
+        ],
+    )
+
+    result = CliRunner().invoke(
+        app,
+        ["validate", "--json", "--require-manifest", "run", str(runs_dir / "latest")],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "valid"
+    assert payload["kind"] == "run"
+    assert payload["trace_count"] == 1
+    assert result.stderr == ""
+
+
 def test_cli_validate_reports_valid_run_artifacts(tmp_path: Path) -> None:
     run_dir = _write_run_artifacts(tmp_path)
 
