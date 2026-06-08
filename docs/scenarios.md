@@ -69,6 +69,9 @@ Agent Anvil rejects ambiguous expected tool contracts while loading YAML:
   invalid
 - a tool cannot appear in both `should_call_tools` and `should_not_call_tools`
 - `required_tool_args` cannot target a tool listed in `should_not_call_tools`
+- assertions cannot require and forbid the same tool
+- `min_tool_calls` cannot exceed `max_tool_calls` for the same tool
+- `tool_sequence` entries must be non-empty
 
 ## Assertion DSL
 

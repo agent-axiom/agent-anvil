@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Literal
 
 import typer
+from pydantic import ValidationError
+from yaml import YAMLError
 
 from anvil.adapter_templates import list_adapter_templates, write_adapter_template
 from anvil.benchmark import format_rate_ci, load_benchmark_manifest, run_benchmark
@@ -57,7 +59,7 @@ from anvil.runner import (
     regenerate_report,
     run_suite,
 )
-from anvil.scenario import ExternalAgentConfig
+from anvil.scenario import ExternalAgentConfig, load_scenario_file
 from anvil.storage import ResultsArtifactError
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
@@ -726,6 +728,21 @@ def pack_add(
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
     typer.echo(f"Wrote {pack_path}")
+
+
+@app.command("validate")
+def validate_scenario(scenario_file: Path) -> None:
+    try:
+        suite = load_scenario_file(scenario_file)
+    except (OSError, ValidationError, YAMLError) as error:
+        typer.echo(f"Invalid scenario suite: {error}", err=True)
+        raise typer.Exit(1) from error
+
+    total_trials = sum(scenario.trials(suite.defaults) for scenario in suite.scenarios)
+    typer.echo("Scenario suite is valid")
+    typer.echo(f"Suite: {suite.name}")
+    typer.echo(f"Scenarios: {len(suite.scenarios)}")
+    typer.echo(f"Trials: {total_trials}")
 
 
 @app.command()

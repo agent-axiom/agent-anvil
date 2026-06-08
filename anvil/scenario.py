@@ -41,13 +41,62 @@ class ExpectedBehavior(BaseModel):
         if args_forbidden:
             joined = ", ".join(args_forbidden)
             raise ValueError(f"required args cannot target forbidden tools: {joined}")
+        _validate_assertion_contracts(self)
         return self
 
 
-def _validate_tool_name_list(kind: str, tool_names: list[str]) -> None:
+def _validate_assertion_contracts(expected: ExpectedBehavior) -> None:
+    required = set(expected.should_call_tools)
+    forbidden = set(expected.should_not_call_tools)
+    min_counts = dict.fromkeys(required, 1)
+    max_counts = dict.fromkeys(forbidden, 0)
+
+    for assertion in expected.assertions:
+        if assertion.type == "tool_called" and assertion.tool is not None:
+            required.add(assertion.tool)
+            min_counts[assertion.tool] = max(min_counts.get(assertion.tool, 0), 1)
+        if assertion.type == "tool_not_called" and assertion.tool is not None:
+            forbidden.add(assertion.tool)
+            max_counts[assertion.tool] = min(max_counts.get(assertion.tool, 0), 0)
+        if assertion.type == "tool_sequence":
+            _validate_nonempty_tool_names(assertion.tools)
+            forbidden_in_sequence = sorted(set(assertion.tools) & forbidden)
+            if forbidden_in_sequence:
+                joined = ", ".join(forbidden_in_sequence)
+                raise ValueError(f"tool_sequence cannot include forbidden tools: {joined}")
+        if assertion.type == "min_tool_calls" and assertion.tool is not None:
+            min_counts[assertion.tool] = max(
+                min_counts.get(assertion.tool, 0),
+                assertion.count or 0,
+            )
+        if assertion.type == "max_tool_calls" and assertion.tool is not None:
+            max_counts[assertion.tool] = min(
+                max_counts.get(assertion.tool, assertion.count or 0),
+                assertion.count or 0,
+            )
+
+    overlap = sorted(required & forbidden)
+    if overlap:
+        joined = ", ".join(overlap)
+        raise ValueError(f"tools cannot be both required and forbidden by assertions: {joined}")
+
+    for tool_name, minimum in min_counts.items():
+        maximum = max_counts.get(tool_name)
+        if maximum is not None and minimum > maximum:
+            raise ValueError(
+                f"min_tool_calls cannot exceed max_tool_calls for {tool_name}: "
+                f"{minimum} > {maximum}"
+            )
+
+
+def _validate_nonempty_tool_names(tool_names: list[str]) -> None:
     invalid = [tool_name for tool_name in tool_names if not tool_name.strip()]
     if invalid:
         raise ValueError("tool names must not be empty")
+
+
+def _validate_tool_name_list(kind: str, tool_names: list[str]) -> None:
+    _validate_nonempty_tool_names(tool_names)
 
     duplicates = sorted({tool_name for tool_name in tool_names if tool_names.count(tool_name) > 1})
     if duplicates:

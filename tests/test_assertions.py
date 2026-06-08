@@ -36,7 +36,7 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
     expected = expected_with_assertions(
         [
             {"type": "tool_called", "tool": "lookup_order"},
-            {"type": "tool_not_called", "tool": "issue_refund"},
+            {"type": "tool_not_called", "tool": "delete_account"},
             {"type": "tool_called_before", "before": "issue_refund", "after": "lookup_order"},
             {"type": "tool_sequence", "tools": ["lookup_order", "issue_refund"]},
             {"type": "min_tool_calls", "tool": "lookup_order", "count": 1},
