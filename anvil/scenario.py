@@ -63,19 +63,27 @@ class AssertionCheck(BaseModel):
             "tool_sequence": ("tools",),
             "min_tool_calls": ("tool", "count"),
             "max_tool_calls": ("tool", "count"),
-            "tool_argument_matches": ("tool", "path"),
+            "tool_argument_matches": ("tool", "path", "equals"),
             "forbidden_arg_value": ("tool", "path"),
-            "tool_result_matches": ("tool", "path"),
+            "tool_result_matches": ("tool", "path", "equals"),
             "final_output_contains": ("text",),
             "final_output_not_contains": ("text",),
         }
         missing = [
-            field for field in required_by_type[self.type] if getattr(self, field) in (None, "", [])
+            field
+            for field in required_by_type[self.type]
+            if _required_assertion_field_missing(self, field)
         ]
         if missing:
             joined = ", ".join(missing)
             raise ValueError(f"{self.type} assertion missing required fields: {joined}")
         return self
+
+
+def _required_assertion_field_missing(assertion: AssertionCheck, field: str) -> bool:
+    if field == "equals":
+        return field not in assertion.model_fields_set
+    return getattr(assertion, field) in (None, "", [])
 
 
 class LearnedFrom(BaseModel):
