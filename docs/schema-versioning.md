@@ -19,6 +19,10 @@ Current trace artifacts use:
 `anvil.trace.v1` includes run metadata, scenario metadata, typed model/tool
 steps, final output, status, and metrics. Legacy traces without a
 `schema_version` are treated as v1-compatible artifacts where possible.
+Trace artifact loading is permissive by default: unknown custom event types are
+preserved for inspection. Use `anvil validate --strict trace <trace.json>` or
+`anvil validate --strict run <run-dir>` when CI consumers need to reject trace
+events outside Agent Anvil's stable v1 step contract.
 
 Compatible v1 changes may add optional fields. Incompatible changes require a
 new schema version and migration notes.

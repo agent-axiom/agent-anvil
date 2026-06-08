@@ -9,9 +9,11 @@ copy-paste commands in one place so the README can stay short.
 uv run anvil validate scenarios/refund_agent.yaml
 uv run anvil validate --json scenarios/refund_agent.yaml
 uv run anvil validate trace runs/latest/traces/refund_valid_order_trial_1.json
+uv run anvil validate --strict trace runs/latest/traces/refund_valid_order_trial_1.json
 uv run anvil validate --json results runs/latest
 uv run anvil validate run runs/latest
 uv run anvil validate --json run runs/latest
+uv run anvil validate --strict run runs/latest
 uv run anvil validate --require-manifest run runs/latest
 uv run anvil run scenarios/refund_agent.yaml
 uv run anvil run scenarios/refund_agent.yaml --trials 5
@@ -39,6 +41,9 @@ the manifest. The JSON and text output include an artifact trust summary showing
 whether trace-index, hash, size, and manifest coverage checks were performed.
 Use `--require-manifest` in CI when the run directory must include
 tamper-evident artifact hashes.
+Trace validation is permissive by default so older/custom observer events can
+still be inspected. Use `--strict` in CI when unknown trace event types should
+fail the validation contract.
 Use `--json` for machine-readable preflight output in CI/editor integrations.
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
