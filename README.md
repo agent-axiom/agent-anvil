@@ -308,6 +308,7 @@ uv run anvil leaderboard inspect leaderboard_submission.json --out leaderboard_i
 uv run anvil leaderboard verify-run leaderboard_submission.json \
   --out github_run_verification.json
 uv run anvil leaderboard verify-all submissions --out github-run-verifications
+uv run anvil leaderboard audit submissions --json-out leaderboard_audit.json
 uv run anvil leaderboard reproduce leaderboard_submission.json --out reproduce_leaderboard_submission.sh
 uv run anvil leaderboard build submissions --out leaderboard.csv --json-out leaderboard.json
 ```

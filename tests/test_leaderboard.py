@@ -13,6 +13,7 @@ from anvil.benchmark import run_benchmark
 from anvil.cli import app
 from anvil.leaderboard import (
     LeaderboardValidationError,
+    audit_leaderboard_submissions,
     build_leaderboard_index,
     export_leaderboard_submission,
     generate_leaderboard_reproduction_script,
@@ -781,6 +782,141 @@ def test_cli_leaderboard_verify_run_rejects_self_reported_submission(
     assert result.exit_code == 1
     assert "trust level mismatch: expected github_actions, got self_reported" in result.stderr
     assert "Traceback" not in result.stderr
+
+
+def test_audit_leaderboard_submissions_classifies_accept_review_and_reject(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    verified_submission = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(verified_submission, submissions_dir / "verified-agent.json")
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "review-runs")
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "self-reported-agent.json",
+        agent_name="Self Reported Agent",
+    )
+    tampered = json.loads((submissions_dir / "self-reported-agent.json").read_text())
+    tampered["metrics"]["trace_aware_pass_rate"] = 100.0
+    (submissions_dir / "tampered-agent.json").write_text(json.dumps(tampered), encoding="utf-8")
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        verify_artifacts=False,
+        verify_github_run=True,
+    )
+
+    assert audit.schema_version == "agent-anvil.leaderboard.audit.v1"
+    assert audit.summary.total == 3
+    assert audit.summary.accept == 1
+    assert audit.summary.review == 1
+    assert audit.summary.reject == 1
+    decisions = {Path(row.submission_path).name: row.decision for row in audit.rows}
+    assert decisions == {
+        "verified-agent.json": "accept",
+        "self-reported-agent.json": "review",
+        "tampered-agent.json": "reject",
+    }
+    reject_row = next(row for row in audit.rows if row.decision == "reject")
+    assert "evidence hash mismatch" in reject_row.reason
+    assert "self-reported rows require human review" in audit.markdown
+    assert "tampered-agent.json" in audit.markdown
+
+
+def test_audit_leaderboard_submissions_requires_verified_github_run_for_accept(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        verify_artifacts=False,
+        verify_github_run=False,
+    )
+
+    assert audit.summary.accept == 0
+    assert audit.summary.review == 1
+    assert audit.rows[0].decision == "review"
+    assert audit.rows[0].reason == "github_actions rows require --github-run verification"
+
+
+def test_cli_leaderboard_audit_writes_json_and_markdown_report(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    json_out = tmp_path / "leaderboard_audit.json"
+    markdown_out = tmp_path / "leaderboard_audit.md"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "audit",
+            str(submissions_dir),
+            "--json-out",
+            str(json_out),
+            "--markdown-out",
+            str(markdown_out),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert f"Wrote leaderboard audit JSON: {json_out}" in result.stdout
+    assert f"Wrote leaderboard audit Markdown: {markdown_out}" in result.stdout
+    assert "Accept: 0" in result.stdout
+    assert "Review: 1" in result.stdout
+    assert "Reject: 0" in result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "agent-anvil.leaderboard.audit.v1"
+    assert payload["summary"] == {
+        "total": 1,
+        "accept": 0,
+        "review": 1,
+        "reject": 0,
+    }
+    assert payload["rows"][0]["decision"] == "review"
+    assert "self-reported rows require human review" in markdown_out.read_text(encoding="utf-8")
 
 
 def test_inspect_leaderboard_submission_reports_failed_github_actions_run_without_abort(

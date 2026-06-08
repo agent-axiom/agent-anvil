@@ -28,6 +28,7 @@ LEADERBOARD_INDEX_SCHEMA_VERSION = "agent-anvil.leaderboard.index.v1"
 LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION = (
     "agent-anvil.leaderboard.github_run_verification.v1"
 )
+LEADERBOARD_AUDIT_SCHEMA_VERSION = "agent-anvil.leaderboard.audit.v1"
 
 
 class LeaderboardSubmitter(BaseModel):
@@ -153,6 +154,42 @@ class LeaderboardGithubRunVerification(BaseModel):
     evidence_sha256: str
     generated_at: str
     generated_by: str
+
+
+class LeaderboardAuditSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total: int
+    accept: int
+    review: int
+    reject: int
+
+
+class LeaderboardAuditRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    submission_path: str
+    decision: Literal["accept", "review", "reject"]
+    reason: str
+    agent_name: str = ""
+    benchmark_name: str = ""
+    trust_level: str = ""
+    trace_aware_pass_rate: float | None = None
+    evidence_sha256: str = ""
+    artifact_status: Literal["verified", "not checked", "failed"] = "not checked"
+    github_run_status: Literal["verified", "not checked", "failed"] = "not checked"
+
+
+class LeaderboardAuditReport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["agent-anvil.leaderboard.audit.v1"]
+    generated_at: str
+    generated_by: str
+    submissions_dir: str
+    summary: LeaderboardAuditSummary
+    rows: list[LeaderboardAuditRow]
+    markdown: str
 
 
 class LeaderboardValidationError(ValueError):
@@ -594,6 +631,209 @@ def verify_leaderboard_github_runs(
         report_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
         written.append(report_path)
     return written
+
+
+def audit_leaderboard_submissions(
+    submissions_dir: str | Path,
+    *,
+    verify_artifacts: bool = False,
+    verify_github_run: bool = False,
+) -> LeaderboardAuditReport:
+    selected_submissions_dir = Path(submissions_dir)
+    if not selected_submissions_dir.exists():
+        raise LeaderboardValidationError(
+            f"submissions directory missing: {selected_submissions_dir}"
+        )
+    files = sorted(
+        path
+        for path in selected_submissions_dir.rglob("*.json")
+        if path.is_file() and path.name != "leaderboard.json"
+    )
+    if not files:
+        raise LeaderboardValidationError(
+            f"no submission JSON files found in {selected_submissions_dir}"
+        )
+
+    rows: list[LeaderboardAuditRow] = []
+    seen_evidence_hashes: dict[str, Path] = {}
+    for path in files:
+        row = _audit_submission_file(
+            path,
+            verify_artifacts=verify_artifacts,
+            verify_github_run=verify_github_run,
+        )
+        if row.decision != "reject" and row.evidence_sha256:
+            duplicate_path = seen_evidence_hashes.get(row.evidence_sha256)
+            if duplicate_path is not None:
+                row = row.model_copy(
+                    update={
+                        "decision": "reject",
+                        "reason": (
+                            "duplicate evidence hash: "
+                            f"{path} and {duplicate_path} both use {row.evidence_sha256}"
+                        ),
+                    }
+                )
+            else:
+                seen_evidence_hashes[row.evidence_sha256] = path
+        rows.append(row)
+
+    summary = LeaderboardAuditSummary(
+        total=len(rows),
+        accept=sum(1 for row in rows if row.decision == "accept"),
+        review=sum(1 for row in rows if row.decision == "review"),
+        reject=sum(1 for row in rows if row.decision == "reject"),
+    )
+    markdown = _leaderboard_audit_markdown(
+        submissions_dir=selected_submissions_dir,
+        summary=summary,
+        rows=rows,
+    )
+    return LeaderboardAuditReport(
+        schema_version=LEADERBOARD_AUDIT_SCHEMA_VERSION,
+        generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        generated_by=f"agent-anvil/{_anvil_version()}",
+        submissions_dir=str(_display_path(selected_submissions_dir)),
+        summary=summary,
+        rows=rows,
+        markdown=markdown,
+    )
+
+
+def _audit_submission_file(
+    path: Path,
+    *,
+    verify_artifacts: bool,
+    verify_github_run: bool,
+) -> LeaderboardAuditRow:
+    artifact_status: Literal["verified", "not checked", "failed"] = (
+        "not checked" if not verify_artifacts else "verified"
+    )
+    github_run_status: Literal["verified", "not checked", "failed"] = "not checked"
+    try:
+        submission = validate_leaderboard_submission(
+            path,
+            verify_artifacts=verify_artifacts,
+            verify_github_run=False,
+        )
+        if verify_github_run and submission.verification.trust_level == "github_actions":
+            try:
+                _validate_github_actions_run(submission)
+                github_run_status = "verified"
+            except LeaderboardValidationError as error:
+                return _audit_row_from_submission(
+                    path=path,
+                    submission=submission,
+                    decision="reject",
+                    reason=f"GitHub run verification failed: {error}",
+                    artifact_status=artifact_status,
+                    github_run_status="failed",
+                )
+    except LeaderboardValidationError as error:
+        return LeaderboardAuditRow(
+            submission_path=str(_display_path(path)),
+            decision="reject",
+            reason=str(error),
+            artifact_status="failed" if verify_artifacts else "not checked",
+            github_run_status="not checked",
+        )
+
+    trust_level = submission.verification.trust_level
+    if trust_level == "self_reported":
+        return _audit_row_from_submission(
+            path=path,
+            submission=submission,
+            decision="review",
+            reason="self-reported rows require human review",
+            artifact_status=artifact_status,
+            github_run_status=github_run_status,
+        )
+    if trust_level == "github_actions" and not verify_github_run:
+        return _audit_row_from_submission(
+            path=path,
+            submission=submission,
+            decision="review",
+            reason="github_actions rows require --github-run verification",
+            artifact_status=artifact_status,
+            github_run_status=github_run_status,
+        )
+    if trust_level == "github_actions" and github_run_status != "verified":
+        return _audit_row_from_submission(
+            path=path,
+            submission=submission,
+            decision="review",
+            reason="github_actions rows should include verified GitHub run evidence",
+            artifact_status=artifact_status,
+            github_run_status=github_run_status,
+        )
+    return _audit_row_from_submission(
+        path=path,
+        submission=submission,
+        decision="accept",
+        reason="submission provenance checks passed",
+        artifact_status=artifact_status,
+        github_run_status=github_run_status,
+    )
+
+
+def _audit_row_from_submission(
+    *,
+    path: Path,
+    submission: LeaderboardSubmission,
+    decision: Literal["accept", "review", "reject"],
+    reason: str,
+    artifact_status: Literal["verified", "not checked", "failed"],
+    github_run_status: Literal["verified", "not checked", "failed"],
+) -> LeaderboardAuditRow:
+    return LeaderboardAuditRow(
+        submission_path=str(_display_path(path)),
+        decision=decision,
+        reason=reason,
+        agent_name=submission.submitter.agent_name,
+        benchmark_name=submission.benchmark.name,
+        trust_level=submission.verification.trust_level,
+        trace_aware_pass_rate=submission.metrics.trace_aware_pass_rate,
+        evidence_sha256=submission.verification.evidence_sha256,
+        artifact_status=artifact_status,
+        github_run_status=github_run_status,
+    )
+
+
+def _leaderboard_audit_markdown(
+    *,
+    submissions_dir: Path,
+    summary: LeaderboardAuditSummary,
+    rows: list[LeaderboardAuditRow],
+) -> str:
+    lines = [
+        "# Agent Anvil Leaderboard Audit",
+        "",
+        "## Summary",
+        "",
+        f"- Submissions: `{_display_path(submissions_dir)}`",
+        f"- Total: {summary.total}",
+        f"- Accept: {summary.accept}",
+        f"- Review: {summary.review}",
+        f"- Reject: {summary.reject}",
+        "",
+        "## Decisions",
+        "",
+        "| Decision | Submission | Agent | Trust | Reason |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    lines.extend(
+        (
+            "| "
+            f"{row.decision} | "
+            f"`{row.submission_path}` | "
+            f"{row.agent_name or 'unknown'} | "
+            f"{row.trust_level or 'unknown'} | "
+            f"{row.reason} |"
+        )
+        for row in rows
+    )
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _github_run_verification_report(

@@ -154,6 +154,10 @@ uv run anvil leaderboard verify-run leaderboard_submission.json \
   --out github_run_verification.json
 uv run anvil leaderboard verify-all submissions \
   --out github-run-verifications
+uv run anvil leaderboard audit submissions \
+  --json-out leaderboard_audit.json \
+  --markdown-out leaderboard_audit.md \
+  --github-run
 ```
 
 Use `--json` when another CI step should consume the verification directly from
@@ -163,6 +167,10 @@ repository, SHA, GitHub run URL, evidence hash, benchmark name, and verifier
 version.
 Use `verify-all` in leaderboard maintainer CI when you want one stored
 verification report per submitted row.
+Use `audit` when maintainer CI needs a single decision report across all rows:
+`accept` for rows with passing provenance checks, `review` for self-reported or
+insufficiently verified rows, and `reject` for invalid, tampered, duplicate, or
+failed-provenance rows.
 
 A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).

@@ -280,7 +280,14 @@ def test_leaderboard_index_workflow_exports_verification_reports() -> None:
     assert "anvil leaderboard verify-all submissions" in workflow
     assert "--out github-run-verifications" in workflow
     assert "github-run-verifications" in workflow
+    assert "anvil leaderboard audit submissions" in workflow
+    assert "--json-out leaderboard_audit.json" in workflow
+    assert "--markdown-out leaderboard_audit.md" in workflow
+    assert "leaderboard_audit.json" in workflow
+    assert "leaderboard_audit.md" in workflow
+    assert "if: always()" in workflow
     assert "Use `verify-all` in leaderboard maintainer CI" in leaderboard_doc
+    assert "Use `audit` when maintainer CI needs a single decision report" in leaderboard_doc
 
 
 def test_leaderboard_uvx_examples_pin_current_release() -> None:
