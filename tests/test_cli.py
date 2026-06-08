@@ -641,6 +641,43 @@ def test_cli_compare_can_emit_json(
     assert "Baseline pass rate" not in compare_result.stdout
 
 
+def test_cli_compare_can_write_json_artifact(tmp_path: Path) -> None:
+    baseline_dir = tmp_path / "baseline"
+    latest_dir = tmp_path / "latest"
+    baseline_dir.mkdir()
+    latest_dir.mkdir()
+    write_results(
+        run_dir=baseline_dir,
+        suite_name="suite",
+        run_id="baseline",
+        total_scenarios=1,
+        clusters=[],
+        grades=[_grade("scenario", 1, True)],
+    )
+    write_results(
+        run_dir=latest_dir,
+        suite_name="suite",
+        run_id="latest",
+        total_scenarios=1,
+        clusters=[],
+        grades=[_grade("scenario", 1, False)],
+    )
+    out_path = tmp_path / "compare.json"
+
+    compare_result = CliRunner().invoke(
+        app,
+        ["compare", str(baseline_dir), str(latest_dir), "--out", str(out_path)],
+    )
+
+    assert compare_result.exit_code == 0
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["baseline_pass_rate"] == 100.0
+    assert payload["latest_pass_rate"] == 0.0
+    assert payload["scenario_regressions"][0]["scenario_id"] == "scenario"
+    assert "Baseline pass rate: 100.0%" in compare_result.stdout
+    assert f"Wrote {out_path}" in compare_result.stdout
+
+
 def test_cli_compare_json_includes_flaky_scenario_deltas(tmp_path: Path) -> None:
     baseline_dir = tmp_path / "baseline"
     latest_dir = tmp_path / "latest"

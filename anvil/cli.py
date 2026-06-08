@@ -90,6 +90,7 @@ GITHUB_SUMMARY_OPTION = typer.Option(
     help="Render Markdown optimized for GitHub Step Summary.",
 )
 COMPARE_JSON_OPTION = typer.Option(False, "--json", help="Render compare result as JSON.")
+COMPARE_OUT_OPTION = typer.Option(None, "--out", help="Write compare result JSON to this path.")
 AGENT_MODE_OPTION = typer.Option(
     None,
     "--agent-mode",
@@ -1051,10 +1052,16 @@ def compare(
     baseline_dir: Path,
     latest_dir: Path,
     json_output: bool = COMPARE_JSON_OPTION,
+    out: Path | None = COMPARE_OUT_OPTION,
 ) -> None:
     result = compare_runs(baseline_dir, latest_dir)
+    json_payload = json.dumps(asdict(result), indent=2, sort_keys=True)
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(f"{json_payload}\n", encoding="utf-8")
+
     if json_output:
-        typer.echo(json.dumps(asdict(result), indent=2, sort_keys=True))
+        typer.echo(json_payload)
         return
 
     typer.echo(f"Baseline pass rate: {result.baseline_pass_rate:.1f}%")
@@ -1096,6 +1103,9 @@ def compare(
             )
     else:
         typer.echo("Scenario improvements: none")
+
+    if out is not None:
+        typer.echo(f"Wrote {out}")
 
 
 @mcp_app.command("audit")

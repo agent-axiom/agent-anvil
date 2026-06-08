@@ -15,6 +15,7 @@ uv run anvil report runs/latest
 uv run anvil summary runs/latest --github
 uv run anvil compare runs/baseline runs/latest
 uv run anvil compare runs/baseline runs/latest --json
+uv run anvil compare runs/baseline runs/latest --out runs/latest/compare.json
 ```
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
@@ -23,6 +24,8 @@ regressions.
 `anvil compare --json` emits pass-rate deltas, new/resolved failures, severity
 changes, flaky scenario deltas, scenario regressions, and scenario improvements
 as machine-readable JSON for CI bots and PR comments.
+Use `anvil compare --out compare.json` to persist the same machine-readable
+payload while keeping the terminal output human-readable.
 
 ## Repair And Draft Scenario Helpers
 
