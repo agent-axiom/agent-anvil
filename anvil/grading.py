@@ -224,12 +224,15 @@ def _required_tool_args_matched(scenario: ScenarioCase, trace: TraceRun) -> Chec
 
 def _assertions_satisfied(scenario: ScenarioCase, trace: TraceRun) -> CheckOutcome:
     failures: list[str] = []
+    steps = trace.steps
     calls = trace.tool_calls()
     tool_names = trace.tool_names()
     final_output = trace.final_output or ""
 
     for assertion in scenario.expected.assertions:
-        failure = _assertion_failure(assertion, calls, tool_names, final_output, trace.metrics)
+        failure = _assertion_failure(
+            assertion, steps, calls, tool_names, final_output, trace.metrics
+        )
         if failure:
             failures.append(failure)
 
@@ -242,6 +245,7 @@ def _assertions_satisfied(scenario: ScenarioCase, trace: TraceRun) -> CheckOutco
 
 def _assertion_failure(
     assertion: Any,
+    steps: Sequence[Any],
     calls: Sequence[Any],
     tool_names: list[str],
     final_output: str,
@@ -279,6 +283,7 @@ def _assertion_failure(
         ),
         "metric_lte": lambda: _assert_metric_lte(assertion.metric, assertion.value, metrics),
         "metric_gte": lambda: _assert_metric_gte(assertion.metric, assertion.value, metrics),
+        "no_tool_errors": lambda: _assert_no_tool_errors(assertion.tool, steps),
     }
     return handlers[assertion.type]()
 
@@ -421,6 +426,22 @@ def _assert_metric_gte(
             f"got {_format_number(observed)}"
         )
     return None
+
+
+def _assert_no_tool_errors(tool_name: str | None, steps: Sequence[Any]) -> str | None:
+    error_steps = [
+        step
+        for step in steps
+        if step.get("type") in {"tool_argument_error", "tool_execution_error"}
+        and (tool_name is None or step.get("tool_name") == tool_name)
+    ]
+    if not error_steps:
+        return None
+
+    observed = ", ".join(
+        f"{step.get('type')}({step.get('tool_name') or '<unknown>'})" for step in error_steps
+    )
+    return f"tool errors observed: {observed}"
 
 
 def _trace_metric_value(metrics: TraceMetrics, metric_name: str | None) -> float:
