@@ -5,7 +5,7 @@ import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import typer
 from pydantic import ValidationError
@@ -760,15 +760,23 @@ def validate_scenario(
     if target_kind == "results":
         _validate_results_artifact(target_path, json_output=json_output)
         return
+    if target_kind == "run":
+        _validate_run_artifacts(target_path, json_output=json_output)
+        return
     _validate_scenario_file(target_path, json_output=json_output)
 
 
 def _parse_validate_target(targets: list[str]) -> tuple[str, Path]:
     if len(targets) == 1:
         return "scenario", Path(targets[0])
-    if len(targets) == VALIDATE_TARGET_PARTS and targets[0] in {"scenario", "trace", "results"}:
+    if len(targets) == VALIDATE_TARGET_PARTS and targets[0] in {
+        "scenario",
+        "trace",
+        "results",
+        "run",
+    }:
         return targets[0], Path(targets[1])
-    msg = "expected PATH or one of: scenario PATH, trace PATH, results PATH"
+    msg = "expected PATH or one of: scenario PATH, trace PATH, results PATH, run PATH"
     raise ValueError(msg)
 
 
@@ -869,6 +877,64 @@ def _validate_results_artifact(results_path: Path, *, json_output: bool) -> None
     typer.echo(f"Run: {payload.get('run_id')}")
     typer.echo(f"Trials: {summary.get('total_trials')}")
     typer.echo(f"Pass rate: {summary.get('pass_rate')}%")
+
+
+def _validate_run_artifacts(run_dir: Path, *, json_output: bool) -> None:
+    try:
+        payload, trace_count = _load_run_artifacts(run_dir)
+    except (ResultsArtifactError, TraceArtifactError, ValueError) as error:
+        _write_validation_error(kind="run", error=error, json_output=json_output)
+        raise typer.Exit(1) from error
+
+    summary = payload.get("summary", {})
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "status": "valid",
+                    "kind": "run",
+                    "suite": payload.get("suite"),
+                    "run_id": payload.get("run_id"),
+                    "total_trials": summary.get("total_trials"),
+                    "pass_rate": summary.get("pass_rate"),
+                    "trace_count": trace_count,
+                }
+            )
+        )
+        return
+
+    typer.echo("Run artifacts are valid")
+    typer.echo(f"Suite: {payload.get('suite')}")
+    typer.echo(f"Run: {payload.get('run_id')}")
+    typer.echo(f"Trials: {summary.get('total_trials')}")
+    typer.echo(f"Pass rate: {summary.get('pass_rate')}%")
+    typer.echo(f"Traces: {trace_count}")
+
+
+def _load_run_artifacts(run_dir: Path) -> tuple[dict[str, Any], int]:
+    if not run_dir.is_dir():
+        msg = "run validation expects a run directory"
+        raise ValueError(msg)
+
+    payload = load_results(run_dir)
+    traces_dir = run_dir / "traces"
+    if not traces_dir.is_dir():
+        msg = f"run artifact {run_dir} is missing traces directory"
+        raise TraceArtifactError(msg)
+
+    trace_paths = sorted(traces_dir.glob("*.json"))
+    if not trace_paths:
+        msg = f"run artifact {run_dir} does not contain trace JSON files"
+        raise TraceArtifactError(msg)
+
+    for trace_path in trace_paths:
+        try:
+            load_trace_artifact(trace_path)
+        except TraceArtifactError as error:
+            msg = f"{trace_path.name}: {error}"
+            raise TraceArtifactError(msg) from error
+
+    return payload, len(trace_paths)
 
 
 def _results_run_dir(results_path: Path) -> Path:
