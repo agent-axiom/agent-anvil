@@ -12,7 +12,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from anvil.benchmark import (
     BenchmarkAblationResult,
@@ -252,9 +252,7 @@ def validate_leaderboard_submission(
     require_trust_level: str | None = None,
 ) -> LeaderboardSubmission:
     selected_submission_path = Path(submission_path)
-    submission = LeaderboardSubmission.model_validate_json(
-        selected_submission_path.read_text(encoding="utf-8")
-    )
+    submission = _load_leaderboard_submission(selected_submission_path)
     _validate_trust_metadata(submission)
     if require_trust_level and submission.verification.trust_level != require_trust_level:
         raise LeaderboardValidationError(
@@ -274,6 +272,15 @@ def validate_leaderboard_submission(
         _validate_artifact_hashes(submission)
 
     return submission
+
+
+def _load_leaderboard_submission(path: Path) -> LeaderboardSubmission:
+    try:
+        return LeaderboardSubmission.model_validate_json(path.read_text(encoding="utf-8"))
+    except (OSError, ValidationError) as error:
+        raise LeaderboardValidationError(
+            f"invalid leaderboard submission at {path}: {error}"
+        ) from error
 
 
 def _validate_trust_metadata(submission: LeaderboardSubmission) -> None:

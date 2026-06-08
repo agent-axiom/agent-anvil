@@ -148,6 +148,29 @@ def test_cli_leaderboard_validate_checks_artifact_hashes(
     assert "artifact hash mismatch" in invalid.stderr
 
 
+@pytest.mark.parametrize(
+    "submission_body",
+    [
+        "{",
+        "{}",
+    ],
+)
+def test_cli_leaderboard_validate_reports_invalid_submission_without_traceback(
+    tmp_path: Path,
+    submission_body: str,
+) -> None:
+    submission_path = tmp_path / "leaderboard_submission.json"
+    submission_path.write_text(submission_body, encoding="utf-8")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["leaderboard", "validate", str(submission_path)])
+
+    assert result.exit_code == 1
+    assert "invalid leaderboard submission" in result.stderr
+    assert str(submission_path) in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_inspect_leaderboard_submission_writes_reviewable_trust_report(
     scenario_file: Path,
     tmp_path: Path,
