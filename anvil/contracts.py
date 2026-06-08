@@ -16,6 +16,7 @@ from anvil.leaderboard import (
 )
 from anvil.runner import COMPARE_RESULT_SCHEMA_VERSION, CompareResultPayload
 from anvil.scenario import ScenarioSuite
+from anvil.storage import RESULTS_SCHEMA_VERSION, ResultsPayload
 from anvil.trace import TRACE_SCHEMA_VERSION, TraceRun
 
 SCENARIO_SCHEMA_VERSION = "anvil.scenario.v1"
@@ -43,6 +44,12 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         filename="anvil.scenario.v1.schema.json",
         model=ScenarioSuite,
         description="Agent Anvil YAML scenario suite schema.",
+    ),
+    SchemaContract(
+        schema_id=RESULTS_SCHEMA_VERSION,
+        filename="anvil.results.v1.schema.json",
+        model=ResultsPayload,
+        description="Agent Anvil persisted run results schema.",
     ),
     SchemaContract(
         schema_id=DOCTOR_REPORT_SCHEMA_VERSION,

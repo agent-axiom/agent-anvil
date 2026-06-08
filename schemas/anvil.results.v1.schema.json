@@ -1,0 +1,289 @@
+{
+  "$defs": {
+    "CheckOutcome": {
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/DeterministicCheck"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "passed",
+        "reason"
+      ],
+      "title": "CheckOutcome",
+      "type": "object"
+    },
+    "DeterministicCheck": {
+      "enum": [
+        "trace_completed",
+        "expected_tools_called",
+        "forbidden_tool_not_called",
+        "max_steps_not_exceeded",
+        "required_tool_args_matched",
+        "final_output_exists",
+        "clarifying_question_asked",
+        "tool_policy_satisfied",
+        "assertions_satisfied"
+      ],
+      "title": "DeterministicCheck",
+      "type": "string"
+    },
+    "FailureCluster": {
+      "properties": {
+        "count": {
+          "title": "Count",
+          "type": "integer"
+        },
+        "examples": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Examples",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "repair_plan": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Repair Plan",
+          "type": "array"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "count",
+        "severity",
+        "examples"
+      ],
+      "title": "FailureCluster",
+      "type": "object"
+    },
+    "GradeResult": {
+      "properties": {
+        "deterministic_checks": {
+          "items": {
+            "$ref": "#/$defs/CheckOutcome"
+          },
+          "title": "Deterministic Checks",
+          "type": "array"
+        },
+        "deterministic_passed": {
+          "title": "Deterministic Passed",
+          "type": "boolean"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "semantic": {
+          "$ref": "#/$defs/SemanticGrade"
+        },
+        "trace_path": {
+          "title": "Trace Path",
+          "type": "string"
+        },
+        "trial": {
+          "title": "Trial",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "trial",
+        "passed",
+        "deterministic_passed",
+        "semantic",
+        "trace_path"
+      ],
+      "title": "GradeResult",
+      "type": "object"
+    },
+    "ResultsFlakyScenarioPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "failed_trials": {
+          "title": "Failed Trials",
+          "type": "integer"
+        },
+        "pass_rate": {
+          "title": "Pass Rate",
+          "type": "number"
+        },
+        "passed_trials": {
+          "title": "Passed Trials",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "total_trials": {
+          "title": "Total Trials",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "passed_trials",
+        "failed_trials",
+        "total_trials",
+        "pass_rate"
+      ],
+      "title": "ResultsFlakyScenarioPayload",
+      "type": "object"
+    },
+    "ResultsSummaryPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "failed_trials": {
+          "title": "Failed Trials",
+          "type": "integer"
+        },
+        "flaky_scenarios": {
+          "items": {
+            "$ref": "#/$defs/ResultsFlakyScenarioPayload"
+          },
+          "title": "Flaky Scenarios",
+          "type": "array"
+        },
+        "pass_rate": {
+          "title": "Pass Rate",
+          "type": "number"
+        },
+        "passed_trials": {
+          "title": "Passed Trials",
+          "type": "integer"
+        },
+        "total_scenarios": {
+          "title": "Total Scenarios",
+          "type": "integer"
+        },
+        "total_trials": {
+          "title": "Total Trials",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total_scenarios",
+        "total_trials",
+        "passed_trials",
+        "failed_trials",
+        "pass_rate",
+        "flaky_scenarios"
+      ],
+      "title": "ResultsSummaryPayload",
+      "type": "object"
+    },
+    "SemanticGrade": {
+      "properties": {
+        "failure_type": {
+          "default": "none",
+          "title": "Failure Type",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        },
+        "severity": {
+          "default": "none",
+          "title": "Severity",
+          "type": "string"
+        },
+        "suggested_fix": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Suggested Fix",
+          "type": "object"
+        }
+      },
+      "required": [
+        "passed",
+        "score"
+      ],
+      "title": "SemanticGrade",
+      "type": "object"
+    }
+  },
+  "$id": "anvil.results.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Agent Anvil persisted run results schema.",
+  "properties": {
+    "clusters": {
+      "items": {
+        "$ref": "#/$defs/FailureCluster"
+      },
+      "title": "Clusters",
+      "type": "array"
+    },
+    "grades": {
+      "items": {
+        "$ref": "#/$defs/GradeResult"
+      },
+      "title": "Grades",
+      "type": "array"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "anvil.results.v1",
+      "default": "anvil.results.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "suite": {
+      "title": "Suite",
+      "type": "string"
+    },
+    "summary": {
+      "$ref": "#/$defs/ResultsSummaryPayload"
+    }
+  },
+  "required": [
+    "suite",
+    "run_id",
+    "summary",
+    "grades",
+    "clusters"
+  ],
+  "title": "ResultsPayload",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "anvil.results.v1"
+}

@@ -51,6 +51,7 @@ def test_write_results_persists_flaky_scenario_summary(tmp_path) -> None:
     )
 
     payload = json.loads(results_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "anvil.results.v1"
     assert payload["summary"]["flaky_scenarios"] == [
         {
             "scenario_id": "refund_missing_order_id",
