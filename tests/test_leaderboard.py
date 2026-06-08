@@ -597,6 +597,60 @@ def test_cli_leaderboard_validate_can_verify_github_actions_run(
     assert "GitHub run: verified" in result.stdout
 
 
+def test_cli_leaderboard_verify_run_reports_verified_github_actions_run(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["leaderboard", "verify-run", str(submission_path)])
+
+    assert result.exit_code == 0
+    assert "GitHub Actions run is verified" in result.stdout
+    assert "Repository: agent-axiom/agent-anvil" in result.stdout
+    assert "SHA: abc123" in result.stdout
+    assert "Run: https://github.com/agent-axiom/agent-anvil/actions/runs/12345" in result.stdout
+
+
+def test_cli_leaderboard_verify_run_rejects_self_reported_submission(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submission_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submission_path,
+        agent_name="Support Agent",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["leaderboard", "verify-run", str(submission_path)])
+
+    assert result.exit_code == 1
+    assert "trust level mismatch: expected github_actions, got self_reported" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_inspect_leaderboard_submission_reports_failed_github_actions_run_without_abort(
     scenario_file: Path,
     tmp_path: Path,
