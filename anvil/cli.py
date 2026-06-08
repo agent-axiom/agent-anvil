@@ -149,6 +149,11 @@ FUZZ_OUT_OPTION = typer.Option(..., "--out", help="Write the fuzzed scenario YAM
 FUZZ_MUTATIONS_OPTION = typer.Option(10, "--mutations", min=1, help="Number of mutations.")
 FUZZ_FOCUS_OPTION = typer.Option("tool_safety", "--focus", help="Mutation focus.")
 PR_COMMENT_OUT_OPTION = typer.Option(..., "--out", help="Write PR-ready Markdown here.")
+PR_COMMENT_COMPARE_OPTION = typer.Option(
+    None,
+    "--compare",
+    help="Optional compare JSON artifact to include in the PR comment.",
+)
 DOCTOR_SCENARIO_ARGUMENT = typer.Argument(
     DEFAULT_SCENARIO_PATH,
     help="Scenario file to diagnose.",
@@ -1026,8 +1031,12 @@ def summary(run_dir: Path, github: bool = GITHUB_SUMMARY_OPTION) -> None:
 
 
 @app.command("pr-comment")
-def pr_comment(run_dir: Path, out: Path = PR_COMMENT_OUT_OPTION) -> None:
-    comment_path = write_pr_comment(run_dir, out_path=out)
+def pr_comment(
+    run_dir: Path,
+    out: Path = PR_COMMENT_OUT_OPTION,
+    compare: Path | None = PR_COMMENT_COMPARE_OPTION,
+) -> None:
+    comment_path = write_pr_comment(run_dir, out_path=out, compare_path=compare)
     typer.echo(f"Wrote {comment_path}")
 
 
