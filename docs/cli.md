@@ -208,6 +208,7 @@ uv run anvil leaderboard verify-all submissions \
 uv run anvil leaderboard audit submissions \
   --json-out leaderboard_audit.json \
   --markdown-out leaderboard_audit.md \
+  --fail-on reject \
   --github-run
 uv run anvil leaderboard inspect leaderboard_submission.json \
   --out leaderboard_inspection.md
@@ -236,9 +237,10 @@ persist a signed-off verification artifact in CI.
 directory and writes one machine-readable GitHub-run verification report per
 submission.
 `leaderboard audit` classifies every row as `accept`, `review`, or `reject` and
-writes a JSON plus Markdown maintainer decision report. It exits non-zero when
-any row needs review or rejection, which makes it suitable as a public
-leaderboard CI gate.
+writes a JSON plus Markdown maintainer decision report. By default it exits
+non-zero on review or reject; use `--fail-on reject` when public leaderboard CI
+should allow review rows but fail rejected rows, or `--fail-on never` for
+report-only jobs.
 `leaderboard inspect` renders a reviewable trust report with benchmark hashes,
 artifact status, warnings, and a reproducibility checklist for maintainers or
 community reviewers.

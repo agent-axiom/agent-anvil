@@ -919,6 +919,48 @@ def test_cli_leaderboard_audit_writes_json_and_markdown_report(
     assert "self-reported rows require human review" in markdown_out.read_text(encoding="utf-8")
 
 
+def test_cli_leaderboard_audit_can_fail_only_on_rejects(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    json_out = tmp_path / "leaderboard_audit.json"
+    markdown_out = tmp_path / "leaderboard_audit.md"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "audit",
+            str(submissions_dir),
+            "--json-out",
+            str(json_out),
+            "--markdown-out",
+            str(markdown_out),
+            "--fail-on",
+            "reject",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Accept: 0" in result.stdout
+    assert "Review: 1" in result.stdout
+    assert "Reject: 0" in result.stdout
+    assert json.loads(json_out.read_text(encoding="utf-8"))["summary"]["review"] == 1
+
+
 def test_inspect_leaderboard_submission_reports_failed_github_actions_run_without_abort(
     scenario_file: Path,
     tmp_path: Path,

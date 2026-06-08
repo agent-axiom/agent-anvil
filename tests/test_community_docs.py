@@ -283,6 +283,7 @@ def test_leaderboard_index_workflow_exports_verification_reports() -> None:
     assert "anvil leaderboard audit submissions" in workflow
     assert "--json-out leaderboard_audit.json" in workflow
     assert "--markdown-out leaderboard_audit.md" in workflow
+    assert "--fail-on reject" in workflow
     assert "leaderboard_audit.json" in workflow
     assert "leaderboard_audit.md" in workflow
     assert "if: always()" in workflow
