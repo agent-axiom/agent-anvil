@@ -942,6 +942,13 @@ def _load_run_artifacts(
     if require_manifest and manifest is None:
         msg = f"manifest.json is required for run artifact validation: {run_dir}"
         raise RunManifestError(msg)
+    expected_run_id = str(payload.get("run_id"))
+    if manifest is not None and str(manifest.get("run_id")) != expected_run_id:
+        msg = (
+            f"manifest run_id {manifest.get('run_id')} "
+            f"does not match results run_id {expected_run_id}"
+        )
+        raise RunManifestError(msg)
     traces_dir = run_dir / "traces"
     if not traces_dir.is_dir():
         msg = f"run artifact {run_dir} is missing traces directory"
@@ -952,7 +959,6 @@ def _load_run_artifacts(
         msg = f"run artifact {run_dir} does not contain trace JSON files"
         raise TraceArtifactError(msg)
 
-    expected_run_id = str(payload.get("run_id"))
     observed_trace_paths: dict[tuple[str, int], str] = {}
     for trace_path in trace_paths:
         try:
