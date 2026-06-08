@@ -1,0 +1,14 @@
+{
+  "schema_version": "agent-anvil.leaderboard.github_run_verification.v1",
+  "status": "verified",
+  "submission_path": "leaderboard_submission.json",
+  "agent_name": "Support Agent",
+  "benchmark_name": "paper_benchmark",
+  "trust_level": "github_actions",
+  "github_repository": "agent-axiom/agent-anvil",
+  "github_sha": "abc123",
+  "github_run_url": "https://github.com/agent-axiom/agent-anvil/actions/runs/12345",
+  "evidence_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "generated_at": "2026-06-08T12:00:00Z",
+  "generated_by": "agent-anvil/0.2.35"
+}

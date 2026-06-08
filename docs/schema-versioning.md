@@ -69,6 +69,14 @@ The public leaderboard index uses:
 }
 ```
 
+GitHub Actions run verification reports use:
+
+```json
+{
+  "schema_version": "agent-anvil.leaderboard.github_run_verification.v1"
+}
+```
+
 These schemas are designed for aggregate public reporting. They should not
 include raw traces, model outputs, tool results, secrets, or private scenario
 content.
