@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 from anvil.clustering import FailureCluster
 from anvil.grading import GradeResult
@@ -51,6 +52,10 @@ def generate_pr_comment(run_dir: str | Path) -> str:
         if top_cluster.repair_plan:
             lines.append("- Suggested repair:")
             lines.extend(f"  - {item}" for item in top_cluster.repair_plan[:3])
+    flaky_lines = _flaky_scenario_lines(summary.get("flaky_scenarios", []))
+    if flaky_lines:
+        lines.extend(["", "### Flaky scenarios"])
+        lines.extend(flaky_lines)
     lines.extend(["", "### First failing trace"])
     first = failed[0]
     lines.extend(
@@ -69,3 +74,31 @@ def _display_trace_path(trace_path: str) -> str:
     if "traces" in trace_path:
         return "runs/latest/traces/" + Path(trace_path).name
     return trace_path
+
+
+def _flaky_scenario_lines(flaky_scenarios: object) -> list[str]:
+    if not isinstance(flaky_scenarios, list):
+        return []
+
+    lines: list[str] = []
+    for item in flaky_scenarios:
+        if not isinstance(item, dict):
+            continue
+        payload = cast(dict[str, object], item)
+        scenario_id = payload.get("scenario_id")
+        passed_trials = payload.get("passed_trials")
+        total_trials = payload.get("total_trials")
+        pass_rate = payload.get("pass_rate")
+        if not (
+            isinstance(scenario_id, str)
+            and isinstance(passed_trials, int)
+            and isinstance(total_trials, int)
+            and isinstance(pass_rate, int | float)
+        ):
+            continue
+        pass_rate_value = float(pass_rate)
+        lines.append(
+            f"- `{scenario_id}`: {passed_trials}/{total_trials} "
+            f"trials passed ({pass_rate_value:.1f}%)"
+        )
+    return lines
