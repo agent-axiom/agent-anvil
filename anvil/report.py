@@ -53,6 +53,16 @@ def render_markdown_report(
         status = "PASS" if passed else "FAIL"
         lines.append(f"- {scenario_id}: {status}")
 
+    flaky_scenarios = _flaky_scenario_results(grades)
+    if flaky_scenarios:
+        lines.extend(["", "## Flaky scenarios"])
+        for scenario_id, passed_trials_for_scenario, total_trials_for_scenario in flaky_scenarios:
+            pass_rate_for_scenario = passed_trials_for_scenario / total_trials_for_scenario * 100
+            lines.append(
+                f"- {scenario_id}: {passed_trials_for_scenario}/{total_trials_for_scenario} "
+                f"trials passed ({pass_rate_for_scenario:.1f}%)"
+            )
+
     lines.extend(["", "## Trace examples"])
     lines.extend(f"- {grade.trace_path}" for grade in grades[:10])
 
@@ -116,6 +126,16 @@ def render_github_summary(
             for grade in failed
         )
 
+    flaky_scenarios = _flaky_scenario_results(grades)
+    if flaky_scenarios:
+        lines.extend(["", "### Flaky Scenarios"])
+        for scenario_id, passed_trials_for_scenario, total_trials_for_scenario in flaky_scenarios:
+            pass_rate_for_scenario = passed_trials_for_scenario / total_trials_for_scenario * 100
+            lines.append(
+                f"- `{scenario_id}`: {passed_trials_for_scenario}/{total_trials_for_scenario} "
+                f"trials passed ({pass_rate_for_scenario:.1f}%)"
+            )
+
     lines.extend(["", "### Artifacts", "- `report.md`", "- `results.json`", "- `traces/*.json`"])
     return "\n".join(lines) + "\n"
 
@@ -128,3 +148,17 @@ def _scenario_results(grades: list[GradeResult]) -> dict[str, bool]:
         scenario_id: all(grade.passed for grade in scenario_grades)
         for scenario_id, scenario_grades in sorted(grouped.items())
     }
+
+
+def _flaky_scenario_results(grades: list[GradeResult]) -> list[tuple[str, int, int]]:
+    grouped: dict[str, list[GradeResult]] = defaultdict(list)
+    for grade in grades:
+        grouped[grade.scenario_id].append(grade)
+
+    flaky: list[tuple[str, int, int]] = []
+    for scenario_id, scenario_grades in sorted(grouped.items()):
+        passed_trials = sum(1 for grade in scenario_grades if grade.passed)
+        total_trials = len(scenario_grades)
+        if 0 < passed_trials < total_trials:
+            flaky.append((scenario_id, passed_trials, total_trials))
+    return flaky

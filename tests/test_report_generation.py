@@ -194,6 +194,43 @@ def test_render_markdown_report_includes_suite_summary_and_trace_links() -> None
     assert "runs/test/traces/refund_missing_order_id_trial_1.json" in markdown
 
 
+def test_render_markdown_report_highlights_flaky_scenarios() -> None:
+    grades = [
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=1,
+            passed=True,
+            deterministic_passed=True,
+            semantic=SemanticGrade(passed=True, score=1.0),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_1.json",
+        ),
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=2,
+            passed=False,
+            deterministic_passed=False,
+            semantic=SemanticGrade(
+                passed=False,
+                score=0.1,
+                failure_type="premature_tool_execution",
+                severity="high",
+            ),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_2.json",
+        ),
+    ]
+
+    markdown = render_markdown_report(
+        suite_name="refund_agent_regression_suite",
+        run_id="run_test",
+        total_scenarios=1,
+        grades=grades,
+        clusters=cluster_failures([grade for grade in grades if not grade.passed]),
+    )
+
+    assert "## Flaky scenarios" in markdown
+    assert "- refund_missing_order_id: 1/2 trials passed (50.0%)" in markdown
+
+
 def test_render_github_summary_highlights_failure_clusters() -> None:
     grades = [
         GradeResult(
@@ -234,3 +271,40 @@ def test_render_github_summary_highlights_failure_clusters() -> None:
     assert "| premature_tool_execution | high | 1 |" in summary
     assert "Block issue_refund until verified." in summary
     assert "refund_missing_order_id/trial_1" in summary
+
+
+def test_render_github_summary_highlights_flaky_scenarios() -> None:
+    grades = [
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=1,
+            passed=True,
+            deterministic_passed=True,
+            semantic=SemanticGrade(passed=True, score=1.0),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_1.json",
+        ),
+        GradeResult(
+            scenario_id="refund_missing_order_id",
+            trial=2,
+            passed=False,
+            deterministic_passed=False,
+            semantic=SemanticGrade(
+                passed=False,
+                score=0.1,
+                failure_type="premature_tool_execution",
+                severity="high",
+            ),
+            trace_path="runs/test/traces/refund_missing_order_id_trial_2.json",
+        ),
+    ]
+
+    summary = render_github_summary(
+        suite_name="refund_agent_regression_suite",
+        run_id="run_test",
+        total_scenarios=1,
+        grades=grades,
+        clusters=cluster_failures([grade for grade in grades if not grade.passed]),
+    )
+
+    assert "### Flaky Scenarios" in summary
+    assert "- `refund_missing_order_id`: 1/2 trials passed (50.0%)" in summary
