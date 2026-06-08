@@ -29,13 +29,13 @@ jobs:
         run: |
           # Replace this command if your repository uses a different benchmark
           # manifest or writes results to a different path.
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.40 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.41 \
             anvil paper reproduce \
             --manifest "$ANVIL_MANIFEST"
 
       - name: Export GitHub Actions leaderboard submission
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.40 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.41 \
             anvil leaderboard export "$ANVIL_RESULTS_JSON" \
             --manifest "$ANVIL_MANIFEST" \
             --out leaderboard_submission.json \
@@ -46,7 +46,7 @@ jobs:
 
       - name: Validate GitHub Actions trust metadata
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.40 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.41 \
             anvil leaderboard validate leaderboard_submission.json \
             --require-trust github_actions
 
