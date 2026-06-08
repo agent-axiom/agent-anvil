@@ -44,6 +44,14 @@ inputs:
     description: Path for the generated PR comment Markdown file.
     required: false
     default: agent-anvil-pr-comment.md
+  compare-baseline:
+    description: Optional baseline run directory for compare-aware PR comments.
+    required: false
+    default: ""
+  compare-path:
+    description: Path for the generated compare JSON artifact.
+    required: false
+    default: agent-anvil-compare.json
   python-version:
     description: Python version used by uv for running Agent Anvil.
     required: false
@@ -108,12 +116,29 @@ runs:
           uv run --project "$GITHUB_ACTION_PATH" --frozen anvil summary "$runs_dir/latest" --github >> "$GITHUB_STEP_SUMMARY"
         fi
 
+        compare_path=""
+        if [[ -n "${{ inputs.compare-baseline }}" ]]; then
+          baseline_dir="${{ inputs.compare-baseline }}"
+          if [[ "$baseline_dir" != /* ]]; then
+            baseline_dir="$GITHUB_WORKSPACE/$baseline_dir"
+          fi
+          compare_path="${{ inputs.compare-path }}"
+          if [[ "$compare_path" != /* ]]; then
+            compare_path="$GITHUB_WORKSPACE/$compare_path"
+          fi
+          uv run --project "$GITHUB_ACTION_PATH" --frozen anvil compare "$baseline_dir" "$runs_dir/latest" --out "$compare_path"
+        fi
+
         if [[ "${{ inputs.pr-comment }}" == "true" || "${{ inputs.post-pr-comment }}" == "true" ]]; then
           comment_path="${{ inputs.pr-comment-path }}"
           if [[ "$comment_path" != /* ]]; then
             comment_path="$GITHUB_WORKSPACE/$comment_path"
           fi
-          uv run --project "$GITHUB_ACTION_PATH" --frozen anvil pr-comment "$runs_dir/latest" --out "$comment_path"
+          pr_args=(pr-comment "$runs_dir/latest" --out "$comment_path")
+          if [[ -n "$compare_path" ]]; then
+            pr_args+=(--compare "$compare_path")
+          fi
+          uv run --project "$GITHUB_ACTION_PATH" --frozen anvil "${pr_args[@]}"
         fi
 
         if [[ "${{ inputs.post-pr-comment }}" == "true" ]]; then

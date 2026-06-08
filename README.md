@@ -280,6 +280,8 @@ Intentional regression demos can assert the expected failing exit code:
 The action writes `agent-anvil-pr-comment.md` when `pr-comment: "true"`. In
 `pull_request` workflows with `pull-requests: write`, `post-pr-comment: "true"`
 publishes the same summary directly to the PR.
+Set `compare-baseline` to a prior run directory when you want the PR comment to
+include baseline-vs-latest pass-rate, failure, scenario, and flaky-run deltas.
 See the copy-paste [PR comment workflow](docs/examples/pr-comment-workflow.yml).
 For MCP servers, see the copy-paste
 [MCP safety audit workflow](docs/examples/mcp-harden-workflow.yml), which
