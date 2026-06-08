@@ -100,6 +100,12 @@ expected:
       text: "refund"
     - type: final_output_not_contains
       text: "guaranteed"
+    - type: metric_lte
+      metric: latency_ms
+      value: 5000
+    - type: metric_lte
+      metric: estimated_cost_usd
+      value: 0.01
 ```
 
 Supported assertion types:
@@ -115,9 +121,15 @@ Supported assertion types:
 - `tool_result_matches`
 - `final_output_contains`
 - `final_output_not_contains`
+- `metric_lte`
+- `metric_gte`
 
 `path` currently supports simple JSON paths such as `$.order_id` or
 `$.eligible_for_refund` over tool arguments/results.
+
+Metric assertions compare trace-level run metrics. Supported metric names are
+`latency_ms`, `tool_call_count`, `model_call_count`, `input_tokens`,
+`output_tokens`, `total_tokens`, and `estimated_cost_usd`.
 
 ## Policies
 

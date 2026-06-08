@@ -37,6 +37,18 @@ AssertionType = Literal[
     "tool_result_matches",
     "final_output_contains",
     "final_output_not_contains",
+    "metric_lte",
+    "metric_gte",
+]
+
+MetricName = Literal[
+    "latency_ms",
+    "tool_call_count",
+    "model_call_count",
+    "input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "estimated_cost_usd",
 ]
 
 
@@ -53,6 +65,8 @@ class AssertionCheck(BaseModel):
     values: list[Any] = Field(default_factory=list)
     equals: Any = None
     text: str | None = None
+    metric: MetricName | None = None
+    value: float | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_required_fields(self) -> AssertionCheck:
@@ -68,6 +82,8 @@ class AssertionCheck(BaseModel):
             "tool_result_matches": ("tool", "path", "equals"),
             "final_output_contains": ("text",),
             "final_output_not_contains": ("text",),
+            "metric_lte": ("metric", "value"),
+            "metric_gte": ("metric", "value"),
         }
         missing = [
             field
@@ -83,6 +99,8 @@ class AssertionCheck(BaseModel):
 def _required_assertion_field_missing(assertion: AssertionCheck, field: str) -> bool:
     if field == "equals":
         return field not in assertion.model_fields_set
+    if field == "value":
+        return field not in assertion.model_fields_set or assertion.value is None
     return getattr(assertion, field) in (None, "", [])
 
 
