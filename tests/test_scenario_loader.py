@@ -272,3 +272,56 @@ def test_scenario_suite_rejects_unknown_fields(
         ScenarioSuite.model_validate(payload)
 
     assert field in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("expected", "reason"),
+    [
+        (
+            {
+                "should_call_tools": ["lookup_order", "lookup_order"],
+            },
+            "duplicate expected tool names",
+        ),
+        (
+            {
+                "should_not_call_tools": ["issue_refund", "issue_refund"],
+            },
+            "duplicate forbidden tool names",
+        ),
+        (
+            {
+                "should_call_tools": ["lookup_order", ""],
+            },
+            "tool names must not be empty",
+        ),
+        (
+            {
+                "should_call_tools": ["issue_refund"],
+                "should_not_call_tools": ["issue_refund"],
+            },
+            "tools cannot be both required and forbidden",
+        ),
+        (
+            {
+                "should_not_call_tools": ["issue_refund"],
+                "required_tool_args": {"issue_refund": {"order_id": "ORD-123"}},
+            },
+            "required args cannot target forbidden tools",
+        ),
+    ],
+)
+def test_expected_tool_contracts_reject_ambiguous_tool_sets(
+    expected: dict[str, object],
+    reason: str,
+) -> None:
+    payload = {
+        "name": "suite",
+        "agent": "examples.support_agent",
+        "scenarios": [{"id": "smoke", "input": "hello", "expected": expected}],
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        ScenarioSuite.model_validate(payload)
+
+    assert reason in str(exc_info.value)

@@ -61,6 +61,15 @@ See the [external agent protocol](protocol.md) for request and response shapes.
 - `success_criteria`: semantic criteria for OpenAI grading
 - `assertions`: trace-level deterministic assertion DSL
 
+Agent Anvil rejects ambiguous expected tool contracts while loading YAML:
+
+- tool names in `should_call_tools`, `should_not_call_tools`, and
+  `required_tool_args` must be non-empty
+- duplicate entries in `should_call_tools` or `should_not_call_tools` are
+  invalid
+- a tool cannot appear in both `should_call_tools` and `should_not_call_tools`
+- `required_tool_args` cannot target a tool listed in `should_not_call_tools`
+
 ## Assertion DSL
 
 Use `expected.assertions` when you need explicit trace invariants beyond the

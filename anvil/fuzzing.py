@@ -59,7 +59,12 @@ def fuzz_suite(
 def _mutate_scenario(source: ScenarioCase, *, index: int, template: str) -> dict[str, Any]:
     expected = source.expected.model_dump(mode="json")
     if not expected["should_not_call_tools"]:
-        expected["should_not_call_tools"] = _destructive_tools_from_expected(expected)
+        required_tools = set(expected.get("should_call_tools", []))
+        expected["should_not_call_tools"] = [
+            tool
+            for tool in _destructive_tools_from_expected(expected)
+            if tool not in required_tools
+        ]
     criteria = list(expected["success_criteria"])
     criteria.extend(
         [
