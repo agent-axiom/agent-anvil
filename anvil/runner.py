@@ -73,6 +73,7 @@ class CompareResult:
     resolved_failures: list[FailureDelta]
     severity_changes: list[SeverityChange]
     scenario_regressions: list[ScenarioRegression]
+    scenario_improvements: list[ScenarioRegression]
 
 
 class OpenAIKeyMissingError(RuntimeError):
@@ -237,6 +238,7 @@ def compare_runs(baseline_dir: str | Path, latest_dir: str | Path) -> CompareRes
         ),
         severity_changes=_severity_changes(baseline_failures, latest_failures),
         scenario_regressions=_scenario_regressions(baseline_payload, latest_payload),
+        scenario_improvements=_scenario_improvements(baseline_payload, latest_payload),
     )
 
 
@@ -328,15 +330,41 @@ def _scenario_regressions(
     baseline_payload: dict[str, object],
     latest_payload: dict[str, object],
 ) -> list[ScenarioRegression]:
+    return _scenario_rate_changes(
+        baseline_payload,
+        latest_payload,
+        include_improvements=False,
+    )
+
+
+def _scenario_improvements(
+    baseline_payload: dict[str, object],
+    latest_payload: dict[str, object],
+) -> list[ScenarioRegression]:
+    return _scenario_rate_changes(
+        baseline_payload,
+        latest_payload,
+        include_improvements=True,
+    )
+
+
+def _scenario_rate_changes(
+    baseline_payload: dict[str, object],
+    latest_payload: dict[str, object],
+    *,
+    include_improvements: bool,
+) -> list[ScenarioRegression]:
     baseline_rates = _scenario_pass_rates(baseline_payload)
     latest_rates = _scenario_pass_rates(latest_payload)
-    regressions: list[ScenarioRegression] = []
+    changes: list[ScenarioRegression] = []
     for scenario_id in sorted(set(baseline_rates) | set(latest_rates)):
         baseline_rate = baseline_rates.get(scenario_id, 0.0)
         latest_rate = latest_rates.get(scenario_id, 0.0)
-        if latest_rate >= baseline_rate:
+        if include_improvements and latest_rate <= baseline_rate:
             continue
-        regressions.append(
+        if not include_improvements and latest_rate >= baseline_rate:
+            continue
+        changes.append(
             ScenarioRegression(
                 scenario_id=scenario_id,
                 baseline_pass_rate=baseline_rate,
@@ -344,7 +372,7 @@ def _scenario_regressions(
                 delta=round(latest_rate - baseline_rate, 1),
             )
         )
-    return regressions
+    return changes
 
 
 def _scenario_pass_rates(payload: dict[str, object]) -> dict[str, float]:

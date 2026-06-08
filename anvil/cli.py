@@ -1071,6 +1071,16 @@ def compare(baseline_dir: Path, latest_dir: Path) -> None:
     else:
         typer.echo("Scenario regressions: none")
 
+    if result.scenario_improvements:
+        typer.echo("Scenario improvements:")
+        for improvement in result.scenario_improvements:
+            typer.echo(
+                f"- {improvement.scenario_id}: {improvement.baseline_pass_rate:.1f}% -> "
+                f"{improvement.latest_pass_rate:.1f}% ({improvement.delta:+.1f}%)"
+            )
+    else:
+        typer.echo("Scenario improvements: none")
+
 
 @mcp_app.command("audit")
 def mcp_audit(
