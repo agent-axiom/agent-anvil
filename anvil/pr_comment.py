@@ -4,8 +4,11 @@ import json
 from pathlib import Path
 from typing import cast
 
+from pydantic import ValidationError
+
 from anvil.clustering import FailureCluster
 from anvil.grading import GradeResult
+from anvil.runner import COMPARE_RESULT_SCHEMA_VERSION, CompareResultPayload
 from anvil.storage import load_results
 
 
@@ -101,7 +104,10 @@ def _compare_delta_lines(compare_path: str | Path | None) -> list[str]:
     if not isinstance(payload, dict):
         return _compare_unavailable_lines(selected_compare_path, "did not contain a JSON object")
 
-    compare = cast(dict[str, object], payload)
+    compare = _validated_compare_payload(selected_compare_path, cast(dict[str, object], payload))
+    if isinstance(compare, list):
+        return compare
+
     lines: list[str] = []
     baseline_rate = _number(compare.get("baseline_pass_rate"))
     latest_rate = _number(compare.get("latest_pass_rate"))
@@ -120,6 +126,28 @@ def _compare_delta_lines(compare_path: str | Path | None) -> list[str]:
 
 def _compare_unavailable_lines(compare_path: Path, reason: str) -> list[str]:
     return [f"- Compare artifact unavailable: `{compare_path}` {reason}."]
+
+
+def _validated_compare_payload(
+    compare_path: Path,
+    payload: dict[str, object],
+) -> dict[str, object] | list[str]:
+    schema_version = payload.get("schema_version")
+    if schema_version is None:
+        return payload
+    if schema_version != COMPARE_RESULT_SCHEMA_VERSION:
+        return _compare_unavailable_lines(
+            compare_path,
+            f"uses unsupported schema_version `{schema_version}`",
+        )
+    try:
+        validated = CompareResultPayload.model_validate(payload)
+    except ValidationError:
+        return _compare_unavailable_lines(
+            compare_path,
+            f"did not match {COMPARE_RESULT_SCHEMA_VERSION}",
+        )
+    return cast(dict[str, object], validated.model_dump(mode="json"))
 
 
 def _failure_delta_lines(label: str, items: object) -> list[str]:
