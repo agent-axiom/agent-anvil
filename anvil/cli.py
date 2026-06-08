@@ -60,10 +60,10 @@ from anvil.runner import (
     run_suite,
 )
 from anvil.scenario import ExternalAgentConfig, load_scenario_file
-from anvil.storage import ResultsArtifactError
+from anvil.storage import ResultsArtifactError, load_results
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
-from anvil.trace import TraceArtifactError
+from anvil.trace import TraceArtifactError, load_trace_artifact
 from anvil.trace_bridge import OpenAITracePayloadError, export_openai_trace, import_openai_trace
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
@@ -115,6 +115,11 @@ def _handle_openai_trace_payload_errors() -> Iterator[None]:
 
 
 PASSING_RATE = 100.0
+VALIDATE_TARGET_PARTS = 2
+VALIDATE_TARGETS_ARGUMENT = typer.Argument(
+    ...,
+    help="Scenario file, or typed artifact target: scenario|trace|results PATH.",
+)
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
 OFFLINE_OPTION = typer.Option(False, "--offline", help="Use local heuristic grading only.")
@@ -732,13 +737,42 @@ def pack_add(
 
 @app.command("validate")
 def validate_scenario(
-    scenario_file: Path,
+    targets: list[str] = VALIDATE_TARGETS_ARGUMENT,
     json_output: bool = typer.Option(
         False,
         "--json",
         help="Write machine-readable validation status to stdout.",
     ),
 ) -> None:
+    try:
+        target_kind, target_path = _parse_validate_target(targets)
+    except ValueError as error:
+        _write_validation_error(
+            kind="unknown",
+            error=error,
+            json_output=json_output,
+        )
+        raise typer.Exit(1) from error
+
+    if target_kind == "trace":
+        _validate_trace_artifact(target_path, json_output=json_output)
+        return
+    if target_kind == "results":
+        _validate_results_artifact(target_path, json_output=json_output)
+        return
+    _validate_scenario_file(target_path, json_output=json_output)
+
+
+def _parse_validate_target(targets: list[str]) -> tuple[str, Path]:
+    if len(targets) == 1:
+        return "scenario", Path(targets[0])
+    if len(targets) == VALIDATE_TARGET_PARTS and targets[0] in {"scenario", "trace", "results"}:
+        return targets[0], Path(targets[1])
+    msg = "expected PATH or one of: scenario PATH, trace PATH, results PATH"
+    raise ValueError(msg)
+
+
+def _validate_scenario_file(scenario_file: Path, *, json_output: bool) -> None:
     try:
         suite = load_scenario_file(scenario_file)
     except (OSError, ValidationError, YAMLError) as error:
@@ -776,6 +810,82 @@ def validate_scenario(
     typer.echo(f"Suite: {suite.name}")
     typer.echo(f"Scenarios: {len(suite.scenarios)}")
     typer.echo(f"Trials: {total_trials}")
+
+
+def _validate_trace_artifact(trace_path: Path, *, json_output: bool) -> None:
+    try:
+        trace = load_trace_artifact(trace_path)
+    except TraceArtifactError as error:
+        _write_validation_error(kind="trace", error=error, json_output=json_output)
+        raise typer.Exit(1) from error
+
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "status": "valid",
+                    "kind": "trace",
+                    "run_id": trace.run_id,
+                    "scenario_id": trace.scenario_id,
+                    "trial": trace.trial,
+                    "step_count": len(trace.steps),
+                }
+            )
+        )
+        return
+
+    typer.echo("Trace artifact is valid")
+    typer.echo(f"Run: {trace.run_id}")
+    typer.echo(f"Scenario: {trace.scenario_id}")
+    typer.echo(f"Trial: {trace.trial}")
+    typer.echo(f"Steps: {len(trace.steps)}")
+
+
+def _validate_results_artifact(results_path: Path, *, json_output: bool) -> None:
+    try:
+        payload = load_results(_results_run_dir(results_path))
+    except ResultsArtifactError as error:
+        _write_validation_error(kind="results", error=error, json_output=json_output)
+        raise typer.Exit(1) from error
+
+    summary = payload.get("summary", {})
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "status": "valid",
+                    "kind": "results",
+                    "suite": payload.get("suite"),
+                    "run_id": payload.get("run_id"),
+                    "total_trials": summary.get("total_trials"),
+                    "pass_rate": summary.get("pass_rate"),
+                }
+            )
+        )
+        return
+
+    typer.echo("Results artifact is valid")
+    typer.echo(f"Suite: {payload.get('suite')}")
+    typer.echo(f"Run: {payload.get('run_id')}")
+    typer.echo(f"Trials: {summary.get('total_trials')}")
+    typer.echo(f"Pass rate: {summary.get('pass_rate')}%")
+
+
+def _results_run_dir(results_path: Path) -> Path:
+    if results_path.is_file():
+        if results_path.name != "results.json":
+            msg = "results validation expects a run directory or results.json file"
+            raise ResultsArtifactError(msg)
+        return results_path.parent
+    return results_path
+
+
+def _write_validation_error(*, kind: str, error: Exception, json_output: bool) -> None:
+    if json_output:
+        typer.echo(json.dumps({"status": "invalid", "kind": kind, "error": str(error)}))
+        return
+    label = "scenario suite" if kind in {"scenario", "unknown"} else f"{kind} artifact"
+    typer.echo(f"Invalid {label}: {error}", err=True)
 
 
 @app.command()

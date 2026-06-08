@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from anvil.cli import app
 from anvil.grading import GradeResult, SemanticGrade
 from anvil.scenario import ExternalAgentConfig, load_scenario_file
 from anvil.storage import write_results
+from anvil.trace import TraceRun
 
 
 def test_cli_init_writes_starter_scenario_and_workflow(tmp_path: Path) -> None:
@@ -400,6 +402,68 @@ scenarios:
     assert payload["scenario_count"] is None
     assert payload["trial_count"] is None
     assert "tools cannot be both required and forbidden" in payload["error"]
+    assert result.stderr == ""
+
+
+def test_cli_validate_json_reports_valid_trace_artifact(tmp_path: Path) -> None:
+    trace_path = _write_trace_artifact(tmp_path)
+
+    result = CliRunner().invoke(app, ["validate", "--json", "trace", str(trace_path)])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "status": "valid",
+        "kind": "trace",
+        "run_id": "run_test",
+        "scenario_id": "refund_valid_order",
+        "trial": 1,
+        "step_count": 1,
+    }
+    assert result.stderr == ""
+
+
+def test_cli_validate_json_reports_invalid_trace_artifact(tmp_path: Path) -> None:
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text('{"schema_version":"anvil.trace.v1"}', encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "trace", str(trace_path)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "trace"
+    assert "run_id" in payload["error"]
+    assert result.stderr == ""
+
+
+def test_cli_validate_accepts_results_artifact_path(tmp_path: Path) -> None:
+    run_dir = _write_results_artifact(tmp_path)
+    results_path = run_dir / "results.json"
+
+    result = CliRunner().invoke(app, ["validate", "results", str(results_path)])
+
+    assert result.exit_code == 0
+    assert "Results artifact is valid" in result.stdout
+    assert "Suite: suite" in result.stdout
+    assert "Run: run_test" in result.stdout
+    assert "Trials: 1" in result.stdout
+
+
+def test_cli_validate_json_reports_invalid_results_artifact(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        '{"schema_version":"anvil.results.v1","suite":"suite"}',
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["validate", "--json", "results", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "results"
+    assert "run_id" in payload["error"]
     assert result.stderr == ""
 
 
@@ -928,3 +992,41 @@ def _grade(scenario_id: str, trial: int, passed: bool) -> GradeResult:
         semantic=SemanticGrade(passed=passed, score=1.0 if passed else 0.0),
         trace_path=f"runs/test/traces/{scenario_id}_trial_{trial}.json",
     )
+
+
+def _write_trace_artifact(tmp_path: Path) -> Path:
+    trace = TraceRun(
+        run_id="run_test",
+        scenario_id="refund_valid_order",
+        trial=1,
+        input="Please refund order ORD-123.",
+        started_at=datetime(2026, 5, 1, 20, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 5, 1, 20, 0, 1, tzinfo=UTC),
+        status="completed",
+        steps=[
+            {
+                "type": "tool_call",
+                "tool_name": "lookup_order",
+                "arguments": {"order_id": "ORD-123"},
+                "result": {"verified": True},
+            }
+        ],
+        final_output="Refund request verified.",
+    )
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text(trace.model_dump_json(), encoding="utf-8")
+    return trace_path
+
+
+def _write_results_artifact(tmp_path: Path) -> Path:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    write_results(
+        run_dir=run_dir,
+        suite_name="suite",
+        run_id="run_test",
+        total_scenarios=1,
+        grades=[_grade("refund_valid_order", 1, True)],
+        clusters=[],
+    )
+    return run_dir
