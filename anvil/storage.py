@@ -201,6 +201,18 @@ def validate_run_manifest(run_dir: str | Path) -> dict[str, Any] | None:
             )
             raise RunManifestError(msg)
 
+    expected_artifact_paths = {
+        artifact.resolve() for artifact in _run_manifest_artifacts(selected_run_dir)
+    }
+    missing_artifact_paths = sorted(
+        expected_artifact_paths - seen_artifact_paths,
+        key=lambda path: _manifest_path(selected_run_dir, path),
+    )
+    if missing_artifact_paths:
+        missing_path = _manifest_path(selected_run_dir, missing_artifact_paths[0])
+        msg = f"manifest missing artifact entry: {missing_path}"
+        raise RunManifestError(msg)
+
     return cast(dict[str, Any], manifest.model_dump(mode="json"))
 
 
