@@ -37,7 +37,7 @@ def test_cli_init_writes_starter_scenario_and_workflow(tmp_path: Path) -> None:
     assert 'command: "python my_agent.py"' in scenario_text
     assert "protocol: jsonl" in scenario_text
     assert "starter_tool_safety" in scenario_text
-    assert "uses: agent-axiom/agent-anvil-action@v1.0.0" in workflow_text
+    assert "uses: agent-axiom/agent-anvil-action@v1.0.1" in workflow_text
     assert "uses: agent-axiom/agent-anvil@v" not in workflow_text
     assert "pull-requests: write" in workflow_text
     assert 'post-pr-comment: "true"' in workflow_text
@@ -72,7 +72,7 @@ def test_cli_init_writes_http_starter_scenario_and_workflow(tmp_path: Path) -> N
     assert suite.agent.url == "http://127.0.0.1:8080/anvil"
     assert suite.agent.headers == {"Authorization": "Bearer $ANVIL_AGENT_TOKEN"}
     assert "Run HTTP agent conformance" in workflow_text
-    assert "uses: agent-axiom/agent-anvil-action@v1.0.0" in workflow_text
+    assert "uses: agent-axiom/agent-anvil-action@v1.0.1" in workflow_text
     assert "uvx --from git+https://github.com/agent-axiom/agent-anvil@v" in workflow_text
     assert "ANVIL_AGENT_TOKEN: ${{ secrets.ANVIL_AGENT_TOKEN }}" in workflow_text
     assert "anvil conformance external-agent" in workflow_text
