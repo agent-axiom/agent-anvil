@@ -731,14 +731,47 @@ def pack_add(
 
 
 @app.command("validate")
-def validate_scenario(scenario_file: Path) -> None:
+def validate_scenario(
+    scenario_file: Path,
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Write machine-readable validation status to stdout.",
+    ),
+) -> None:
     try:
         suite = load_scenario_file(scenario_file)
     except (OSError, ValidationError, YAMLError) as error:
+        if json_output:
+            typer.echo(
+                json.dumps(
+                    {
+                        "status": "invalid",
+                        "suite": None,
+                        "scenario_count": None,
+                        "trial_count": None,
+                        "error": str(error),
+                    }
+                )
+            )
+            raise typer.Exit(1) from error
         typer.echo(f"Invalid scenario suite: {error}", err=True)
         raise typer.Exit(1) from error
 
     total_trials = sum(scenario.trials(suite.defaults) for scenario in suite.scenarios)
+    if json_output:
+        typer.echo(
+            json.dumps(
+                {
+                    "status": "valid",
+                    "suite": suite.name,
+                    "scenario_count": len(suite.scenarios),
+                    "trial_count": total_trials,
+                }
+            )
+        )
+        return
+
     typer.echo("Scenario suite is valid")
     typer.echo(f"Suite: {suite.name}")
     typer.echo(f"Scenarios: {len(suite.scenarios)}")

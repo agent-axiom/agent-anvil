@@ -7,6 +7,7 @@ copy-paste commands in one place so the README can stay short.
 
 ```bash
 uv run anvil validate scenarios/refund_agent.yaml
+uv run anvil validate --json scenarios/refund_agent.yaml
 uv run anvil run scenarios/refund_agent.yaml
 uv run anvil run scenarios/refund_agent.yaml --trials 5
 uv run anvil run scenarios/refund_agent.yaml --offline --agent-mode offline
@@ -21,6 +22,7 @@ uv run anvil compare runs/baseline runs/latest --out runs/latest/compare.json
 
 `anvil validate` loads a scenario suite and checks schema, policy, expected-tool,
 and assertion consistency without running an agent or writing run artifacts.
+Use `--json` for machine-readable preflight output in CI/editor integrations.
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
 regressions.
