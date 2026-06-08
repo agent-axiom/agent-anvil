@@ -31,6 +31,8 @@ uv run anvil compare runs/baseline runs/latest --out runs/latest/compare.json
 and assertion consistency without running an agent or writing run artifacts.
 It can also validate persisted trace and results artifacts with
 `anvil validate trace <trace.json>` and `anvil validate results <run-dir|results.json>`.
+Versioned `results.json` validation checks that aggregate trial counts and pass
+rate match the underlying per-trial grades.
 Use `anvil validate run <run-dir>` to verify `results.json` plus every trace
 artifact in a persisted run directory, including that every `results.grades`
 entry has a matching `scenario_id` / `trial` trace, every trace belongs to the

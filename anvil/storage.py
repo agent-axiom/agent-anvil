@@ -260,7 +260,57 @@ def _validated_results_payload(
     except ValidationError as error:
         msg = f"results artifact {results_path} did not match {RESULTS_SCHEMA_VERSION}: {error}"
         raise ResultsArtifactError(msg) from error
+    _validate_results_summary_consistency(results_path, validated)
     return cast(dict[str, Any], validated.model_dump(mode="json"))
+
+
+def _validate_results_summary_consistency(results_path: Path, payload: ResultsPayload) -> None:
+    summary = payload.summary
+    total_trials = len(payload.grades)
+    passed_trials = sum(1 for grade in payload.grades if grade.passed)
+    failed_trials = total_trials - passed_trials
+    pass_rate = round((passed_trials / total_trials * 100) if total_trials else 0.0, 1)
+
+    _require_summary_value(
+        results_path,
+        field="total_trials",
+        actual=summary.total_trials,
+        expected=total_trials,
+    )
+    _require_summary_value(
+        results_path,
+        field="passed_trials",
+        actual=summary.passed_trials,
+        expected=passed_trials,
+    )
+    _require_summary_value(
+        results_path,
+        field="failed_trials",
+        actual=summary.failed_trials,
+        expected=failed_trials,
+    )
+    _require_summary_value(
+        results_path,
+        field="pass_rate",
+        actual=summary.pass_rate,
+        expected=pass_rate,
+    )
+
+
+def _require_summary_value(
+    results_path: Path,
+    *,
+    field: str,
+    actual: int | float,
+    expected: int | float,
+) -> None:
+    if actual == expected:
+        return
+    msg = (
+        f"results artifact {results_path} summary {field} "
+        f"does not match grades: expected {expected}, got {actual}"
+    )
+    raise ResultsArtifactError(msg)
 
 
 def _run_manifest_artifacts(run_dir: Path) -> list[Path]:

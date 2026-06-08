@@ -113,6 +113,48 @@ def test_load_results_rejects_invalid_versioned_results(tmp_path) -> None:
         load_results(run_dir)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "expected_message"),
+    [
+        ("total_trials", 99, "summary total_trials"),
+        ("passed_trials", 99, "summary passed_trials"),
+        ("failed_trials", 99, "summary failed_trials"),
+        ("pass_rate", 100.0, "summary pass_rate"),
+    ],
+)
+def test_load_results_rejects_inconsistent_versioned_summary(
+    tmp_path,
+    field: str,
+    value: int | float,
+    expected_message: str,
+) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    results_path = write_results(
+        run_dir=run_dir,
+        suite_name="suite",
+        run_id="run_test",
+        total_scenarios=1,
+        grades=[
+            GradeResult(
+                scenario_id="case",
+                trial=1,
+                passed=False,
+                deterministic_passed=False,
+                semantic=SemanticGrade(passed=False, score=0.0),
+                trace_path="runs/test/traces/case_trial_1.json",
+            )
+        ],
+        clusters=[],
+    )
+    payload = json.loads(results_path.read_text(encoding="utf-8"))
+    payload["summary"][field] = value
+    results_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ResultsArtifactError, match=expected_message):
+        load_results(run_dir)
+
+
 def test_validate_run_manifest_rejects_paths_outside_run_dir(tmp_path) -> None:
     run_dir = tmp_path / "run_test"
     run_dir.mkdir()
