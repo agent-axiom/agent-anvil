@@ -900,7 +900,10 @@ def _validate_run_artifacts(
     require_manifest: bool = False,
 ) -> None:
     try:
-        payload, trace_count = _load_run_artifacts(run_dir, require_manifest=require_manifest)
+        payload, trace_count, artifact_trust = _load_run_artifacts(
+            run_dir,
+            require_manifest=require_manifest,
+        )
     except (ResultsArtifactError, RunManifestError, TraceArtifactError, ValueError) as error:
         _write_validation_error(kind="run", error=error, json_output=json_output)
         raise typer.Exit(1) from error
@@ -917,6 +920,7 @@ def _validate_run_artifacts(
                     "total_trials": summary.get("total_trials"),
                     "pass_rate": summary.get("pass_rate"),
                     "trace_count": trace_count,
+                    "artifact_trust": artifact_trust,
                 }
             )
         )
@@ -928,11 +932,13 @@ def _validate_run_artifacts(
     typer.echo(f"Trials: {summary.get('total_trials')}")
     typer.echo(f"Pass rate: {summary.get('pass_rate')}%")
     typer.echo(f"Traces: {trace_count}")
+    for line in _format_artifact_trust(artifact_trust):
+        typer.echo(line)
 
 
 def _load_run_artifacts(
     run_dir: Path, *, require_manifest: bool = False
-) -> tuple[dict[str, Any], int]:
+) -> tuple[dict[str, Any], int, dict[str, Any]]:
     if not run_dir.is_dir():
         msg = "run validation expects a run directory"
         raise ValueError(msg)
@@ -991,7 +997,58 @@ def _load_run_artifacts(
         observed_traces=set(observed_trace_paths),
     )
 
-    return payload, len(trace_paths)
+    return (
+        payload,
+        len(trace_paths),
+        _build_artifact_trust_summary(
+            manifest=manifest,
+            require_manifest=require_manifest,
+        ),
+    )
+
+
+def _build_artifact_trust_summary(
+    *,
+    manifest: dict[str, Any] | None,
+    require_manifest: bool,
+) -> dict[str, Any]:
+    if manifest is None:
+        return {
+            "trace_index_verified": True,
+            "manifest_present": False,
+            "manifest_required": require_manifest,
+            "manifest_schema_version": None,
+            "manifest_file_count": 0,
+            "manifest_hashes_verified": 0,
+            "manifest_sizes_verified": 0,
+            "manifest_coverage_verified": False,
+        }
+
+    file_count = len(manifest.get("files", []))
+    return {
+        "trace_index_verified": True,
+        "manifest_present": True,
+        "manifest_required": require_manifest,
+        "manifest_schema_version": manifest.get("schema_version"),
+        "manifest_file_count": file_count,
+        "manifest_hashes_verified": file_count,
+        "manifest_sizes_verified": file_count,
+        "manifest_coverage_verified": True,
+    }
+
+
+def _format_artifact_trust(artifact_trust: dict[str, Any]) -> list[str]:
+    lines = ["Artifact trust:"]
+    trace_index = "verified" if artifact_trust.get("trace_index_verified") else "not verified"
+    lines.append(f"Trace index: {trace_index}")
+    if not artifact_trust.get("manifest_present"):
+        requirement = "required" if artifact_trust.get("manifest_required") else "optional"
+        lines.append(f"Manifest: not present ({requirement})")
+        return lines
+
+    file_count = artifact_trust.get("manifest_file_count")
+    lines.append(f"Manifest: verified {file_count} artifacts (hashes, sizes, coverage)")
+    return lines
 
 
 def _validate_run_trace_index(

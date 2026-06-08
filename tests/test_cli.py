@@ -481,6 +481,16 @@ def test_cli_validate_json_reports_valid_run_artifacts(tmp_path: Path) -> None:
         "total_trials": 1,
         "pass_rate": 100.0,
         "trace_count": 1,
+        "artifact_trust": {
+            "trace_index_verified": True,
+            "manifest_present": False,
+            "manifest_required": False,
+            "manifest_schema_version": None,
+            "manifest_file_count": 0,
+            "manifest_hashes_verified": 0,
+            "manifest_sizes_verified": 0,
+            "manifest_coverage_verified": False,
+        },
     }
     assert result.stderr == ""
 
@@ -524,6 +534,16 @@ def test_cli_validate_json_accepts_required_run_manifest(tmp_path: Path) -> None
     assert payload["status"] == "valid"
     assert payload["kind"] == "run"
     assert payload["trace_count"] == 1
+    assert payload["artifact_trust"] == {
+        "trace_index_verified": True,
+        "manifest_present": True,
+        "manifest_required": True,
+        "manifest_schema_version": "anvil.run_manifest.v1",
+        "manifest_file_count": 3,
+        "manifest_hashes_verified": 3,
+        "manifest_sizes_verified": 3,
+        "manifest_coverage_verified": True,
+    }
     assert result.stderr == ""
 
 
@@ -539,6 +559,9 @@ def test_cli_validate_reports_valid_run_artifacts(tmp_path: Path) -> None:
     assert "Trials: 1" in result.stdout
     assert "Pass rate: 100.0%" in result.stdout
     assert "Traces: 1" in result.stdout
+    assert "Artifact trust:" in result.stdout
+    assert "Trace index: verified" in result.stdout
+    assert "Manifest: not present (optional)" in result.stdout
 
 
 def test_cli_validate_json_reports_invalid_run_trace(tmp_path: Path) -> None:

@@ -138,6 +138,7 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
 
     assert "uv run anvil schema export --out schemas" in contracts
     assert "uv run anvil schema export --out schemas" in cli_doc
+    assert "artifact trust summary" in cli_doc
     assert "fixtures/contracts/trace-valid.json" in contracts
     assert "fixtures/contracts/results-valid.json" in contracts
     assert "fixtures/contracts/run-manifest-valid.json" in contracts
