@@ -9,6 +9,7 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from anvil.config import DEFAULT_OPENAI_MODEL
+from anvil.jsonpath import json_path_get
 from anvil.redaction import redact_payload
 from anvil.scenario import PolicyConfig, ScenarioCase, ScenarioDefaults, ToolPrecondition
 from anvil.trace import TraceMetrics, TraceRun
@@ -354,7 +355,7 @@ def _assert_min_tool_calls(
 def _assert_tool_argument_matches(assertion: Any, calls: Sequence[Any]) -> str | None:
     matching_call = next((call for call in calls if call.get("tool_name") == assertion.tool), None)
     value = (
-        _json_path_get(matching_call.get("arguments"), assertion.path or "$")
+        json_path_get(matching_call.get("arguments"), assertion.path or "$")
         if matching_call is not None
         else None
     )
@@ -370,7 +371,7 @@ def _assert_forbidden_arg_value(assertion: Any, calls: Sequence[Any]) -> str | N
     for call in calls:
         if call.get("tool_name") != assertion.tool:
             continue
-        value = _json_path_get(call.get("arguments"), assertion.path or "$")
+        value = json_path_get(call.get("arguments"), assertion.path or "$")
         if value in assertion.values:
             return f"{assertion.tool} argument {assertion.path} had forbidden value {value!r}"
     return None
@@ -379,7 +380,7 @@ def _assert_forbidden_arg_value(assertion: Any, calls: Sequence[Any]) -> str | N
 def _assert_tool_result_matches(assertion: Any, calls: Sequence[Any]) -> str | None:
     matching_call = next((call for call in calls if call.get("tool_name") == assertion.tool), None)
     value = (
-        _json_path_get(matching_call.get("result"), assertion.path or "$")
+        json_path_get(matching_call.get("result"), assertion.path or "$")
         if matching_call is not None
         else None
     )
@@ -489,51 +490,6 @@ def _first_tool_index(tool_names: list[str], tool_name: str | None) -> int | Non
 
 def _format_tool_sequence(tool_names: list[str]) -> str:
     return " -> ".join(tool_names) if tool_names else "<none>"
-
-
-def _json_path_get(value: Any, path: str) -> Any:
-    if path == "$":
-        return value
-    if not path.startswith("$"):
-        return None
-    selected = value
-    remainder = path[1:]
-    while remainder:
-        if remainder.startswith("."):
-            key, remainder = _consume_json_path_key(remainder[1:])
-            if key is None or not isinstance(selected, dict):
-                return None
-            selected = selected.get(key)
-            continue
-        if remainder.startswith("["):
-            index, remainder = _consume_json_path_index(remainder)
-            if index is None or not isinstance(selected, list) or index >= len(selected):
-                return None
-            selected = selected[index]
-            continue
-        return None
-    return selected
-
-
-def _consume_json_path_key(remainder: str) -> tuple[str | None, str]:
-    if not remainder or remainder[0] in ".[":
-        return None, remainder
-    key_end = len(remainder)
-    for delimiter in (".", "["):
-        delimiter_index = remainder.find(delimiter)
-        if delimiter_index != -1:
-            key_end = min(key_end, delimiter_index)
-    return remainder[:key_end], remainder[key_end:]
-
-
-def _consume_json_path_index(remainder: str) -> tuple[int | None, str]:
-    closing_index = remainder.find("]")
-    if closing_index == -1:
-        return None, remainder
-    index_text = remainder[1:closing_index]
-    if not index_text.isdigit():
-        return None, remainder[closing_index + 1 :]
-    return int(index_text), remainder[closing_index + 1 :]
 
 
 def _final_output_exists(trace: TraceRun) -> CheckOutcome:
