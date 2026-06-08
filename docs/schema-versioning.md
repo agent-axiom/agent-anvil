@@ -23,6 +23,21 @@ steps, final output, status, and metrics. Legacy traces without a
 Compatible v1 changes may add optional fields. Incompatible changes require a
 new schema version and migration notes.
 
+## Results Schema
+
+Persisted run result artifacts use:
+
+```json
+{
+  "schema_version": "anvil.results.v1"
+}
+```
+
+`anvil.results.v1` includes suite metadata, aggregate trial summaries, flaky
+scenario summaries, per-trial grades, and failure clusters. Legacy
+`results.json` files without `schema_version` are still read as JSON artifacts
+by report, compare, and PR-comment commands.
+
 ## Compare Result Schema
 
 Machine-readable compare artifacts use:

@@ -169,8 +169,8 @@ uv run anvil fuzz scenarios/refund_agent.yaml \
 uv run anvil schema export --out schemas
 ```
 
-This writes JSON Schema files for trace artifacts, scenario suites, compare
-results, leaderboard submissions, and leaderboard indexes. See
+This writes JSON Schema files for trace artifacts, scenario suites, run results,
+compare results, leaderboard submissions, and leaderboard indexes. See
 [Stable Contracts](contracts.md).
 
 ## PR Comments

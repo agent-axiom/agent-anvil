@@ -30,6 +30,7 @@ def test_run_suite_writes_trace_results_report_and_latest_link(
     assert (runs_dir / "latest").exists()
 
     payload = json.loads((result.run_dir / "results.json").read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "anvil.results.v1"
     assert payload["suite"] == "refund_agent_regression_suite"
     assert payload["summary"]["pass_rate"] == 50.0
     assert payload["clusters"][0]["name"] == "premature_tool_execution"

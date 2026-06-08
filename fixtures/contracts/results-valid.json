@@ -1,0 +1,32 @@
+{
+  "schema_version": "anvil.results.v1",
+  "suite": "contract_scenario_suite",
+  "run_id": "run_contract",
+  "summary": {
+    "total_scenarios": 1,
+    "total_trials": 1,
+    "passed_trials": 1,
+    "failed_trials": 0,
+    "pass_rate": 100.0,
+    "flaky_scenarios": []
+  },
+  "grades": [
+    {
+      "scenario_id": "contract_case",
+      "trial": 1,
+      "passed": true,
+      "deterministic_passed": true,
+      "semantic": {
+        "passed": true,
+        "score": 1.0,
+        "failure_type": "none",
+        "severity": "none",
+        "reason": "",
+        "suggested_fix": {}
+      },
+      "trace_path": "runs/run_contract/traces/contract_case_trial_1.json",
+      "deterministic_checks": []
+    }
+  ],
+  "clusters": []
+}

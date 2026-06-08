@@ -17,6 +17,7 @@ The command writes schemas using export metadata version
 
 - [`schemas/anvil.trace.v1.schema.json`](../schemas/anvil.trace.v1.schema.json)
 - [`schemas/anvil.scenario.v1.schema.json`](../schemas/anvil.scenario.v1.schema.json)
+- [`schemas/anvil.results.v1.schema.json`](../schemas/anvil.results.v1.schema.json)
 - [`schemas/anvil.doctor.report.v1.schema.json`](../schemas/anvil.doctor.report.v1.schema.json)
 - [`schemas/anvil.compare.result.v1.schema.json`](../schemas/anvil.compare.result.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.v1.schema.json`](../schemas/agent-anvil.leaderboard.v1.schema.json)
@@ -32,6 +33,7 @@ Use the fixture set when writing adapters or compatibility checks:
 - [`fixtures/contracts/trace-valid.json`](../fixtures/contracts/trace-valid.json)
 - [`fixtures/contracts/trace-protocol-error.json`](../fixtures/contracts/trace-protocol-error.json)
 - [`fixtures/contracts/scenario-valid.yaml`](../fixtures/contracts/scenario-valid.yaml)
+- [`fixtures/contracts/results-valid.json`](../fixtures/contracts/results-valid.json)
 - [`fixtures/contracts/doctor-report-valid.json`](../fixtures/contracts/doctor-report-valid.json)
 - [`fixtures/contracts/compare-result-valid.json`](../fixtures/contracts/compare-result-valid.json)
 - [`fixtures/contracts/leaderboard-submission-valid.json`](../fixtures/contracts/leaderboard-submission-valid.json)
