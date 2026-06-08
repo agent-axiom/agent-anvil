@@ -231,27 +231,13 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
             ),
         )
     scenario_ref = scenario_path.as_posix()
-    if not any(_step_scenario_ref(step) == scenario_ref for step in action_steps):
-        return DoctorCheck(
-            name="github_workflow",
-            passed=False,
-            message=f"Agent Anvil action step does not reference scenario {scenario_ref}",
-            hint=(
-                "Update the action `scenario` input or regenerate the workflow with "
-                "`uv run anvil init --profile ci-safe`."
-            ),
-        )
-    if _post_pr_comment_requested(action_steps) and not _workflow_allows_pull_request_comments(
-        workflow
-    ):
-        return DoctorCheck(
-            name="github_workflow",
-            passed=False,
-            message="post-pr-comment requires pull-requests: write permission",
-            hint=(
-                "Add workflow permissions:\npermissions:\n  contents: read\n  pull-requests: write"
-            ),
-        )
+    action_configuration_failure = _workflow_action_configuration_failure(
+        workflow,
+        action_steps=action_steps,
+        scenario_ref=scenario_ref,
+    )
+    if action_configuration_failure is not None:
+        return action_configuration_failure
     return DoctorCheck(
         name="github_workflow",
         passed=True,
@@ -273,6 +259,43 @@ def _agent_anvil_action_steps(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _workflow_action_configuration_failure(
+    workflow: dict[str, Any],
+    *,
+    action_steps: list[dict[str, Any]],
+    scenario_ref: str,
+) -> DoctorCheck | None:
+    if not _agent_anvil_jobs_have_checkout_before_action(workflow):
+        return DoctorCheck(
+            name="github_workflow",
+            passed=False,
+            message="workflow should check out the repository before Agent Anvil runs",
+            hint="Add `- uses: actions/checkout@v6` before the Agent Anvil action step.",
+        )
+    if not any(_step_scenario_ref(step) == scenario_ref for step in action_steps):
+        return DoctorCheck(
+            name="github_workflow",
+            passed=False,
+            message=f"Agent Anvil action step does not reference scenario {scenario_ref}",
+            hint=(
+                "Update the action `scenario` input or regenerate the workflow with "
+                "`uv run anvil init --profile ci-safe`."
+            ),
+        )
+    if _post_pr_comment_requested(action_steps) and not _workflow_allows_pull_request_comments(
+        workflow
+    ):
+        return DoctorCheck(
+            name="github_workflow",
+            passed=False,
+            message="post-pr-comment requires pull-requests: write permission",
+            hint=(
+                "Add workflow permissions:\npermissions:\n  contents: read\n  pull-requests: write"
+            ),
+        )
+    return None
+
+
 def _agent_anvil_action_jobs(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     jobs = workflow.get("jobs")
     if not isinstance(jobs, dict):
@@ -290,6 +313,28 @@ def _agent_anvil_action_jobs(workflow: dict[str, Any]) -> list[dict[str, Any]]:
         ):
             action_jobs.append(job)
     return action_jobs
+
+
+def _agent_anvil_jobs_have_checkout_before_action(workflow: dict[str, Any]) -> bool:
+    return all(
+        _job_has_checkout_before_agent_anvil(job) for job in _agent_anvil_action_jobs(workflow)
+    )
+
+
+def _job_has_checkout_before_agent_anvil(job: dict[str, Any]) -> bool:
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    checkout_seen = False
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        uses = step.get("uses")
+        if _is_checkout_ref(uses):
+            checkout_seen = True
+        if _is_agent_anvil_action_ref(uses):
+            return checkout_seen
+    return False
 
 
 def _workflow_steps(workflow: dict[str, Any]) -> list[dict[str, Any]]:
@@ -313,6 +358,10 @@ def _is_agent_anvil_action_ref(value: Any) -> bool:
     return value.startswith("agent-axiom/agent-anvil-action@") or value.startswith(
         "agent-axiom/agent-anvil@"
     )
+
+
+def _is_checkout_ref(value: Any) -> bool:
+    return isinstance(value, str) and value.startswith("actions/checkout@")
 
 
 def _step_scenario_ref(step: dict[str, Any]) -> str | None:
