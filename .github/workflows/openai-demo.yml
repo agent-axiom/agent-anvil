@@ -25,7 +25,7 @@ jobs:
           exit 1
 
       - name: Run OpenAI refund agent eval
-        uses: agent-axiom/agent-anvil-action@v1.0.31
+        uses: agent-axiom/agent-anvil-action@v1.0.32
         with:
           scenario: scenarios/refund_agent.yaml
           agent-mode: openai
