@@ -11,6 +11,10 @@ from anvil.trace import TraceRun, TraceStatus, load_trace_artifact
 OPENAI_TRACE_FORMAT = "openai-trace"
 
 
+class OpenAITracePayloadError(ValueError):
+    pass
+
+
 def export_openai_trace(run_dir: str | Path, *, out_path: str | Path) -> Path:
     selected_run_dir = Path(run_dir)
     traces = [
@@ -29,17 +33,39 @@ def export_openai_trace(run_dir: str | Path, *, out_path: str | Path) -> Path:
 
 
 def import_openai_trace(source_path: str | Path, *, out_dir: str | Path) -> list[TraceRun]:
-    payload = json.loads(Path(source_path).read_text(encoding="utf-8"))
+    selected_source_path = Path(source_path)
+    try:
+        payload = json.loads(selected_source_path.read_text(encoding="utf-8"))
+    except OSError as error:
+        msg = f"could not read {selected_source_path}: {error}"
+        raise OpenAITracePayloadError(msg) from error
+    except json.JSONDecodeError as error:
+        msg = f"could not parse {selected_source_path} as JSON: {error}"
+        raise OpenAITracePayloadError(msg) from error
+    if not isinstance(payload, dict):
+        msg = "trace payload must be a JSON object"
+        raise OpenAITracePayloadError(msg)
     if payload.get("format") != OPENAI_TRACE_FORMAT:
-        raise ValueError("trace payload format must be openai-trace")
+        raise OpenAITracePayloadError("trace payload format must be openai-trace")
+    traces_payload = payload.get("traces")
+    if not isinstance(traces_payload, list):
+        raise OpenAITracePayloadError("trace payload traces must be a list")
 
     selected_out_dir = Path(out_dir)
     (selected_out_dir / "traces").mkdir(parents=True, exist_ok=True)
     selected_run_id = str(payload.get("run_id", selected_out_dir.name))
-    traces = [_import_trace(item, run_id=selected_run_id) for item in payload["traces"]]
+    traces = [
+        _import_trace(_trace_payload(item), run_id=selected_run_id) for item in traces_payload
+    ]
     for trace in traces:
         write_trace(selected_out_dir, trace)
     return traces
+
+
+def _trace_payload(value: object) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise OpenAITracePayloadError("each trace payload item must be a JSON object")
+    return cast("dict[str, Any]", value)
 
 
 def _export_trace(trace: TraceRun) -> dict[str, Any]:
