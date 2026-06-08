@@ -76,6 +76,9 @@ expected:
     - type: tool_called_before
       before: issue_refund
       after: lookup_order
+    - type: min_tool_calls
+      tool: lookup_order
+      count: 1
     - type: max_tool_calls
       tool: lookup_order
       count: 1
@@ -98,6 +101,7 @@ Supported assertion types:
 - `tool_called`
 - `tool_not_called`
 - `tool_called_before`
+- `min_tool_calls`
 - `max_tool_calls`
 - `forbidden_arg_value`
 - `tool_result_matches`

@@ -254,6 +254,11 @@ def _assertion_failure(
             assertion.after,
             tool_names,
         ),
+        "min_tool_calls": lambda: _assert_min_tool_calls(
+            assertion.tool,
+            assertion.count,
+            tool_names,
+        ),
         "max_tool_calls": lambda: _assert_max_tool_calls(
             assertion.tool,
             assertion.count,
@@ -309,6 +314,17 @@ def _assert_max_tool_calls(
     observed = sum(1 for observed_tool in tool_names if observed_tool == tool_name)
     if count is not None and observed > count:
         return f"{tool_name} called {observed} times, max is {count}"
+    return None
+
+
+def _assert_min_tool_calls(
+    tool_name: str | None,
+    count: int | None,
+    tool_names: list[str],
+) -> str | None:
+    observed = sum(1 for observed_tool in tool_names if observed_tool == tool_name)
+    if count is not None and observed < count:
+        return f"{tool_name} called {observed} times, min is {count}"
     return None
 
 
