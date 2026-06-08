@@ -60,6 +60,28 @@ def test_doctor_fails_when_workflow_is_missing(tmp_path: Path) -> None:
     assert "uv run anvil init --profile ci-safe" in result.stdout
 
 
+def test_doctor_can_skip_workflow_check_for_local_diagnostics(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--skip-workflow",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Agent Anvil doctor: PASS" in result.stdout
+    assert "- scenario_file: PASS" in result.stdout
+    assert "- external_agent_conformance: PASS" in result.stdout
+    assert "github_workflow" not in result.stdout
+
+
 def test_doctor_fails_for_invalid_scenario_yaml(tmp_path: Path) -> None:
     scenario_path = tmp_path / "scenarios" / "broken.yaml"
     scenario_path.parent.mkdir(parents=True)
@@ -133,6 +155,32 @@ def test_doctor_json_includes_failure_hints(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert workflow_check["passed"] is False
     assert "uv run anvil init --profile ci-safe" in workflow_check["hint"]
+
+
+def test_doctor_skip_workflow_json_omits_workflow_check(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--skip-workflow",
+            "--json",
+        ],
+    )
+
+    payload = json.loads(result.stdout)
+    assert result.exit_code == 0
+    assert payload["passed"] is True
+    assert {check["name"] for check in payload["checks"]} == {
+        "scenario_file",
+        "agent_target",
+        "external_agent_conformance",
+    }
 
 
 def test_doctor_writes_json_report_to_out_path(tmp_path: Path) -> None:

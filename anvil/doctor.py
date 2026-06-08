@@ -29,6 +29,7 @@ def run_doctor(
     workflow_path: Path,
     max_steps: int = 8,
     skip_conformance: bool = False,
+    skip_workflow: bool = False,
 ) -> DoctorReport:
     checks: list[DoctorCheck] = []
     suite = _load_suite(scenario_path, checks)
@@ -36,7 +37,8 @@ def run_doctor(
         checks.append(_agent_config_check(suite))
         if not skip_conformance:
             checks.append(_conformance_check(suite, max_steps=max_steps))
-        checks.append(_workflow_check(workflow_path, scenario_path=scenario_path))
+        if not skip_workflow:
+            checks.append(_workflow_check(workflow_path, scenario_path=scenario_path))
     return DoctorReport(
         passed=all(check.passed for check in checks),
         checks=tuple(checks),
