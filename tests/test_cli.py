@@ -515,6 +515,24 @@ def test_cli_validate_json_reports_invalid_run_trace(tmp_path: Path) -> None:
     assert result.stderr == ""
 
 
+def test_cli_validate_json_rejects_run_grade_trace_mismatch(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+    trace_path = run_dir / "traces" / "refund_valid_order_trial_1.json"
+    trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    trace_payload["scenario_id"] = "different_scenario"
+    trace_path.write_text(json.dumps(trace_payload), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "missing trace refund_valid_order/trial_1" in payload["error"]
+    assert "unexpected trace different_scenario/trial_1" in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,
