@@ -15,7 +15,13 @@ from anvil.conformance import (
     write_conformance_report,
 )
 from anvil.contracts import export_schema_contracts
-from anvil.doctor import render_doctor_json, render_doctor_report, run_doctor, write_doctor_json
+from anvil.doctor import (
+    render_doctor_github_summary,
+    render_doctor_json,
+    render_doctor_report,
+    run_doctor,
+    write_doctor_json,
+)
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
@@ -168,6 +174,11 @@ DOCTOR_OUT_OPTION = typer.Option(
     None,
     "--out",
     help="Write the doctor JSON report here.",
+)
+DOCTOR_GITHUB_SUMMARY_OPTION = typer.Option(
+    False,
+    "--github-summary",
+    help="Append doctor Markdown summary to GITHUB_STEP_SUMMARY when available.",
 )
 INIT_AGENT_COMMAND_OPTION = typer.Option(
     None,
@@ -505,6 +516,7 @@ def doctor(
     skip_conformance: bool = DOCTOR_SKIP_CONFORMANCE_OPTION,
     json_output: bool = DOCTOR_JSON_OPTION,
     out: Path | None = DOCTOR_OUT_OPTION,
+    github_summary: bool = DOCTOR_GITHUB_SUMMARY_OPTION,
 ) -> None:
     report = run_doctor(
         scenario_file,
@@ -520,6 +532,8 @@ def doctor(
         typer.echo(render_doctor_report(report))
         if out is not None:
             typer.echo(f"Wrote doctor report: {_display_path(out)}")
+    if github_summary:
+        _write_github_summary(render_doctor_github_summary(report))
     if not report.passed:
         raise typer.Exit(1)
 

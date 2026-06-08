@@ -136,6 +136,35 @@ def test_doctor_writes_json_report_to_out_path(tmp_path: Path) -> None:
     assert payload["checks"][-1]["name"] == "github_workflow"
 
 
+def test_doctor_appends_github_step_summary(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+    summary_path = tmp_path / "github-summary.md"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+    _write_workflow(workflow_path, scenario_path=scenario_path)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+            "--github-summary",
+        ],
+        env={"GITHUB_STEP_SUMMARY": str(summary_path)},
+    )
+
+    summary = summary_path.read_text(encoding="utf-8")
+    assert result.exit_code == 0
+    assert "# Agent Anvil Doctor" in summary
+    assert "Status: PASS" in summary
+    assert "| scenario_file | PASS |" in summary
+    assert "| github_workflow | PASS |" in summary
+
+
 def _write_jsonl_scenario(path: Path, *, command: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(

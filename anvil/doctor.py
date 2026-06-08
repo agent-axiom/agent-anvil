@@ -55,6 +55,25 @@ def render_doctor_json(report: DoctorReport) -> str:
     return json.dumps(doctor_report_payload(report), indent=2) + "\n"
 
 
+def render_doctor_github_summary(report: DoctorReport) -> str:
+    status = "PASS" if report.passed else "FAIL"
+    lines: list[str] = [
+        "# Agent Anvil Doctor",
+        "",
+        f"Status: {status}",
+        "",
+        "| Check | Result | Detail |",
+        "| --- | --- | --- |",
+    ]
+    for check in report.checks:
+        check_status = "PASS" if check.passed else "FAIL"
+        lines.append(
+            f"| {_escape_table_cell(check.name)} | {check_status} | "
+            f"{_escape_table_cell(check.message)} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def write_doctor_json(report: DoctorReport, out_path: Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(render_doctor_json(report), encoding="utf-8")
@@ -160,3 +179,7 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
         passed=True,
         message="workflow references Agent Anvil and the scenario file",
     )
+
+
+def _escape_table_cell(value: str) -> str:
+    return value.replace("|", "\\|").replace("\n", " ")

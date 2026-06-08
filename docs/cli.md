@@ -55,6 +55,7 @@ uv run anvil doctor scenarios/agent_anvil_starter.yaml
 uv run anvil doctor scenarios/agent_anvil_starter.yaml --skip-conformance
 uv run anvil doctor scenarios/agent_anvil_starter.yaml --json
 uv run anvil doctor scenarios/agent_anvil_starter.yaml --out reports/doctor.json
+uv run anvil doctor scenarios/agent_anvil_starter.yaml --github-summary
 ```
 
 ## External Agent Adapters
