@@ -29,13 +29,13 @@ jobs:
 
       - name: Run Agent Anvil benchmark
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.46 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.47 \
             anvil paper reproduce \
             --manifest "$ANVIL_MANIFEST"
 
       - name: Export GitHub Actions leaderboard submission
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.46 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.47 \
             anvil leaderboard export "$ANVIL_RESULTS_JSON" \
             --manifest "$ANVIL_MANIFEST" \
             --out leaderboard_submission.json \
@@ -46,7 +46,7 @@ jobs:
 
       - name: Validate GitHub Actions trust metadata
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.46 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.47 \
             anvil leaderboard validate leaderboard_submission.json \
             --require-trust github_actions
 
@@ -64,7 +64,7 @@ jobs:
 
       - name: Prepare leaderboard PR file and body
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.46 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.47 \
             anvil leaderboard pr leaderboard_submission.json \
             --leaderboard-repo leaderboard-repo \
             --require-trust github_actions \
