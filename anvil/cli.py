@@ -378,6 +378,11 @@ LEADERBOARD_REQUIRE_TRUST_OPTION = typer.Option(
     "--require-trust",
     help="Require a trust level such as self_reported or github_actions.",
 )
+LEADERBOARD_VERIFY_GITHUB_RUN_OPTION = typer.Option(
+    False,
+    "--github-run/--no-github-run",
+    help="Verify GitHub Actions run metadata for github_actions submissions.",
+)
 LEADERBOARD_INDEX_OUT_OPTION = typer.Option(
     Path("leaderboard.csv"),
     "--out",
@@ -863,12 +868,14 @@ def leaderboard_validate(
     submission_file: Path,
     verify_artifacts: bool = LEADERBOARD_VERIFY_ARTIFACTS_OPTION,
     require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
+    verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
 ) -> None:
     try:
         submission = validate_leaderboard_submission(
             submission_file,
             verify_artifacts=verify_artifacts,
             require_trust_level=require_trust_level,
+            verify_github_run=verify_github_run,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)
@@ -878,18 +885,25 @@ def leaderboard_validate(
     typer.echo(f"Evidence SHA-256: {submission.verification.evidence_sha256}")
     typer.echo(f"Benchmark: {submission.benchmark.name}")
     typer.echo(f"Trace-aware pass rate: {submission.metrics.trace_aware_pass_rate:.1f}%")
+    if verify_github_run:
+        status = (
+            "verified" if submission.verification.trust_level == "github_actions" else "not checked"
+        )
+        typer.echo(f"GitHub run: {status}")
 
 
 @leaderboard_app.command("inspect")
 def leaderboard_inspect(
     submission_file: Path,
     verify_artifacts: bool = LEADERBOARD_VERIFY_ARTIFACTS_OPTION,
+    verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
     out: Path | None = LEADERBOARD_INSPECT_OUT_OPTION,
 ) -> None:
     try:
         inspection = inspect_leaderboard_submission(
             submission_file,
             verify_artifacts=verify_artifacts,
+            verify_github_run=verify_github_run,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)
@@ -900,6 +914,7 @@ def leaderboard_inspect(
         out.write_text(inspection.markdown, encoding="utf-8")
         typer.echo(f"Wrote leaderboard inspection: {_display_path(out)}")
         typer.echo(f"Artifact hashes: {inspection.artifact_status}")
+        typer.echo(f"GitHub run: {inspection.github_run_status}")
         typer.echo(f"Warnings: {inspection.warning_count}")
         return
 
@@ -931,6 +946,7 @@ def leaderboard_build(
     json_out: Path = LEADERBOARD_INDEX_JSON_OUT_OPTION,
     verify_artifacts: bool = LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION,
     require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
+    verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
 ) -> None:
     try:
         index = build_leaderboard_index(
@@ -939,6 +955,7 @@ def leaderboard_build(
             json_path=json_out,
             verify_artifacts=verify_artifacts,
             require_trust_level=require_trust_level,
+            verify_github_run=verify_github_run,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)
@@ -956,6 +973,7 @@ def leaderboard_pr(
     pr_body_out: Path | None = LEADERBOARD_PR_BODY_OUT_OPTION,
     force: bool = LEADERBOARD_FORCE_OPTION,
     require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
+    verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
 ) -> None:
     try:
         prepared = prepare_leaderboard_pr_submission(
@@ -965,6 +983,7 @@ def leaderboard_pr(
             pr_body_out=pr_body_out,
             force=force,
             require_trust_level=require_trust_level,
+            verify_github_run=verify_github_run,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)

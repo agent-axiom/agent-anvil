@@ -22,11 +22,12 @@ jobs:
           enable-cache: true
       - name: Validate submissions and build index
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.31 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.32 \
             anvil leaderboard build submissions \
             --out leaderboard.csv \
             --json-out leaderboard.json \
-            --no-artifacts
+            --no-artifacts \
+            --github-run
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: agent-anvil-leaderboard-index

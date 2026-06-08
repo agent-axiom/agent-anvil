@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import anvil.leaderboard as leaderboard_module
 from anvil.benchmark import run_benchmark
 from anvil.cli import app
 from anvil.leaderboard import (
@@ -458,6 +459,197 @@ def test_validate_leaderboard_submission_rejects_github_actions_run_url_repo_mis
         validate_leaderboard_submission(out_path, verify_artifacts=False)
 
 
+def test_validate_leaderboard_submission_can_verify_github_actions_run(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+
+    def fake_fetch(
+        repository: str,
+        run_id: str,
+        *,
+        token: str | None = None,
+        host: str = "github.com",
+    ) -> dict[str, object]:
+        assert repository == "agent-axiom/agent-anvil"
+        assert run_id == "12345"
+        assert token is None
+        assert host == "github.com"
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    submission = validate_leaderboard_submission(
+        submission_path,
+        verify_artifacts=False,
+        verify_github_run=True,
+    )
+
+    assert submission.verification.trust_level == "github_actions"
+
+
+def test_validate_leaderboard_submission_rejects_failed_github_actions_run(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload(conclusion="failure")
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    with pytest.raises(LeaderboardValidationError, match="GitHub Actions run conclusion"):
+        validate_leaderboard_submission(
+            submission_path,
+            verify_artifacts=False,
+            verify_github_run=True,
+        )
+
+
+def test_cli_leaderboard_validate_can_verify_github_actions_run(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "validate",
+            str(submission_path),
+            "--no-artifacts",
+            "--github-run",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "GitHub run: verified" in result.stdout
+
+
+def test_inspect_leaderboard_submission_reports_failed_github_actions_run_without_abort(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload(conclusion="failure")
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    inspection = inspect_leaderboard_submission(
+        submission_path,
+        verify_artifacts=False,
+        verify_github_run=True,
+    )
+
+    assert inspection.github_run_status == "failed"
+    assert "GitHub run verification failed" in inspection.warnings[0]
+    assert "- GitHub run verification: failed" in inspection.markdown
+    assert "- GitHub run error: GitHub Actions run conclusion mismatch" in inspection.markdown
+
+
+def test_build_leaderboard_index_can_verify_github_actions_runs(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    index = build_leaderboard_index(
+        submissions_dir,
+        verify_artifacts=False,
+        verify_github_run=True,
+    )
+
+    assert index.rows[0].trust_level == "github_actions"
+
+
+def test_prepare_leaderboard_pr_submission_rejects_failed_github_actions_run(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload(head_sha="other-sha")
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    with pytest.raises(LeaderboardValidationError, match="GitHub Actions run head_sha"):
+        prepare_leaderboard_pr_submission(
+            submission_path=submission_path,
+            leaderboard_repo=tmp_path / "leaderboard",
+            verify_github_run=True,
+        )
+
+
 def test_build_leaderboard_index_writes_ranked_csv_and_json(
     scenario_file: Path,
     tmp_path: Path,
@@ -756,6 +948,48 @@ def _write_better_result(source_path: Path, out_path: Path) -> None:
     payload["answer_only_missed_failure_rate_ci_low"] = 3.0
     payload["answer_only_missed_failure_rate_ci_high"] = 56.4
     out_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _write_github_actions_submission(
+    *,
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "agent-axiom/agent-anvil")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    out_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=out_path,
+        agent_name="Support Agent",
+        repo_url="https://github.com/agent-axiom/agent-anvil",
+    )
+    return out_path
+
+
+def _github_run_payload(
+    *,
+    status: str = "completed",
+    conclusion: str | None = "success",
+    head_sha: str = "abc123",
+    repository: str = "agent-axiom/agent-anvil",
+) -> dict[str, object]:
+    return {
+        "status": status,
+        "conclusion": conclusion,
+        "head_sha": head_sha,
+        "html_url": "https://github.com/agent-axiom/agent-anvil/actions/runs/12345",
+        "repository": {
+            "full_name": repository,
+        },
+    }
 
 
 def _write_manifest(tmp_path: Path, scenario_file: Path) -> Path:

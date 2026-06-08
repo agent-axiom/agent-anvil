@@ -10,7 +10,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -152,6 +155,8 @@ class LeaderboardInspection:
     submission: LeaderboardSubmission
     artifact_status: Literal["verified", "not checked", "failed"]
     artifact_error: str
+    github_run_status: Literal["verified", "not checked", "failed"]
+    github_run_error: str
     warnings: tuple[str, ...]
     markdown: str
 
@@ -250,6 +255,7 @@ def validate_leaderboard_submission(
     *,
     verify_artifacts: bool = True,
     require_trust_level: str | None = None,
+    verify_github_run: bool = False,
 ) -> LeaderboardSubmission:
     selected_submission_path = Path(submission_path)
     submission = _load_leaderboard_submission(selected_submission_path)
@@ -270,6 +276,8 @@ def validate_leaderboard_submission(
 
     if verify_artifacts:
         _validate_artifact_hashes(submission)
+    if verify_github_run:
+        _validate_github_actions_run(submission)
 
     return submission
 
@@ -313,10 +321,140 @@ def _validate_trust_metadata(submission: LeaderboardSubmission) -> None:
         )
 
 
+def _validate_github_actions_run(submission: LeaderboardSubmission) -> None:
+    verification = submission.verification
+    if verification.trust_level != "github_actions":
+        return
+
+    repository, run_id, host = _github_actions_run_reference(verification)
+    payload = _fetch_github_actions_run(
+        repository,
+        run_id,
+        token=_github_api_token(),
+        host=host,
+    )
+    run_repository = _github_run_repository(payload)
+    if run_repository != verification.github_repository:
+        raise LeaderboardValidationError(
+            "GitHub Actions run repository mismatch: "
+            f"expected {verification.github_repository}, got {run_repository or 'not provided'}"
+        )
+
+    head_sha = str(payload.get("head_sha") or "")
+    if head_sha != verification.github_sha:
+        raise LeaderboardValidationError(
+            "GitHub Actions run head_sha mismatch: "
+            f"expected {verification.github_sha}, got {head_sha or 'not provided'}"
+        )
+
+    status = str(payload.get("status") or "")
+    if status != "completed":
+        raise LeaderboardValidationError(
+            "GitHub Actions run status mismatch: expected completed, "
+            f"got {status or 'not provided'}"
+        )
+
+    conclusion = str(payload.get("conclusion") or "")
+    if conclusion != "success":
+        raise LeaderboardValidationError(
+            "GitHub Actions run conclusion mismatch: expected success, "
+            f"got {conclusion or 'not provided'}"
+        )
+
+
+def _github_actions_run_reference(
+    verification: LeaderboardVerification,
+) -> tuple[str, str, str]:
+    parsed = urlparse(verification.github_run_url)
+    path_parts = [part for part in parsed.path.strip("/").split("/") if part]
+    min_run_path_parts = 5
+    if len(path_parts) < min_run_path_parts or path_parts[2:4] != ["actions", "runs"]:
+        raise LeaderboardValidationError(
+            "github_actions trust requires verification.github_run_url to look like "
+            "https://github.com/OWNER/REPO/actions/runs/RUN_ID"
+        )
+    repository = f"{path_parts[0]}/{path_parts[1]}"
+    if repository != verification.github_repository:
+        raise LeaderboardValidationError(
+            "github_actions trust requires verification.github_run_url to point to "
+            f"verification.github_repository ({verification.github_repository})"
+        )
+    run_id = path_parts[4]
+    if not re.fullmatch(r"\d+", run_id):
+        raise LeaderboardValidationError(
+            "github_actions trust requires verification.github_run_url to include "
+            f"a numeric GitHub Actions run id, got {run_id!r}"
+        )
+    host = parsed.hostname or "github.com"
+    return repository, run_id, host
+
+
+def _fetch_github_actions_run(
+    repository: str,
+    run_id: str,
+    *,
+    token: str | None = None,
+    host: str = "github.com",
+) -> dict[str, Any]:
+    api_base = "https://api.github.com" if host == "github.com" else f"https://{host}/api/v3"
+    request = Request(
+        f"{api_base}/repos/{repository}/actions/runs/{run_id}",
+        headers=_github_api_headers(token),
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")[:500]
+        detail = f"{error.code} {error.reason}"
+        if body:
+            detail = f"{detail}: {body}"
+        raise LeaderboardValidationError(
+            f"GitHub Actions run fetch failed for {repository}/actions/runs/{run_id}: {detail}"
+        ) from error
+    except (OSError, URLError, json.JSONDecodeError) as error:
+        raise LeaderboardValidationError(
+            f"GitHub Actions run fetch failed for {repository}/actions/runs/{run_id}: {error}"
+        ) from error
+
+    if not isinstance(payload, dict):
+        raise LeaderboardValidationError(
+            f"GitHub Actions run fetch failed for {repository}/actions/runs/{run_id}: "
+            "API response was not an object"
+        )
+    return payload
+
+
+def _github_api_headers(token: str | None) -> dict[str, str]:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "agent-anvil-leaderboard-verifier",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def _github_api_token() -> str | None:
+    return os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN") or None
+
+
+def _github_run_repository(payload: dict[str, Any]) -> str:
+    repository = payload.get("repository")
+    if isinstance(repository, dict):
+        full_name = repository.get("full_name")
+        if isinstance(full_name, str):
+            return full_name
+    return ""
+
+
 def inspect_leaderboard_submission(
     submission_path: str | Path,
     *,
     verify_artifacts: bool = True,
+    verify_github_run: bool = False,
 ) -> LeaderboardInspection:
     submission = validate_leaderboard_submission(submission_path, verify_artifacts=False)
     artifact_status: Literal["verified", "not checked", "failed"] = "not checked"
@@ -329,17 +467,43 @@ def inspect_leaderboard_submission(
             artifact_status = "failed"
             artifact_error = str(error)
 
-    warnings = tuple(_inspection_warnings(submission, artifact_status, artifact_error))
+    github_run_status: Literal["verified", "not checked", "failed"] = "not checked"
+    github_run_error = ""
+    if verify_github_run:
+        try:
+            _validate_github_actions_run(submission)
+            github_run_status = (
+                "verified"
+                if submission.verification.trust_level == "github_actions"
+                else "not checked"
+            )
+        except LeaderboardValidationError as error:
+            github_run_status = "failed"
+            github_run_error = str(error)
+
+    warnings = tuple(
+        _inspection_warnings(
+            submission,
+            artifact_status,
+            artifact_error,
+            github_run_status,
+            github_run_error,
+        )
+    )
     markdown = _inspection_markdown(
         submission=submission,
         artifact_status=artifact_status,
         artifact_error=artifact_error,
+        github_run_status=github_run_status,
+        github_run_error=github_run_error,
         warnings=warnings,
     )
     return LeaderboardInspection(
         submission=submission,
         artifact_status=artifact_status,
         artifact_error=artifact_error,
+        github_run_status=github_run_status,
+        github_run_error=github_run_error,
         warnings=warnings,
         markdown=markdown,
     )
@@ -379,12 +543,14 @@ def build_leaderboard_index(
     json_path: str | Path | None = None,
     verify_artifacts: bool = False,
     require_trust_level: str | None = None,
+    verify_github_run: bool = False,
 ) -> LeaderboardIndex:
     selected_submissions_dir = Path(submissions_dir)
     submissions = _load_submission_files(
         selected_submissions_dir,
         verify_artifacts=verify_artifacts,
         require_trust_level=require_trust_level,
+        verify_github_run=verify_github_run,
     )
     rows = _rank_rows(
         [
@@ -415,6 +581,7 @@ def prepare_leaderboard_pr_submission(
     pr_body_out: str | Path | None = None,
     force: bool = False,
     require_trust_level: str | None = None,
+    verify_github_run: bool = False,
 ) -> LeaderboardPrPreparation:
     selected_submission_path = Path(submission_path)
     selected_leaderboard_repo = Path(leaderboard_repo)
@@ -422,6 +589,7 @@ def prepare_leaderboard_pr_submission(
         selected_submission_path,
         verify_artifacts=False,
         require_trust_level=require_trust_level,
+        verify_github_run=verify_github_run,
     )
     submissions_dir = selected_leaderboard_repo / "submissions"
     submissions_dir.mkdir(parents=True, exist_ok=True)
@@ -466,6 +634,8 @@ def _inspection_warnings(
     submission: LeaderboardSubmission,
     artifact_status: str,
     artifact_error: str,
+    github_run_status: str,
+    github_run_error: str,
 ) -> list[str]:
     warnings: list[str] = []
     trust_level = submission.verification.trust_level
@@ -479,6 +649,8 @@ def _inspection_warnings(
         warnings.append("submitter.commit_sha is empty; reproduction requires a fixed commit")
     if artifact_status == "failed" and artifact_error:
         warnings.append(f"artifact verification failed: {artifact_error}")
+    if github_run_status == "failed" and github_run_error:
+        warnings.append(f"GitHub run verification failed: {github_run_error}")
     return warnings
 
 
@@ -487,6 +659,8 @@ def _inspection_markdown(
     submission: LeaderboardSubmission,
     artifact_status: str,
     artifact_error: str,
+    github_run_status: str,
+    github_run_error: str,
     warnings: tuple[str, ...],
 ) -> str:
     submitter = submission.submitter
@@ -515,8 +689,11 @@ def _inspection_markdown(
         f"- GitHub run: {submission.verification.github_run_url or 'not provided'}",
         f"- GitHub repository: {submission.verification.github_repository or 'not provided'}",
         f"- GitHub SHA: {submission.verification.github_sha or 'not provided'}",
+        f"- GitHub run verification: {github_run_status}",
         f"- Artifact hashes: {artifact_status}",
     ]
+    if github_run_error:
+        lines.append(f"- GitHub run error: {github_run_error}")
     if artifact_error:
         lines.append(f"- Artifact error: {artifact_error}")
 
@@ -718,6 +895,7 @@ def _load_submission_files(
     *,
     verify_artifacts: bool,
     require_trust_level: str | None,
+    verify_github_run: bool,
 ) -> list[tuple[Path, LeaderboardSubmission]]:
     if not submissions_dir.exists():
         raise LeaderboardValidationError(f"submissions directory missing: {submissions_dir}")
@@ -736,6 +914,7 @@ def _load_submission_files(
             path,
             verify_artifacts=verify_artifacts,
             require_trust_level=require_trust_level,
+            verify_github_run=verify_github_run,
         )
         evidence_hash = submission.verification.evidence_sha256
         if evidence_hash in seen_evidence_hashes:
