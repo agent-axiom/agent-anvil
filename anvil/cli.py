@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import typer
@@ -52,6 +54,7 @@ from anvil.runner import (
     run_suite,
 )
 from anvil.scenario import ExternalAgentConfig
+from anvil.storage import ResultsArtifactError
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
 from anvil.trace_bridge import export_openai_trace, import_openai_trace
@@ -75,6 +78,17 @@ app.add_typer(paper_app, name="paper")
 app.add_typer(leaderboard_app, name="leaderboard")
 app.add_typer(schema_app, name="schema")
 app.add_typer(conformance_app, name="conformance")
+
+
+@contextmanager
+def _handle_results_artifact_errors() -> Iterator[None]:
+    try:
+        yield
+    except ResultsArtifactError as error:
+        typer.echo(f"Invalid results artifact: {error}", err=True)
+        raise typer.Exit(1) from error
+
+
 PASSING_RATE = 100.0
 TRIALS_OPTION = typer.Option(None, "--trials", min=1, help="Override trial count.")
 RUNS_DIR_OPTION = typer.Option(Path("runs"), "--runs-dir", help="Run artifact directory.")
@@ -948,13 +962,15 @@ def leaderboard_pr(
 
 @app.command()
 def report(run_dir: Path) -> None:
-    report_path = regenerate_report(run_dir)
+    with _handle_results_artifact_errors():
+        report_path = regenerate_report(run_dir)
     typer.echo(f"Regenerated {report_path}")
 
 
 @app.command()
 def repair(run_dir: Path) -> None:
-    repair_path = generate_repair_plan(run_dir)
+    with _handle_results_artifact_errors():
+        repair_path = generate_repair_plan(run_dir)
     typer.echo(f"Wrote {repair_path}")
 
 
@@ -965,7 +981,13 @@ def fix(
     prompt: Path | None = FIX_PROMPT_OPTION,
     tools: Path | None = FIX_TOOLS_OPTION,
 ) -> None:
-    patch_path = generate_fix_patch(run_dir, prompt_path=prompt, tools_path=tools, out_path=out)
+    with _handle_results_artifact_errors():
+        patch_path = generate_fix_patch(
+            run_dir,
+            prompt_path=prompt,
+            tools_path=tools,
+            out_path=out,
+        )
     typer.echo(f"Wrote {patch_path}")
 
 
@@ -1027,7 +1049,8 @@ def learn(
 def summary(run_dir: Path, github: bool = GITHUB_SUMMARY_OPTION) -> None:
     if not github:
         typer.echo("Rendering GitHub-compatible Markdown summary.", err=True)
-    typer.echo(generate_github_summary(run_dir), nl=False)
+    with _handle_results_artifact_errors():
+        typer.echo(generate_github_summary(run_dir), nl=False)
 
 
 @app.command("pr-comment")
@@ -1036,7 +1059,8 @@ def pr_comment(
     out: Path = PR_COMMENT_OUT_OPTION,
     compare: Path | None = PR_COMMENT_COMPARE_OPTION,
 ) -> None:
-    comment_path = write_pr_comment(run_dir, out_path=out, compare_path=compare)
+    with _handle_results_artifact_errors():
+        comment_path = write_pr_comment(run_dir, out_path=out, compare_path=compare)
     typer.echo(f"Wrote {comment_path}")
 
 
@@ -1063,7 +1087,8 @@ def compare(
     json_output: bool = COMPARE_JSON_OPTION,
     out: Path | None = COMPARE_OUT_OPTION,
 ) -> None:
-    result = compare_runs(baseline_dir, latest_dir)
+    with _handle_results_artifact_errors():
+        result = compare_runs(baseline_dir, latest_dir)
     json_payload = json.dumps(compare_result_payload(result), indent=2, sort_keys=True)
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
