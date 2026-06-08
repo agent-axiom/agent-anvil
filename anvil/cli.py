@@ -384,6 +384,16 @@ LEADERBOARD_VERIFY_GITHUB_RUN_OPTION = typer.Option(
     "--github-run/--no-github-run",
     help="Verify GitHub Actions run metadata for github_actions submissions.",
 )
+LEADERBOARD_VERIFY_RUN_JSON_OPTION = typer.Option(
+    False,
+    "--json",
+    help="Print the GitHub run verification report as JSON.",
+)
+LEADERBOARD_VERIFY_RUN_OUT_OPTION = typer.Option(
+    None,
+    "--out",
+    help="Write the GitHub run verification report JSON here.",
+)
 LEADERBOARD_INDEX_OUT_OPTION = typer.Option(
     Path("leaderboard.csv"),
     "--out",
@@ -894,19 +904,31 @@ def leaderboard_validate(
 
 
 @leaderboard_app.command("verify-run")
-def leaderboard_verify_run(submission_file: Path) -> None:
+def leaderboard_verify_run(
+    submission_file: Path,
+    as_json: bool = LEADERBOARD_VERIFY_RUN_JSON_OPTION,
+    out: Path | None = LEADERBOARD_VERIFY_RUN_OUT_OPTION,
+) -> None:
     try:
-        submission = verify_leaderboard_github_run(submission_file)
+        report = verify_leaderboard_github_run(submission_file)
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
 
-    verification = submission.verification
+    report_json = report.model_dump_json(indent=2)
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(report_json, encoding="utf-8")
+    if as_json:
+        typer.echo(report_json)
+        return
+    if out is not None:
+        typer.echo(f"Wrote GitHub run verification report: {_display_path(out)}")
     typer.echo("GitHub Actions run is verified")
-    typer.echo(f"Repository: {verification.github_repository}")
-    typer.echo(f"SHA: {verification.github_sha}")
-    typer.echo(f"Run: {verification.github_run_url}")
-    typer.echo(f"Evidence SHA-256: {verification.evidence_sha256}")
+    typer.echo(f"Repository: {report.github_repository}")
+    typer.echo(f"SHA: {report.github_sha}")
+    typer.echo(f"Run: {report.github_run_url}")
+    typer.echo(f"Evidence SHA-256: {report.evidence_sha256}")
 
 
 @leaderboard_app.command("inspect")

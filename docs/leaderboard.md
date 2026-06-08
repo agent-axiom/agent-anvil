@@ -150,8 +150,15 @@ producer run has completed:
 uv run anvil leaderboard validate leaderboard_submission.json \
   --require-trust github_actions \
   --github-run
-uv run anvil leaderboard verify-run leaderboard_submission.json
+uv run anvil leaderboard verify-run leaderboard_submission.json \
+  --out github_run_verification.json
 ```
+
+Use `--json` when another CI step should consume the verification directly from
+stdout. The JSON report uses
+`agent-anvil.leaderboard.github_run_verification.v1` and includes the submitted
+repository, SHA, GitHub run URL, evidence hash, benchmark name, and verifier
+version.
 
 A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).

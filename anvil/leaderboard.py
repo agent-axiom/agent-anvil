@@ -25,6 +25,9 @@ from anvil.benchmark import (
 
 LEADERBOARD_SCHEMA_VERSION = "agent-anvil.leaderboard.v1"
 LEADERBOARD_INDEX_SCHEMA_VERSION = "agent-anvil.leaderboard.index.v1"
+LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION = (
+    "agent-anvil.leaderboard.github_run_verification.v1"
+)
 
 
 class LeaderboardSubmitter(BaseModel):
@@ -133,6 +136,23 @@ class LeaderboardIndex(BaseModel):
     generated_at: str
     generated_by: str
     rows: list[LeaderboardRow]
+
+
+class LeaderboardGithubRunVerification(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["agent-anvil.leaderboard.github_run_verification.v1"]
+    status: Literal["verified"]
+    submission_path: str
+    agent_name: str
+    benchmark_name: str
+    trust_level: Literal["github_actions"]
+    github_repository: str
+    github_sha: str
+    github_run_url: str
+    evidence_sha256: str
+    generated_at: str
+    generated_by: str
 
 
 class LeaderboardValidationError(ValueError):
@@ -540,12 +560,30 @@ def generate_leaderboard_reproduction_script(
     )
 
 
-def verify_leaderboard_github_run(submission_path: str | Path) -> LeaderboardSubmission:
-    return validate_leaderboard_submission(
-        submission_path,
+def verify_leaderboard_github_run(
+    submission_path: str | Path,
+) -> LeaderboardGithubRunVerification:
+    selected_submission_path = Path(submission_path)
+    submission = validate_leaderboard_submission(
+        selected_submission_path,
         verify_artifacts=False,
         require_trust_level="github_actions",
         verify_github_run=True,
+    )
+    verification = submission.verification
+    return LeaderboardGithubRunVerification(
+        schema_version=LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION,
+        status="verified",
+        submission_path=str(_display_path(selected_submission_path)),
+        agent_name=submission.submitter.agent_name,
+        benchmark_name=submission.benchmark.name,
+        trust_level="github_actions",
+        github_repository=verification.github_repository,
+        github_sha=verification.github_sha,
+        github_run_url=verification.github_run_url,
+        evidence_sha256=verification.evidence_sha256,
+        generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        generated_by=f"agent-anvil/{_anvil_version()}",
     )
 
 
