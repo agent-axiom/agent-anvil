@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import yaml
 from pydantic import BaseModel, ConfigDict
@@ -241,6 +241,17 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
                 "`uv run anvil init --profile ci-safe`."
             ),
         )
+    if _post_pr_comment_requested(action_steps) and not _workflow_allows_pull_request_comments(
+        workflow
+    ):
+        return DoctorCheck(
+            name="github_workflow",
+            passed=False,
+            message="post-pr-comment requires pull-requests: write permission",
+            hint=(
+                "Add workflow permissions:\npermissions:\n  contents: read\n  pull-requests: write"
+            ),
+        )
     return DoctorCheck(
         name="github_workflow",
         passed=True,
@@ -260,6 +271,25 @@ def _agent_anvil_action_steps(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         step for step in _workflow_steps(workflow) if _is_agent_anvil_action_ref(step.get("uses"))
     ]
+
+
+def _agent_anvil_action_jobs(workflow: dict[str, Any]) -> list[dict[str, Any]]:
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict):
+        return []
+    action_jobs: list[dict[str, Any]] = []
+    for job in jobs.values():
+        if not isinstance(job, dict):
+            continue
+        job_steps = job.get("steps")
+        if not isinstance(job_steps, list):
+            continue
+        if any(
+            isinstance(step, dict) and _is_agent_anvil_action_ref(step.get("uses"))
+            for step in job_steps
+        ):
+            action_jobs.append(job)
+    return action_jobs
 
 
 def _workflow_steps(workflow: dict[str, Any]) -> list[dict[str, Any]]:
@@ -291,6 +321,34 @@ def _step_scenario_ref(step: dict[str, Any]) -> str | None:
         return None
     scenario = inputs.get("scenario")
     return scenario if isinstance(scenario, str) else None
+
+
+def _post_pr_comment_requested(action_steps: list[dict[str, Any]]) -> bool:
+    for step in action_steps:
+        inputs = step.get("with")
+        if not isinstance(inputs, dict):
+            continue
+        if inputs.get("post-pr-comment") == "true":
+            return True
+    return False
+
+
+def _workflow_allows_pull_request_comments(workflow: dict[str, Any]) -> bool:
+    if _permissions_allow_pull_request_write(workflow.get("permissions")):
+        return True
+    return any(
+        _permissions_allow_pull_request_write(job.get("permissions"))
+        for job in _agent_anvil_action_jobs(workflow)
+    )
+
+
+def _permissions_allow_pull_request_write(permissions: object) -> bool:
+    if isinstance(permissions, str):
+        return permissions == "write-all"
+    if not isinstance(permissions, dict):
+        return False
+    permission_map = cast(dict[str, object], permissions)
+    return permission_map.get("pull-requests") == "write"
 
 
 def _escape_table_cell(value: str) -> str:
