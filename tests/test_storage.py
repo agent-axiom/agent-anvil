@@ -141,6 +141,33 @@ def test_validate_run_manifest_rejects_paths_outside_run_dir(tmp_path) -> None:
         validate_run_manifest(run_dir)
 
 
+def test_validate_run_manifest_rejects_duplicate_file_entries(tmp_path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    report = run_dir / "report.md"
+    report.write_text("# Report\n", encoding="utf-8")
+    digest = sha256(report.read_bytes()).hexdigest()
+    file_payload = {
+        "path": "report.md",
+        "sha256": digest,
+        "size_bytes": report.stat().st_size,
+    }
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "anvil.run_manifest.v1",
+                "run_id": "run_test",
+                "generated_at": "2026-05-01T20:00:02Z",
+                "files": [file_payload, file_payload],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RunManifestError, match=r"duplicate manifest file entry: report\.md"):
+        validate_run_manifest(run_dir)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
