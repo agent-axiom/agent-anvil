@@ -11,6 +11,7 @@ from anvil.packs import render_pack
 DEFAULT_SCENARIO_PATH = Path("scenarios/agent_anvil_starter.yaml")
 DEFAULT_WORKFLOW_PATH = Path(".github/workflows/agent-anvil.yml")
 CI_SAFE_PROFILE = "ci-safe"
+MARKETPLACE_ACTION_REF = "agent-axiom/agent-anvil-action@v1.0.0"
 _ENV_REF_RE = re.compile(
     r"\$(?:\{(?P<brace>[A-Za-z_][A-Za-z0-9_]*)\}|(?P<plain>[A-Za-z_][A-Za-z0-9_]*))"
 )
@@ -60,7 +61,7 @@ def initialize_project(
     resolved_agent_command = (
         f"python {adapter_path.as_posix()}" if adapter_path is not None else agent_command
     )
-    action_ref = f"agent-axiom/agent-anvil@v{_package_version()}"
+    action_ref = MARKETPLACE_ACTION_REF
     scenario_content = (
         _jsonl_scenario_content(
             agent_command=resolved_agent_command or "",
