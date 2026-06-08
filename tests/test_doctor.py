@@ -43,7 +43,7 @@ def test_doctor_passes_for_marketplace_action_workflow(tmp_path: Path) -> None:
     _write_workflow(
         workflow_path,
         scenario_path=scenario_path,
-        action_ref="agent-axiom/agent-anvil-action@v1.0.0",
+        action_ref="agent-axiom/agent-anvil-action@v1.0.1",
     )
 
     result = CliRunner().invoke(
@@ -69,7 +69,7 @@ def test_doctor_rejects_workflow_with_action_only_in_comments(tmp_path: Path) ->
     workflow_path.parent.mkdir(parents=True, exist_ok=True)
     workflow_path.write_text(
         f"""name: Agent Anvil
-# uses: agent-axiom/agent-anvil-action@v1.0.0
+# uses: agent-axiom/agent-anvil-action@v1.0.1
 # scenario: {scenario_path.as_posix()}
 jobs:
   agent-anvil:
