@@ -195,6 +195,7 @@ def test_init_ci_safe_profile_writes_adapter_pack_and_pr_workflow(tmp_path: Path
         assert suite.policies.require_before["issue_refund"][0].tool == "lookup_order"
         assert "pull-requests: write" in workflow_text
         assert "Run Agent Anvil doctor" in workflow_text
+        assert "uses: agent-axiom/agent-anvil-action@v1.0.0" in workflow_text
         assert "uvx --from git+https://github.com/agent-axiom/agent-anvil@v" in workflow_text
         assert 'anvil doctor "scenarios/starter.yaml"' in workflow_text
         assert '--workflow ".github/workflows/agent-anvil.yml"' in workflow_text
