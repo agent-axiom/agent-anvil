@@ -611,6 +611,33 @@ def test_cli_validate_json_rejects_trace_from_different_run(tmp_path: Path) -> N
     assert result.stderr == ""
 
 
+def test_cli_validate_json_rejects_manifest_from_different_run(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "runs"
+    CliRunner().invoke(
+        app,
+        [
+            "run",
+            "scenarios/external_jsonl_agent.yaml",
+            "--runs-dir",
+            str(runs_dir),
+            "--offline",
+        ],
+    )
+    manifest_path = runs_dir / "latest" / "manifest.json"
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_payload["run_id"] = "run_other"
+    manifest_path.write_text(json.dumps(manifest_payload), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(runs_dir / "latest")])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "manifest run_id run_other does not match results run_id" in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_validate_json_rejects_tampered_run_manifest(tmp_path: Path) -> None:
     runs_dir = tmp_path / "runs"
     CliRunner().invoke(
