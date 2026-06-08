@@ -1,7 +1,7 @@
 {
   "schema_version": "agent-anvil.leaderboard.audit.v1",
   "generated_at": "2026-06-08T13:30:00Z",
-  "generated_by": "agent-anvil/0.2.37",
+  "generated_by": "agent-anvil/0.2.38",
   "submissions_dir": "submissions",
   "summary": {
     "total": 2,
