@@ -467,6 +467,54 @@ def test_cli_validate_json_reports_invalid_results_artifact(tmp_path: Path) -> N
     assert result.stderr == ""
 
 
+def test_cli_validate_json_reports_valid_run_artifacts(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(run_dir)])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "status": "valid",
+        "kind": "run",
+        "suite": "suite",
+        "run_id": "run_test",
+        "total_trials": 1,
+        "pass_rate": 100.0,
+        "trace_count": 1,
+    }
+    assert result.stderr == ""
+
+
+def test_cli_validate_reports_valid_run_artifacts(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+
+    result = CliRunner().invoke(app, ["validate", "run", str(run_dir)])
+
+    assert result.exit_code == 0
+    assert "Run artifacts are valid" in result.stdout
+    assert "Suite: suite" in result.stdout
+    assert "Run: run_test" in result.stdout
+    assert "Trials: 1" in result.stdout
+    assert "Pass rate: 100.0%" in result.stdout
+    assert "Traces: 1" in result.stdout
+
+
+def test_cli_validate_json_reports_invalid_run_trace(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+    bad_trace = run_dir / "traces" / "broken.json"
+    bad_trace.write_text('{"schema_version":"anvil.trace.v1"}', encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "broken.json" in payload["error"]
+    assert "run_id" in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,
@@ -1028,5 +1076,17 @@ def _write_results_artifact(tmp_path: Path) -> Path:
         total_scenarios=1,
         grades=[_grade("refund_valid_order", 1, True)],
         clusters=[],
+    )
+    return run_dir
+
+
+def _write_run_artifacts(tmp_path: Path) -> Path:
+    run_dir = _write_results_artifact(tmp_path)
+    traces_dir = run_dir / "traces"
+    traces_dir.mkdir()
+    trace_path = _write_trace_artifact(tmp_path)
+    (traces_dir / "refund_valid_order_trial_1.json").write_text(
+        trace_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
     )
     return run_dir
