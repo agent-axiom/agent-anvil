@@ -97,6 +97,43 @@ def test_match_assertions_accept_explicit_null_equals(assertion_type: str) -> No
     assert expected.assertions[0].equals is None
 
 
+@pytest.mark.parametrize(
+    "path",
+    ["$", "$.order_id", "$.customer.profile.id", "$.orders[0].order_id", "$[0].id"],
+)
+def test_path_assertions_accept_supported_jsonpath_subset(path: str) -> None:
+    expected = expected_with_assertions(
+        [
+            {
+                "type": "tool_argument_matches",
+                "tool": "lookup_order",
+                "path": path,
+                "equals": "ORD-123",
+            }
+        ]
+    )
+
+    assert expected.assertions[0].path == path
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["order_id", "$.", "$..order_id", "$.orders[*].id", "$.orders[-1].id", "$.orders[abc].id"],
+)
+def test_path_assertions_reject_unsupported_jsonpath_subset(path: str) -> None:
+    with pytest.raises(ValueError, match="unsupported JSONPath"):
+        expected_with_assertions(
+            [
+                {
+                    "type": "tool_result_matches",
+                    "tool": "lookup_order",
+                    "path": path,
+                    "equals": "ORD-123",
+                }
+            ]
+        )
+
+
 @pytest.mark.parametrize("assertion_type", ["metric_lte", "metric_gte"])
 def test_metric_assertions_require_metric_and_value(assertion_type: str) -> None:
     with pytest.raises(ValueError, match="missing required fields: metric, value"):

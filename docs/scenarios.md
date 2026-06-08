@@ -145,7 +145,8 @@ Supported assertion types:
 arguments/results: `$`, dot keys such as `$.order_id`, nested keys such as
 `$.customer.profile.id`, and zero-based array indexes such as
 `$.orders[0].order_id`. Wildcards, filters, quoted keys, and recursive descent
-are intentionally not part of the stable assertion DSL.
+are intentionally not part of the stable assertion DSL and fail scenario
+validation.
 
 Metric assertions compare trace-level run metrics. Supported metric names are
 `latency_ms`, `tool_call_count`, `model_call_count`, `input_tokens`,
