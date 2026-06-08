@@ -265,6 +265,7 @@ def _assertion_failure(
             assertion.count,
             tool_names,
         ),
+        "tool_argument_matches": lambda: _assert_tool_argument_matches(assertion, calls),
         "forbidden_arg_value": lambda: _assert_forbidden_arg_value(assertion, calls),
         "tool_result_matches": lambda: _assert_tool_result_matches(assertion, calls),
         "final_output_contains": lambda: _assert_final_output_contains(
@@ -335,6 +336,21 @@ def _assert_min_tool_calls(
     observed = sum(1 for observed_tool in tool_names if observed_tool == tool_name)
     if count is not None and observed < count:
         return f"{tool_name} called {observed} times, min is {count}"
+    return None
+
+
+def _assert_tool_argument_matches(assertion: Any, calls: Sequence[Any]) -> str | None:
+    matching_call = next((call for call in calls if call.get("tool_name") == assertion.tool), None)
+    value = (
+        _json_path_get(matching_call.get("arguments"), assertion.path or "$")
+        if matching_call is not None
+        else None
+    )
+    if value != assertion.equals:
+        return (
+            f"{assertion.tool} argument {assertion.path} "
+            f"expected {assertion.equals!r}, got {value!r}"
+        )
     return None
 
 

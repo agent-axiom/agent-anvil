@@ -84,6 +84,10 @@ expected:
     - type: max_tool_calls
       tool: lookup_order
       count: 1
+    - type: tool_argument_matches
+      tool: issue_refund
+      path: $.order_id
+      equals: ORD-123
     - type: forbidden_arg_value
       tool: issue_refund
       path: $.order_id
@@ -106,6 +110,7 @@ Supported assertion types:
 - `tool_sequence`
 - `min_tool_calls`
 - `max_tool_calls`
+- `tool_argument_matches`
 - `forbidden_arg_value`
 - `tool_result_matches`
 - `final_output_contains`
