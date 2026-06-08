@@ -157,6 +157,7 @@ uv run anvil leaderboard verify-all submissions \
 uv run anvil leaderboard audit submissions \
   --json-out leaderboard_audit.json \
   --markdown-out leaderboard_audit.md \
+  --fail-on reject \
   --github-run
 ```
 
@@ -170,7 +171,8 @@ verification report per submitted row.
 Use `audit` when maintainer CI needs a single decision report across all rows:
 `accept` for rows with passing provenance checks, `review` for self-reported or
 insufficiently verified rows, and `reject` for invalid, tampered, duplicate, or
-failed-provenance rows.
+failed-provenance rows. Use `--fail-on reject` for public leaderboards that
+allow review rows but must block rejected rows.
 
 A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).

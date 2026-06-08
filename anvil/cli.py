@@ -5,6 +5,7 @@ import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Literal
 
 import typer
 
@@ -410,6 +411,11 @@ LEADERBOARD_AUDIT_MARKDOWN_OUT_OPTION = typer.Option(
     Path("leaderboard_audit.md"),
     "--markdown-out",
     help="Write the leaderboard maintainer audit Markdown report here.",
+)
+LEADERBOARD_AUDIT_FAIL_ON_OPTION = typer.Option(
+    "review",
+    "--fail-on",
+    help="Exit non-zero on review, reject, or never. Default fails on review and reject.",
 )
 LEADERBOARD_INDEX_OUT_OPTION = typer.Option(
     Path("leaderboard.csv"),
@@ -971,6 +977,7 @@ def leaderboard_audit(
     verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
     json_out: Path = LEADERBOARD_AUDIT_JSON_OUT_OPTION,
     markdown_out: Path = LEADERBOARD_AUDIT_MARKDOWN_OUT_OPTION,
+    fail_on: Literal["review", "reject", "never"] = LEADERBOARD_AUDIT_FAIL_ON_OPTION,
 ) -> None:
     try:
         audit = audit_leaderboard_submissions(
@@ -991,7 +998,9 @@ def leaderboard_audit(
     typer.echo(f"Accept: {audit.summary.accept}")
     typer.echo(f"Review: {audit.summary.review}")
     typer.echo(f"Reject: {audit.summary.reject}")
-    if audit.summary.review or audit.summary.reject:
+    if fail_on == "review" and (audit.summary.review or audit.summary.reject):
+        raise typer.Exit(1)
+    if fail_on == "reject" and audit.summary.reject:
         raise typer.Exit(1)
 
 
