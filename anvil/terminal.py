@@ -156,6 +156,7 @@ def _repair_panel(result: RunResult) -> Table:
         Text("Artifacts", style="bold"),
         Text(str(_latest_artifact_path(result, "report.md"))),
         Text(str(_latest_artifact_path(result, "results.json"))),
+        Text(str(_latest_artifact_path(result, "manifest.json"))),
         Text(str(_latest_artifact_path(result, "traces"))),
     )
     table.add_row(
@@ -179,6 +180,7 @@ def _artifact_panel(result: RunResult) -> Panel:
         Text("Artifacts", style="bold"),
         Text(str(_latest_artifact_path(result, "report.md"))),
         Text(str(_latest_artifact_path(result, "results.json"))),
+        Text(str(_latest_artifact_path(result, "manifest.json"))),
         Text(str(_latest_artifact_path(result, "traces"))),
     )
     return Panel(artifacts, border_style="#273449", box=box.ROUNDED, padding=(0, 2))

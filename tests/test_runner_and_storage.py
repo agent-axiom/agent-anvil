@@ -26,6 +26,7 @@ def test_run_suite_writes_trace_results_report_and_latest_link(
     assert result.run_dir.exists()
     assert (result.run_dir / "report.md").exists()
     assert (result.run_dir / "results.json").exists()
+    assert (result.run_dir / "manifest.json").exists()
     assert len(list((result.run_dir / "traces").glob("*.json"))) == 2
     assert (runs_dir / "latest").exists()
 
@@ -34,6 +35,16 @@ def test_run_suite_writes_trace_results_report_and_latest_link(
     assert payload["suite"] == "refund_agent_regression_suite"
     assert payload["summary"]["pass_rate"] == 50.0
     assert payload["clusters"][0]["name"] == "premature_tool_execution"
+
+    manifest = json.loads((result.run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest_files = {item["path"]: item for item in manifest["files"]}
+    assert manifest["schema_version"] == "anvil.run_manifest.v1"
+    assert manifest["run_id"] == result.run_id
+    assert "report.md" in manifest_files
+    assert "results.json" in manifest_files
+    assert len([path for path in manifest_files if path.startswith("traces/")]) == 2
+    assert all(item["sha256"] for item in manifest_files.values())
+    assert all(item["size_bytes"] > 0 for item in manifest_files.values())
 
 
 def test_run_suite_allows_trial_override(scenario_file: Path, tmp_path: Path) -> None:

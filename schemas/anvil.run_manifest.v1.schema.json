@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "RunManifestFilePayload": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "RunManifestFilePayload",
+      "type": "object"
+    }
+  },
+  "$id": "anvil.run_manifest.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Agent Anvil run artifact integrity manifest schema.",
+  "properties": {
+    "files": {
+      "items": {
+        "$ref": "#/$defs/RunManifestFilePayload"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "anvil.run_manifest.v1",
+      "default": "anvil.run_manifest.v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "generated_at",
+    "files"
+  ],
+  "title": "RunManifestPayload",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "anvil.run_manifest.v1"
+}

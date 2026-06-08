@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 
 import pytest
 
 from anvil.grading import GradeResult, SemanticGrade
-from anvil.storage import ResultsArtifactError, load_results, write_results
+from anvil.storage import (
+    ResultsArtifactError,
+    RunManifestError,
+    load_results,
+    validate_run_manifest,
+    write_results,
+)
 
 
 def test_write_results_persists_flaky_scenario_summary(tmp_path) -> None:
@@ -102,3 +109,31 @@ def test_load_results_rejects_invalid_versioned_results(tmp_path) -> None:
 
     with pytest.raises(ResultsArtifactError, match=r"did not match anvil\.results\.v1"):
         load_results(run_dir)
+
+
+def test_validate_run_manifest_rejects_paths_outside_run_dir(tmp_path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside artifact", encoding="utf-8")
+    digest = sha256(outside.read_bytes()).hexdigest()
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "anvil.run_manifest.v1",
+                "run_id": "run_test",
+                "generated_at": "2026-05-01T20:00:02Z",
+                "files": [
+                    {
+                        "path": "../outside.txt",
+                        "sha256": digest,
+                        "size_bytes": outside.stat().st_size,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RunManifestError, match=r"manifest path escapes run directory"):
+        validate_run_manifest(run_dir)

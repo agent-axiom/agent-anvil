@@ -60,7 +60,12 @@ from anvil.runner import (
     run_suite,
 )
 from anvil.scenario import ExternalAgentConfig, load_scenario_file
-from anvil.storage import ResultsArtifactError, load_results
+from anvil.storage import (
+    ResultsArtifactError,
+    RunManifestError,
+    load_results,
+    validate_run_manifest,
+)
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
 from anvil.trace import TraceArtifactError, load_trace_artifact
@@ -882,7 +887,7 @@ def _validate_results_artifact(results_path: Path, *, json_output: bool) -> None
 def _validate_run_artifacts(run_dir: Path, *, json_output: bool) -> None:
     try:
         payload, trace_count = _load_run_artifacts(run_dir)
-    except (ResultsArtifactError, TraceArtifactError, ValueError) as error:
+    except (ResultsArtifactError, RunManifestError, TraceArtifactError, ValueError) as error:
         _write_validation_error(kind="run", error=error, json_output=json_output)
         raise typer.Exit(1) from error
 
@@ -917,6 +922,7 @@ def _load_run_artifacts(run_dir: Path) -> tuple[dict[str, Any], int]:
         raise ValueError(msg)
 
     payload = load_results(run_dir)
+    validate_run_manifest(run_dir)
     traces_dir = run_dir / "traces"
     if not traces_dir.is_dir():
         msg = f"run artifact {run_dir} is missing traces directory"

@@ -569,6 +569,34 @@ def test_cli_validate_json_rejects_trace_from_different_run(tmp_path: Path) -> N
     assert result.stderr == ""
 
 
+def test_cli_validate_json_rejects_tampered_run_manifest(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "runs"
+    CliRunner().invoke(
+        app,
+        [
+            "run",
+            "scenarios/external_jsonl_agent.yaml",
+            "--runs-dir",
+            str(runs_dir),
+            "--offline",
+        ],
+    )
+    trace_path = next((runs_dir / "latest" / "traces").glob("*.json"))
+    trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    trace_payload["final_output"] = "tampered"
+    trace_path.write_text(json.dumps(trace_payload), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(runs_dir / "latest")])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "manifest hash mismatch" in payload["error"]
+    assert trace_path.name in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,

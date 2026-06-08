@@ -38,6 +38,7 @@ Open:
 - `runs/latest/report.md`
 - `runs/latest/repair_plan.md`
 - `runs/latest/results.json`
+- `runs/latest/manifest.json`
 - `runs/latest/traces/`
 
 ## 3. Check Optional Workflow Helpers

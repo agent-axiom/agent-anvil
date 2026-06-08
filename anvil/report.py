@@ -139,7 +139,16 @@ def render_github_summary(
             for scenario in flaky_scenarios
         )
 
-    lines.extend(["", "### Artifacts", "- `report.md`", "- `results.json`", "- `traces/*.json`"])
+    lines.extend(
+        [
+            "",
+            "### Artifacts",
+            "- `report.md`",
+            "- `results.json`",
+            "- `manifest.json`",
+            "- `traces/*.json`",
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 
