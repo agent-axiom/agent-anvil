@@ -67,6 +67,11 @@ uv run anvil doctor scenarios/agent_anvil_starter.yaml --out reports/doctor.json
 uv run anvil doctor scenarios/agent_anvil_starter.yaml --github-summary
 ```
 
+`doctor` checks external-agent conformance plus GitHub Actions wiring: checkout
+before Agent Anvil, matching scenario paths, PR comment permissions, and stale
+Marketplace action refs such as older `agent-axiom/agent-anvil-action@v1.x.y`
+pins.
+
 ## External Agent Adapters
 
 ```bash

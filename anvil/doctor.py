@@ -9,9 +9,13 @@ import yaml
 from pydantic import BaseModel, ConfigDict
 
 from anvil.conformance import run_external_agent_conformance
+from anvil.init import MARKETPLACE_ACTION_REF
 from anvil.scenario import ExternalAgentConfig, ScenarioSuite, load_scenario_file
 
 DOCTOR_REPORT_SCHEMA_VERSION = "anvil.doctor.report.v1"
+_MARKETPLACE_ACTION_PREFIX = "agent-axiom/agent-anvil-action@"
+_MARKETPLACE_ACTION_LATEST_TAG = MARKETPLACE_ACTION_REF.rsplit("@", 1)[1]
+_MARKETPLACE_ACTION_MAJOR_TAG = "v1"
 
 
 class DoctorCheckPayload(BaseModel):
@@ -265,6 +269,9 @@ def _workflow_action_configuration_failure(
     action_steps: list[dict[str, Any]],
     scenario_ref: str,
 ) -> DoctorCheck | None:
+    stale_action_failure = _stale_marketplace_action_ref_failure(action_steps)
+    if stale_action_failure is not None:
+        return stale_action_failure
     if not _agent_anvil_jobs_have_checkout_before_action(workflow):
         return DoctorCheck(
             name="github_workflow",
@@ -358,6 +365,28 @@ def _is_agent_anvil_action_ref(value: Any) -> bool:
     return value.startswith("agent-axiom/agent-anvil-action@") or value.startswith(
         "agent-axiom/agent-anvil@"
     )
+
+
+def _stale_marketplace_action_ref_failure(action_steps: list[dict[str, Any]]) -> DoctorCheck | None:
+    for step in action_steps:
+        uses = step.get("uses")
+        if not isinstance(uses, str) or not uses.startswith(_MARKETPLACE_ACTION_PREFIX):
+            continue
+        tag = uses.removeprefix(_MARKETPLACE_ACTION_PREFIX)
+        if tag in {_MARKETPLACE_ACTION_LATEST_TAG, _MARKETPLACE_ACTION_MAJOR_TAG}:
+            continue
+        if tag.startswith(f"{_MARKETPLACE_ACTION_MAJOR_TAG}."):
+            return DoctorCheck(
+                name="github_workflow",
+                passed=False,
+                message=f"workflow uses stale Agent Anvil Marketplace action ref {tag}",
+                hint=(
+                    f"Use `{MARKETPLACE_ACTION_REF}` for a pinned release, or "
+                    f"`{_MARKETPLACE_ACTION_PREFIX}{_MARKETPLACE_ACTION_MAJOR_TAG}` "
+                    "to follow the latest v1 wrapper."
+                ),
+            )
+    return None
 
 
 def _is_checkout_ref(value: Any) -> bool:
