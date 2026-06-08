@@ -513,6 +513,7 @@ def test_cli_validate_json_reports_valid_run_artifacts(tmp_path: Path) -> None:
         "trace_count": 1,
         "artifact_trust": {
             "trace_index_verified": True,
+            "grade_trace_paths_verified": True,
             "manifest_present": False,
             "manifest_required": False,
             "manifest_schema_version": None,
@@ -566,6 +567,7 @@ def test_cli_validate_json_accepts_required_run_manifest(tmp_path: Path) -> None
     assert payload["trace_count"] == 1
     assert payload["artifact_trust"] == {
         "trace_index_verified": True,
+        "grade_trace_paths_verified": True,
         "manifest_present": True,
         "manifest_required": True,
         "manifest_schema_version": "anvil.run_manifest.v1",
@@ -591,6 +593,7 @@ def test_cli_validate_reports_valid_run_artifacts(tmp_path: Path) -> None:
     assert "Traces: 1" in result.stdout
     assert "Artifact trust:" in result.stdout
     assert "Trace index: verified" in result.stdout
+    assert "Grade trace paths: verified" in result.stdout
     assert "Manifest: not present (optional)" in result.stdout
 
 
@@ -607,6 +610,43 @@ def test_cli_validate_json_reports_invalid_run_trace(tmp_path: Path) -> None:
     assert payload["kind"] == "run"
     assert "broken.json" in payload["error"]
     assert "run_id" in payload["error"]
+    assert result.stderr == ""
+
+
+def test_cli_validate_json_rejects_run_grade_trace_path_mismatch(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+    results_path = run_dir / "results.json"
+    results_payload = json.loads(results_path.read_text(encoding="utf-8"))
+    results_payload["grades"][0]["trace_path"] = "runs/test/traces/missing_trace.json"
+    results_path.write_text(json.dumps(results_payload), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "grade trace_path for refund_valid_order/trial_1" in payload["error"]
+    assert "traces/refund_valid_order_trial_1.json" in payload["error"]
+    assert "missing_trace.json" in payload["error"]
+    assert result.stderr == ""
+
+
+def test_cli_validate_json_rejects_run_grade_trace_path_traversal(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+    results_path = run_dir / "results.json"
+    results_payload = json.loads(results_path.read_text(encoding="utf-8"))
+    results_payload["grades"][0]["trace_path"] = "../traces/refund_valid_order_trial_1.json"
+    results_path.write_text(json.dumps(results_payload), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "grade trace_path for refund_valid_order/trial_1" in payload["error"]
+    assert "../traces/refund_valid_order_trial_1.json" in payload["error"]
     assert result.stderr == ""
 
 

@@ -1004,6 +1004,11 @@ def _load_run_artifacts(
         expected_traces=expected_traces,
         observed_traces=set(observed_trace_paths),
     )
+    _validate_grade_trace_paths(
+        run_dir=run_dir,
+        grades=payload.get("grades", []),
+        observed_trace_paths=observed_trace_paths,
+    )
 
     return (
         payload,
@@ -1023,6 +1028,7 @@ def _build_artifact_trust_summary(
     if manifest is None:
         return {
             "trace_index_verified": True,
+            "grade_trace_paths_verified": True,
             "manifest_present": False,
             "manifest_required": require_manifest,
             "manifest_schema_version": None,
@@ -1035,6 +1041,7 @@ def _build_artifact_trust_summary(
     file_count = len(manifest.get("files", []))
     return {
         "trace_index_verified": True,
+        "grade_trace_paths_verified": True,
         "manifest_present": True,
         "manifest_required": require_manifest,
         "manifest_schema_version": manifest.get("schema_version"),
@@ -1049,6 +1056,10 @@ def _format_artifact_trust(artifact_trust: dict[str, Any]) -> list[str]:
     lines = ["Artifact trust:"]
     trace_index = "verified" if artifact_trust.get("trace_index_verified") else "not verified"
     lines.append(f"Trace index: {trace_index}")
+    grade_trace_paths = (
+        "verified" if artifact_trust.get("grade_trace_paths_verified") else "not verified"
+    )
+    lines.append(f"Grade trace paths: {grade_trace_paths}")
     if not artifact_trust.get("manifest_present"):
         requirement = "required" if artifact_trust.get("manifest_required") else "optional"
         lines.append(f"Manifest: not present ({requirement})")
@@ -1075,6 +1086,60 @@ def _validate_run_trace_index(
     if unexpected:
         parts.append(f"unexpected trace {_format_trace_key(unexpected[0])}")
     raise TraceArtifactError("; ".join(parts))
+
+
+def _validate_grade_trace_paths(
+    *,
+    run_dir: Path,
+    grades: Any,
+    observed_trace_paths: dict[tuple[str, int], str],
+) -> None:
+    if not isinstance(grades, list):
+        return
+    for grade in grades:
+        if not isinstance(grade, dict):
+            continue
+        trace_key = _grade_trace_key(grade)
+        observed_name = observed_trace_paths.get(trace_key)
+        if observed_name is None:
+            continue
+        trace_path = grade.get("trace_path")
+        if not isinstance(trace_path, str) or not trace_path.strip():
+            msg = f"grade trace_path for {_format_trace_key(trace_key)} is missing"
+            raise TraceArtifactError(msg)
+        if not _grade_trace_path_matches(run_dir, trace_path, observed_name):
+            msg = (
+                f"grade trace_path for {_format_trace_key(trace_key)} "
+                f"does not point to traces/{observed_name}: {trace_path}"
+            )
+            raise TraceArtifactError(msg)
+
+
+def _grade_trace_key(grade: dict[str, Any]) -> tuple[str, int]:
+    try:
+        trial = int(grade.get("trial", 0))
+    except (TypeError, ValueError):
+        trial = 0
+    return str(grade.get("scenario_id")), trial
+
+
+def _grade_trace_path_matches(run_dir: Path, trace_path: str, observed_name: str) -> bool:
+    selected_path = Path(trace_path)
+    expected_relative_path = Path("traces") / observed_name
+    if selected_path.is_absolute():
+        try:
+            relative_path = selected_path.resolve().relative_to(run_dir.resolve())
+        except ValueError:
+            return False
+        return relative_path == expected_relative_path
+
+    parts = selected_path.parts
+    if ".." in parts:
+        return False
+    for index, part in enumerate(parts):
+        if part == "traces":
+            return Path(*parts[index:]) == expected_relative_path
+    return False
 
 
 def _format_trace_key(trace_key: tuple[str, int]) -> str:

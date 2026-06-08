@@ -34,11 +34,13 @@ It can also validate persisted trace and results artifacts with
 Use `anvil validate run <run-dir>` to verify `results.json` plus every trace
 artifact in a persisted run directory, including that every `results.grades`
 entry has a matching `scenario_id` / `trial` trace, every trace belongs to the
-same `run_id`, and there are no orphan or duplicate traces. When `manifest.json`
-exists, run validation also verifies the SHA-256 hash and byte size of every
-manifested artifact and checks that every canonical run artifact is covered by
-the manifest. The JSON and text output include an artifact trust summary showing
-whether trace-index, hash, size, and manifest coverage checks were performed.
+same `run_id`, every grade `trace_path` points back to the matching
+`traces/*.json` artifact, and there are no orphan or duplicate traces. When
+`manifest.json` exists, run validation also verifies the SHA-256 hash and byte
+size of every manifested artifact and checks that every canonical run artifact
+is covered by the manifest. The JSON and text output include an artifact trust summary
+showing whether trace-index, grade trace path, hash, size, and manifest coverage
+checks were performed.
 Use `--require-manifest` in CI when the run directory must include
 tamper-evident artifact hashes.
 Trace validation is permissive by default so older/custom observer events can
