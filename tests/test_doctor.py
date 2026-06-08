@@ -60,6 +60,85 @@ def test_doctor_passes_for_marketplace_action_workflow(tmp_path: Path) -> None:
     assert "- github_workflow: PASS" in result.stdout
 
 
+def test_doctor_rejects_pr_comment_workflow_without_pull_request_write_permission(
+    tmp_path: Path,
+) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+    workflow_path.parent.mkdir(parents=True, exist_ok=True)
+    workflow_path.write_text(
+        f"""name: Agent Anvil
+permissions:
+  contents: read
+jobs:
+  agent-anvil:
+    steps:
+      - uses: agent-axiom/agent-anvil-action@v1.0.1
+        with:
+          scenario: {scenario_path.as_posix()}
+          post-pr-comment: "true"
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "- github_workflow: FAIL" in result.stdout
+    assert "post-pr-comment requires pull-requests: write" in result.stdout
+    assert "permissions:" in result.stdout
+
+
+def test_doctor_allows_pr_comment_workflow_with_pull_request_write_permission(
+    tmp_path: Path,
+) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+    workflow_path.parent.mkdir(parents=True, exist_ok=True)
+    workflow_path.write_text(
+        f"""name: Agent Anvil
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  agent-anvil:
+    steps:
+      - uses: agent-axiom/agent-anvil-action@v1.0.1
+        with:
+          scenario: {scenario_path.as_posix()}
+          post-pr-comment: "true"
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--workflow",
+            str(workflow_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "- github_workflow: PASS" in result.stdout
+
+
 def test_doctor_rejects_workflow_with_action_only_in_comments(tmp_path: Path) -> None:
     scenario_path = tmp_path / "scenarios" / "starter.yaml"
     workflow_path = tmp_path / ".github" / "workflows" / "agent-anvil.yml"
