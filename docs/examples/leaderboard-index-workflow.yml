@@ -22,7 +22,7 @@ jobs:
           enable-cache: true
       - name: Validate submissions and build index
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.36 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.37 \
             anvil leaderboard build submissions \
             --out leaderboard.csv \
             --json-out leaderboard.json \
@@ -30,7 +30,7 @@ jobs:
             --github-run
       - name: Write GitHub run verification reports
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.36 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.37 \
             anvil leaderboard verify-all submissions \
             --out github-run-verifications
       - uses: actions/upload-artifact@v7.0.1
