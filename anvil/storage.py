@@ -176,8 +176,13 @@ def validate_run_manifest(run_dir: str | Path) -> dict[str, Any] | None:
         msg = f"run manifest {manifest_path} did not match {RUN_MANIFEST_SCHEMA_VERSION}: {error}"
         raise RunManifestError(msg) from error
 
+    seen_artifact_paths: set[Path] = set()
     for file_payload in manifest.files:
         artifact_path = _manifest_artifact_path(selected_run_dir, file_payload.path)
+        if artifact_path in seen_artifact_paths:
+            msg = f"duplicate manifest file entry: {file_payload.path}"
+            raise RunManifestError(msg)
+        seen_artifact_paths.add(artifact_path)
         if not artifact_path.is_file():
             msg = f"manifest file missing: {file_payload.path}"
             raise RunManifestError(msg)
