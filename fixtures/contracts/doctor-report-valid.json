@@ -1,0 +1,17 @@
+{
+  "schema_version": "anvil.doctor.report.v1",
+  "passed": false,
+  "checks": [
+    {
+      "name": "scenario_file",
+      "passed": true,
+      "message": "loaded scenarios/agent_anvil_starter.yaml"
+    },
+    {
+      "name": "github_workflow",
+      "passed": false,
+      "message": "workflow file does not exist: .github/workflows/agent-anvil.yml",
+      "hint": "Create it with `uv run anvil init --profile ci-safe`."
+    }
+  ]
+}

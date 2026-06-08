@@ -3,12 +3,32 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
+from pydantic import BaseModel, ConfigDict
 
 from anvil.conformance import run_external_agent_conformance
 from anvil.scenario import ExternalAgentConfig, ScenarioSuite, load_scenario_file
+
+DOCTOR_REPORT_SCHEMA_VERSION = "anvil.doctor.report.v1"
+
+
+class DoctorCheckPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    passed: bool
+    message: str
+    hint: str | None = None
+
+
+class DoctorReportPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["anvil.doctor.report.v1"] = DOCTOR_REPORT_SCHEMA_VERSION
+    passed: bool
+    checks: list[DoctorCheckPayload]
 
 
 @dataclass(frozen=True)
@@ -90,6 +110,7 @@ def write_doctor_json(report: DoctorReport, out_path: Path) -> Path:
 
 def doctor_report_payload(report: DoctorReport) -> dict[str, Any]:
     return {
+        "schema_version": DOCTOR_REPORT_SCHEMA_VERSION,
         "passed": report.passed,
         "checks": [_doctor_check_payload(check) for check in report.checks],
     }

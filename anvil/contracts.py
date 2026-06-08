@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from anvil.doctor import DOCTOR_REPORT_SCHEMA_VERSION, DoctorReportPayload
 from anvil.leaderboard import (
     LEADERBOARD_INDEX_SCHEMA_VERSION,
     LEADERBOARD_SCHEMA_VERSION,
@@ -41,6 +42,12 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         filename="anvil.scenario.v1.schema.json",
         model=ScenarioSuite,
         description="Agent Anvil YAML scenario suite schema.",
+    ),
+    SchemaContract(
+        schema_id=DOCTOR_REPORT_SCHEMA_VERSION,
+        filename="anvil.doctor.report.v1.schema.json",
+        model=DoctorReportPayload,
+        description="Agent Anvil doctor diagnostic report schema.",
     ),
     SchemaContract(
         schema_id=LEADERBOARD_SCHEMA_VERSION,
