@@ -10,5 +10,5 @@
   "github_run_url": "https://github.com/agent-axiom/agent-anvil/actions/runs/12345",
   "evidence_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "generated_at": "2026-06-08T12:00:00Z",
-  "generated_by": "agent-anvil/0.2.35"
+  "generated_by": "agent-anvil/0.2.36"
 }
