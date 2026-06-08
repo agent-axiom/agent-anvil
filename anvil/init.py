@@ -11,7 +11,7 @@ from anvil.packs import render_pack
 DEFAULT_SCENARIO_PATH = Path("scenarios/agent_anvil_starter.yaml")
 DEFAULT_WORKFLOW_PATH = Path(".github/workflows/agent-anvil.yml")
 CI_SAFE_PROFILE = "ci-safe"
-MARKETPLACE_ACTION_REF = "agent-axiom/agent-anvil-action@v1.0.6"
+MARKETPLACE_ACTION_REF = "agent-axiom/agent-anvil-action@v1.0.7"
 _ENV_REF_RE = re.compile(
     r"\$(?:\{(?P<brace>[A-Za-z_][A-Za-z0-9_]*)\}|(?P<plain>[A-Za-z_][A-Za-z0-9_]*))"
 )
