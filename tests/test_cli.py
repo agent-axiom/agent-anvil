@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from anvil.cli import app
@@ -347,6 +348,71 @@ def test_cli_report_regenerates_markdown_from_results(
     assert report_result.exit_code == 0
     assert "Regenerated" in report_result.stdout
     assert "# Agent Anvil Report" in (runs_dir / "latest" / "report.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "report",
+        "repair",
+        "fix",
+        "summary",
+        "pr-comment",
+        "compare-baseline",
+        "compare-latest",
+    ],
+)
+def test_cli_results_artifact_commands_print_clean_error(
+    tmp_path: Path,
+    command: str,
+) -> None:
+    invalid_dir = _invalid_results_run(tmp_path)
+    valid_dir = _valid_results_run(tmp_path)
+    args = {
+        "report": ["report", str(invalid_dir)],
+        "repair": ["repair", str(invalid_dir)],
+        "fix": ["fix", str(invalid_dir), "--out", str(tmp_path / "patch.diff")],
+        "summary": ["summary", str(invalid_dir), "--github"],
+        "pr-comment": ["pr-comment", str(invalid_dir), "--out", str(tmp_path / "comment.md")],
+        "compare-baseline": ["compare", str(invalid_dir), str(valid_dir)],
+        "compare-latest": ["compare", str(valid_dir), str(invalid_dir)],
+    }[command]
+
+    result = CliRunner().invoke(app, args)
+
+    assert result.exit_code == 1
+    assert "Invalid results artifact:" in result.stderr
+    assert "did not match anvil.results.v1" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def _invalid_results_run(tmp_path: Path) -> Path:
+    run_dir = tmp_path / "invalid_run"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "anvil.results.v1",
+                "suite": "broken_suite",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return run_dir
+
+
+def _valid_results_run(tmp_path: Path) -> Path:
+    run_dir = tmp_path / "valid_run"
+    run_dir.mkdir()
+    write_results(
+        run_dir=run_dir,
+        suite_name="valid_suite",
+        run_id="valid_run",
+        total_scenarios=1,
+        clusters=[],
+        grades=[_grade("valid_scenario", 1, True)],
+    )
+    return run_dir
 
 
 def test_cli_bench_writes_benchmark_outputs(
