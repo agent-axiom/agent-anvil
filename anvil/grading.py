@@ -494,14 +494,46 @@ def _format_tool_sequence(tool_names: list[str]) -> str:
 def _json_path_get(value: Any, path: str) -> Any:
     if path == "$":
         return value
-    if not path.startswith("$."):
+    if not path.startswith("$"):
         return None
     selected = value
-    for part in path[2:].split("."):
-        if not isinstance(selected, dict):
-            return None
-        selected = selected.get(part)
+    remainder = path[1:]
+    while remainder:
+        if remainder.startswith("."):
+            key, remainder = _consume_json_path_key(remainder[1:])
+            if key is None or not isinstance(selected, dict):
+                return None
+            selected = selected.get(key)
+            continue
+        if remainder.startswith("["):
+            index, remainder = _consume_json_path_index(remainder)
+            if index is None or not isinstance(selected, list) or index >= len(selected):
+                return None
+            selected = selected[index]
+            continue
+        return None
     return selected
+
+
+def _consume_json_path_key(remainder: str) -> tuple[str | None, str]:
+    if not remainder or remainder[0] in ".[":
+        return None, remainder
+    key_end = len(remainder)
+    for delimiter in (".", "["):
+        delimiter_index = remainder.find(delimiter)
+        if delimiter_index != -1:
+            key_end = min(key_end, delimiter_index)
+    return remainder[:key_end], remainder[key_end:]
+
+
+def _consume_json_path_index(remainder: str) -> tuple[int | None, str]:
+    closing_index = remainder.find("]")
+    if closing_index == -1:
+        return None, remainder
+    index_text = remainder[1:closing_index]
+    if not index_text.isdigit():
+        return None, remainder[closing_index + 1 :]
+    return int(index_text), remainder[closing_index + 1 :]
 
 
 def _final_output_exists(trace: TraceRun) -> CheckOutcome:

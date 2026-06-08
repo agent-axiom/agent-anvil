@@ -141,8 +141,11 @@ Supported assertion types:
 - `no_tool_errors`
 - `tool_retried_after_error`
 
-`path` currently supports simple JSON paths such as `$.order_id` or
-`$.eligible_for_refund` over tool arguments/results.
+`path` supports a small deterministic JSONPath subset over tool
+arguments/results: `$`, dot keys such as `$.order_id`, nested keys such as
+`$.customer.profile.id`, and zero-based array indexes such as
+`$.orders[0].order_id`. Wildcards, filters, quoted keys, and recursive descent
+are intentionally not part of the stable assertion DSL.
 
 Metric assertions compare trace-level run metrics. Supported metric names are
 `latency_ms`, `tool_call_count`, `model_call_count`, `input_tokens`,

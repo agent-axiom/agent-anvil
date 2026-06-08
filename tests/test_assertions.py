@@ -227,6 +227,70 @@ def test_tool_retried_after_error_assertion_requires_tool() -> None:
             "lookup_order result $.eligible_for_refund expected True, got False",
         ),
         (
+            {
+                "type": "tool_argument_matches",
+                "tool": "issue_refund",
+                "path": "$.line_items[0].sku",
+                "equals": "SKU-1",
+            },
+            [
+                {
+                    "type": "tool_call",
+                    "tool_name": "issue_refund",
+                    "arguments": {"line_items": [{"sku": "SKU-1"}, {"sku": "SKU-2"}]},
+                    "result": {},
+                }
+            ],
+            True,
+            "assertion passed",
+        ),
+        (
+            {
+                "type": "tool_result_matches",
+                "tool": "lookup_customer",
+                "path": "$.orders[1].order_id",
+                "equals": "ORD-456",
+            },
+            [
+                {
+                    "type": "tool_call",
+                    "tool_name": "lookup_customer",
+                    "arguments": {},
+                    "result": {
+                        "orders": [
+                            {"order_id": "ORD-123"},
+                            {"order_id": "ORD-456"},
+                        ]
+                    },
+                }
+            ],
+            True,
+            "assertion passed",
+        ),
+        (
+            {
+                "type": "tool_result_matches",
+                "tool": "lookup_customer",
+                "path": "$.orders[2].order_id",
+                "equals": "ORD-789",
+            },
+            [
+                {
+                    "type": "tool_call",
+                    "tool_name": "lookup_customer",
+                    "arguments": {},
+                    "result": {
+                        "orders": [
+                            {"order_id": "ORD-123"},
+                            {"order_id": "ORD-456"},
+                        ]
+                    },
+                }
+            ],
+            False,
+            "lookup_customer result $.orders[2].order_id expected 'ORD-789', got None",
+        ),
+        (
             {"type": "no_tool_errors"},
             [
                 {
