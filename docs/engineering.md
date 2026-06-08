@@ -343,7 +343,7 @@ Agent Anvil publishes a dedicated GitHub Marketplace action:
 
 ```yaml
 - uses: actions/checkout@v6
-- uses: agent-axiom/agent-anvil-action@v1.0.28
+- uses: agent-axiom/agent-anvil-action@v1.0.29
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
