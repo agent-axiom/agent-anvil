@@ -748,6 +748,11 @@ def validate_scenario(
         "--json",
         help="Write machine-readable validation status to stdout.",
     ),
+    strict: bool = typer.Option(
+        False,
+        "--strict",
+        help="Fail trace and run validation on unknown trace step types.",
+    ),
     require_manifest: bool = typer.Option(
         False,
         "--require-manifest",
@@ -765,7 +770,7 @@ def validate_scenario(
         raise typer.Exit(1) from error
 
     if target_kind == "trace":
-        _validate_trace_artifact(target_path, json_output=json_output)
+        _validate_trace_artifact(target_path, json_output=json_output, strict=strict)
         return
     if target_kind == "results":
         _validate_results_artifact(target_path, json_output=json_output)
@@ -774,6 +779,7 @@ def validate_scenario(
         _validate_run_artifacts(
             target_path,
             json_output=json_output,
+            strict=strict,
             require_manifest=require_manifest,
         )
         return
@@ -834,9 +840,9 @@ def _validate_scenario_file(scenario_file: Path, *, json_output: bool) -> None:
     typer.echo(f"Trials: {total_trials}")
 
 
-def _validate_trace_artifact(trace_path: Path, *, json_output: bool) -> None:
+def _validate_trace_artifact(trace_path: Path, *, json_output: bool, strict: bool) -> None:
     try:
-        trace = load_trace_artifact(trace_path)
+        trace = load_trace_artifact(trace_path, strict=strict)
     except TraceArtifactError as error:
         _write_validation_error(kind="trace", error=error, json_output=json_output)
         raise typer.Exit(1) from error
@@ -897,11 +903,13 @@ def _validate_run_artifacts(
     run_dir: Path,
     *,
     json_output: bool,
+    strict: bool,
     require_manifest: bool = False,
 ) -> None:
     try:
         payload, trace_count, artifact_trust = _load_run_artifacts(
             run_dir,
+            strict=strict,
             require_manifest=require_manifest,
         )
     except (ResultsArtifactError, RunManifestError, TraceArtifactError, ValueError) as error:
@@ -937,7 +945,7 @@ def _validate_run_artifacts(
 
 
 def _load_run_artifacts(
-    run_dir: Path, *, require_manifest: bool = False
+    run_dir: Path, *, strict: bool = False, require_manifest: bool = False
 ) -> tuple[dict[str, Any], int, dict[str, Any]]:
     if not run_dir.is_dir():
         msg = "run validation expects a run directory"
@@ -968,7 +976,7 @@ def _load_run_artifacts(
     observed_trace_paths: dict[tuple[str, int], str] = {}
     for trace_path in trace_paths:
         try:
-            trace = load_trace_artifact(trace_path)
+            trace = load_trace_artifact(trace_path, strict=strict)
         except TraceArtifactError as error:
             msg = f"{trace_path.name}: {error}"
             raise TraceArtifactError(msg) from error

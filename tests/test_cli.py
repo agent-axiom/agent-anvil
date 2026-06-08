@@ -422,6 +422,36 @@ def test_cli_validate_json_reports_valid_trace_artifact(tmp_path: Path) -> None:
     assert result.stderr == ""
 
 
+def test_cli_validate_trace_strict_rejects_unknown_step_type(tmp_path: Path) -> None:
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text(
+        """
+{
+  "schema_version": "anvil.trace.v1",
+  "run_id": "run_test",
+  "scenario_id": "refund_valid_order",
+  "trial": 1,
+  "input": "refund",
+  "started_at": "2026-05-01T20:00:00Z",
+  "ended_at": "2026-05-01T20:00:04Z",
+  "status": "completed",
+  "steps": [{"type": "custom_observer_event"}],
+  "final_output": "Done."
+}
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["validate", "--json", "--strict", "trace", str(trace_path)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "trace"
+    assert "unsupported trace step type" in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_validate_json_reports_invalid_trace_artifact(tmp_path: Path) -> None:
     trace_path = tmp_path / "trace.json"
     trace_path.write_text('{"schema_version":"anvil.trace.v1"}', encoding="utf-8")
@@ -577,6 +607,24 @@ def test_cli_validate_json_reports_invalid_run_trace(tmp_path: Path) -> None:
     assert payload["kind"] == "run"
     assert "broken.json" in payload["error"]
     assert "run_id" in payload["error"]
+    assert result.stderr == ""
+
+
+def test_cli_validate_run_strict_rejects_unknown_trace_step_type(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+    trace_path = run_dir / "traces" / "refund_valid_order_trial_1.json"
+    trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    trace_payload["steps"] = [{"type": "custom_observer_event"}]
+    trace_path.write_text(json.dumps(trace_payload), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "--strict", "run", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "refund_valid_order_trial_1.json" in payload["error"]
+    assert "unsupported trace step type" in payload["error"]
     assert result.stderr == ""
 
 

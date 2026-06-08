@@ -12,6 +12,7 @@ from anvil.trace import (
     ToolCallStep,
     TraceArtifactError,
     TraceRun,
+    TraceStep,
     load_trace_artifact,
 )
 
@@ -114,6 +115,56 @@ def test_load_trace_artifact_reads_valid_trace(tmp_path) -> None:
 
     assert trace.schema_version == TRACE_SCHEMA_VERSION
     assert trace.scenario_id == "refund_valid_order"
+
+
+def test_load_trace_artifact_allows_unknown_step_type_by_default(tmp_path) -> None:
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text(
+        """
+{
+  "schema_version": "anvil.trace.v1",
+  "run_id": "run_20260501_001",
+  "scenario_id": "refund_valid_order",
+  "trial": 1,
+  "input": "Please refund order ORD-123.",
+  "started_at": "2026-05-01T20:00:00Z",
+  "ended_at": "2026-05-01T20:00:04Z",
+  "status": "completed",
+  "steps": [{"type": "custom_observer_event", "payload": {"ok": true}}],
+  "final_output": "Done."
+}
+""",
+        encoding="utf-8",
+    )
+
+    trace = load_trace_artifact(trace_path)
+
+    assert isinstance(trace.steps[0], TraceStep)
+    assert trace.steps[0]["type"] == "custom_observer_event"
+
+
+def test_load_trace_artifact_rejects_unknown_step_type_in_strict_mode(tmp_path) -> None:
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text(
+        """
+{
+  "schema_version": "anvil.trace.v1",
+  "run_id": "run_20260501_001",
+  "scenario_id": "refund_valid_order",
+  "trial": 1,
+  "input": "Please refund order ORD-123.",
+  "started_at": "2026-05-01T20:00:00Z",
+  "ended_at": "2026-05-01T20:00:04Z",
+  "status": "completed",
+  "steps": [{"type": "custom_observer_event", "payload": {"ok": true}}],
+  "final_output": "Done."
+}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(TraceArtifactError, match="unsupported trace step type"):
+        load_trace_artifact(trace_path, strict=True)
 
 
 def test_load_trace_artifact_rejects_malformed_json(tmp_path) -> None:

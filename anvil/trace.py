@@ -105,6 +105,16 @@ TRACE_STEP_TYPES: dict[str, type[TraceStep]] = {
 TraceStepInput = TraceStep | Mapping[str, Any]
 
 
+def validate_trace_step_contract(trace: TraceRun, *, strict: bool = False) -> None:
+    if not strict:
+        return
+    for index, step in enumerate(trace.steps):
+        step_type = str(step.get("type"))
+        if step_type not in TRACE_STEP_TYPES:
+            msg = f"unsupported trace step type at steps[{index}]: {step_type!r}"
+            raise TraceArtifactError(msg)
+
+
 def parse_trace_step(value: TraceStepInput) -> TraceStep:
     if isinstance(value, TraceStep):
         return value
@@ -170,7 +180,7 @@ class TraceRun(BaseModel):
         return [str(step.get("tool_name")) for step in self.tool_calls()]
 
 
-def load_trace_artifact(path: str | Path) -> TraceRun:
+def load_trace_artifact(path: str | Path, *, strict: bool = False) -> TraceRun:
     selected_path = Path(path)
     try:
         payload = json.loads(selected_path.read_text(encoding="utf-8"))
@@ -186,7 +196,9 @@ def load_trace_artifact(path: str | Path) -> TraceRun:
         raise TraceArtifactError(msg)
 
     try:
-        return TraceRun.model_validate(payload)
+        trace = TraceRun.model_validate(payload)
     except ValidationError as error:
         msg = f"trace artifact {selected_path} did not match {TRACE_SCHEMA_VERSION}: {error}"
         raise TraceArtifactError(msg) from error
+    validate_trace_step_contract(trace, strict=strict)
+    return trace
