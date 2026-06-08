@@ -284,6 +284,10 @@ def _assertion_failure(
         "metric_lte": lambda: _assert_metric_lte(assertion.metric, assertion.value, metrics),
         "metric_gte": lambda: _assert_metric_gte(assertion.metric, assertion.value, metrics),
         "no_tool_errors": lambda: _assert_no_tool_errors(assertion.tool, steps),
+        "tool_retried_after_error": lambda: _assert_tool_retried_after_error(
+            assertion.tool,
+            steps,
+        ),
     }
     return handlers[assertion.type]()
 
@@ -442,6 +446,26 @@ def _assert_no_tool_errors(tool_name: str | None, steps: Sequence[Any]) -> str |
         f"{step.get('type')}({step.get('tool_name') or '<unknown>'})" for step in error_steps
     )
     return f"tool errors observed: {observed}"
+
+
+def _assert_tool_retried_after_error(tool_name: str | None, steps: Sequence[Any]) -> str | None:
+    error_indices = [
+        index
+        for index, step in enumerate(steps)
+        if step.get("type") in {"tool_argument_error", "tool_execution_error"}
+        and step.get("tool_name") == tool_name
+    ]
+    if not error_indices:
+        return f"{tool_name} error was not observed"
+
+    last_error_index = max(error_indices)
+    retried = any(
+        step.get("type") == "tool_call" and step.get("tool_name") == tool_name
+        for step in steps[last_error_index + 1 :]
+    )
+    if not retried:
+        return f"{tool_name} error was not followed by retry"
+    return None
 
 
 def _trace_metric_value(metrics: TraceMetrics, metric_name: str | None) -> float:

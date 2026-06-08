@@ -68,7 +68,7 @@ clarification, max steps, policy preconditions, ordered tool calls, exact tool
 sequences, max tool call counts, min tool call counts, required and forbidden
 argument values via simple JSON paths, simple JSON-path checks over tool
 results, final-output contains/not-contains checks, trace metric budgets for
-latency, token counts, model/tool call counts, and estimated cost, plus explicit
-tool argument/execution error absence checks. Planned assertions include richer
-JSONPath support, retry/backoff checks, conditional assertions, and stronger
-flaky-run classification.
+latency, token counts, model/tool call counts, and estimated cost, explicit tool
+argument/execution error absence checks, and retry-after-tool-error checks.
+Planned assertions include richer JSONPath support, backoff timing checks,
+conditional assertions, and stronger flaky-run classification.
