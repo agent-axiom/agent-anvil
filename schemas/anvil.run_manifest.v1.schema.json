@@ -4,14 +4,17 @@
       "additionalProperties": false,
       "properties": {
         "path": {
+          "minLength": 1,
           "title": "Path",
           "type": "string"
         },
         "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
           "title": "Sha256",
           "type": "string"
         },
         "size_bytes": {
+          "minimum": 0,
           "title": "Size Bytes",
           "type": "integer"
         }

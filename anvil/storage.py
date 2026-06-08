@@ -7,7 +7,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from anvil.clustering import FailureCluster
 from anvil.flakiness import detect_flaky_scenarios
@@ -29,9 +29,9 @@ class RunManifestError(ValueError):
 class RunManifestFilePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    path: str
-    sha256: str
-    size_bytes: int
+    path: str = Field(min_length=1)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    size_bytes: int = Field(ge=0)
 
 
 class RunManifestPayload(BaseModel):

@@ -4,11 +4,13 @@ import json
 from hashlib import sha256
 
 import pytest
+from pydantic import ValidationError
 
 from anvil.grading import GradeResult, SemanticGrade
 from anvil.storage import (
     ResultsArtifactError,
     RunManifestError,
+    RunManifestPayload,
     load_results,
     validate_run_manifest,
     write_results,
@@ -137,3 +139,31 @@ def test_validate_run_manifest_rejects_paths_outside_run_dir(tmp_path) -> None:
 
     with pytest.raises(RunManifestError, match=r"manifest path escapes run directory"):
         validate_run_manifest(run_dir)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("path", ""),
+        ("sha256", "not-a-sha256"),
+        ("sha256", "A" * 64),
+        ("size_bytes", -1),
+    ],
+)
+def test_run_manifest_file_payload_rejects_invalid_integrity_fields(field, value) -> None:
+    file_payload = {
+        "path": "report.md",
+        "sha256": "a" * 64,
+        "size_bytes": 123,
+    }
+    file_payload[field] = value
+
+    with pytest.raises(ValidationError):
+        RunManifestPayload.model_validate(
+            {
+                "schema_version": "anvil.run_manifest.v1",
+                "run_id": "run_test",
+                "generated_at": "2026-05-01T20:00:02Z",
+                "files": [file_payload],
+            }
+        )
