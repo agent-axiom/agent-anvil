@@ -59,7 +59,7 @@ hashes that reviewers can compare.
 
 Agent Anvil is distributed from GitHub source refs and releases. The GitHub
 Action wrapper is published separately as
-`agent-axiom/agent-anvil-action@v1.0.21`.
+`agent-axiom/agent-anvil-action@v1.0.22`.
 
 If binary wheels or signed artifacts are added later, this document should be
 updated with checksum and signature verification steps.
