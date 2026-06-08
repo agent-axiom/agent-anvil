@@ -85,6 +85,7 @@
             "tool_called",
             "tool_not_called",
             "tool_called_before",
+            "min_tool_calls",
             "max_tool_calls",
             "forbidden_arg_value",
             "tool_result_matches",

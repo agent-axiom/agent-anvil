@@ -65,7 +65,8 @@ This keeps paper tables and CI summaries from depending on ad hoc failure text.
 
 Current scenarios cover expected tools, forbidden tools, required arguments,
 clarification, max steps, policy preconditions, ordered tool calls, max tool
-call counts, forbidden argument values, simple JSON-path checks over tool
-results, and final-output contains/not-contains checks. Planned assertions
-include richer JSONPath support, latency/cost budgets, retry/backoff checks,
-conditional assertions, and stronger flaky-run classification.
+call counts, min tool call counts, forbidden argument values, simple JSON-path
+checks over tool results, and final-output contains/not-contains checks.
+Planned assertions include richer JSONPath support, latency/cost budgets,
+retry/backoff checks, conditional assertions, and stronger flaky-run
+classification.
