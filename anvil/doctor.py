@@ -14,6 +14,7 @@ class DoctorCheck:
     name: str
     passed: bool
     message: str
+    hint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,8 @@ def render_doctor_report(report: DoctorReport) -> str:
     for check in report.checks:
         check_status = "PASS" if check.passed else "FAIL"
         lines.append(f"- {check.name}: {check_status} - {check.message}")
+        if check.hint:
+            lines.append(f"  Hint: {check.hint}")
     return "\n".join(lines)
 
 
@@ -62,14 +65,15 @@ def render_doctor_github_summary(report: DoctorReport) -> str:
         "",
         f"Status: {status}",
         "",
-        "| Check | Result | Detail |",
-        "| --- | --- | --- |",
+        "| Check | Result | Detail | Hint |",
+        "| --- | --- | --- | --- |",
     ]
     for check in report.checks:
         check_status = "PASS" if check.passed else "FAIL"
         lines.append(
             f"| {_escape_table_cell(check.name)} | {check_status} | "
-            f"{_escape_table_cell(check.message)} |"
+            f"{_escape_table_cell(check.message)} | "
+            f"{_escape_table_cell(check.hint or '')} |"
         )
     return "\n".join(lines) + "\n"
 
@@ -83,15 +87,19 @@ def write_doctor_json(report: DoctorReport, out_path: Path) -> Path:
 def doctor_report_payload(report: DoctorReport) -> dict[str, Any]:
     return {
         "passed": report.passed,
-        "checks": [
-            {
-                "name": check.name,
-                "passed": check.passed,
-                "message": check.message,
-            }
-            for check in report.checks
-        ],
+        "checks": [_doctor_check_payload(check) for check in report.checks],
     }
+
+
+def _doctor_check_payload(check: DoctorCheck) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "name": check.name,
+        "passed": check.passed,
+        "message": check.message,
+    }
+    if check.hint:
+        payload["hint"] = check.hint
+    return payload
 
 
 def _load_suite(scenario_path: Path, checks: list[DoctorCheck]) -> ScenarioSuite | None:
@@ -103,6 +111,9 @@ def _load_suite(scenario_path: Path, checks: list[DoctorCheck]) -> ScenarioSuite
                 name="scenario_file",
                 passed=False,
                 message=f"could not load scenario: {error}",
+                hint=(
+                    "Fix the YAML and validate it with `uv run anvil schema export --out schemas`."
+                ),
             )
         )
         return None
@@ -128,6 +139,10 @@ def _agent_config_check(suite: ScenarioSuite) -> DoctorCheck:
         name="agent_target",
         passed=False,
         message="scenario uses bundled Python agent; doctor currently checks external agents",
+        hint=(
+            "Use an external JSONL or HTTP agent in the scenario, or run the eval "
+            "directly with `uv run anvil run` for bundled demo agents."
+        ),
     )
 
 
@@ -137,6 +152,7 @@ def _conformance_check(suite: ScenarioSuite, *, max_steps: int) -> DoctorCheck:
             name="external_agent_conformance",
             passed=False,
             message="agent is not configured with external protocol settings",
+            hint="Configure `agent.protocol: jsonl` or `agent.protocol: http` in the scenario.",
         )
     result = run_external_agent_conformance(suite.agent, max_steps=max_steps)
     if result.passed:
@@ -151,6 +167,10 @@ def _conformance_check(suite: ScenarioSuite, *, max_steps: int) -> DoctorCheck:
         name="external_agent_conformance",
         passed=False,
         message=detail,
+        hint=(
+            "Run `uv run anvil conformance external-agent` with the same command or URL "
+            "and inspect the emitted protocol events."
+        ),
     )
 
 
@@ -160,6 +180,10 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
             name="github_workflow",
             passed=False,
             message=f"workflow file does not exist: {workflow_path.as_posix()}",
+            hint=(
+                "Create it with `uv run anvil init --profile ci-safe`, or pass "
+                "--workflow to an existing Agent Anvil workflow."
+            ),
         )
     text = workflow_path.read_text(encoding="utf-8")
     if "agent-axiom/agent-anvil" not in text:
@@ -167,12 +191,20 @@ def _workflow_check(workflow_path: Path, *, scenario_path: Path) -> DoctorCheck:
             name="github_workflow",
             passed=False,
             message="workflow does not reference the Agent Anvil action",
+            hint=(
+                "Add `uses: agent-axiom/agent-anvil-action@v1.0.0` to the workflow "
+                "or regenerate it with `uv run anvil init --profile ci-safe`."
+            ),
         )
     if scenario_path.as_posix() not in text:
         return DoctorCheck(
             name="github_workflow",
             passed=False,
             message=f"workflow does not reference scenario {scenario_path.as_posix()}",
+            hint=(
+                "Update the action `scenario` input or regenerate the workflow with "
+                "`uv run anvil init --profile ci-safe`."
+            ),
         )
     return DoctorCheck(
         name="github_workflow",
