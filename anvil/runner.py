@@ -9,6 +9,7 @@ from typing import cast
 from anvil.agent import AgentRunner, load_agent_runner
 from anvil.clustering import FailureCluster, cluster_failures
 from anvil.config import AnvilSettings
+from anvil.flakiness import FlakyScenario, detect_flaky_scenarios
 from anvil.grading import (
     GradeResult,
     HeuristicSemanticGrader,
@@ -74,6 +75,8 @@ class CompareResult:
     severity_changes: list[SeverityChange]
     scenario_regressions: list[ScenarioRegression]
     scenario_improvements: list[ScenarioRegression]
+    new_flaky_scenarios: list[FlakyScenario]
+    resolved_flaky_scenarios: list[FlakyScenario]
 
 
 class OpenAIKeyMissingError(RuntimeError):
@@ -213,6 +216,10 @@ def compare_runs(baseline_dir: str | Path, latest_dir: str | Path) -> CompareRes
 
     baseline_failures = _failure_counts(baseline_payload)
     latest_failures = _failure_counts(latest_payload)
+    baseline_flaky = _flaky_scenarios(baseline_payload)
+    latest_flaky = _flaky_scenarios(latest_payload)
+    baseline_flaky_ids = {scenario.scenario_id for scenario in baseline_flaky}
+    latest_flaky_ids = {scenario.scenario_id for scenario in latest_flaky}
     failure_keys = set(baseline_failures) | set(latest_failures)
     deltas = [
         FailureDelta(
@@ -239,6 +246,12 @@ def compare_runs(baseline_dir: str | Path, latest_dir: str | Path) -> CompareRes
         severity_changes=_severity_changes(baseline_failures, latest_failures),
         scenario_regressions=_scenario_regressions(baseline_payload, latest_payload),
         scenario_improvements=_scenario_improvements(baseline_payload, latest_payload),
+        new_flaky_scenarios=[
+            scenario for scenario in latest_flaky if scenario.scenario_id not in baseline_flaky_ids
+        ],
+        resolved_flaky_scenarios=[
+            scenario for scenario in baseline_flaky if scenario.scenario_id not in latest_flaky_ids
+        ],
     )
 
 
@@ -274,6 +287,16 @@ def _payload_grades(payload: dict[str, object]) -> list[dict[str, object]]:
     if not isinstance(grades, list):
         return []
     return [cast(dict[str, object], grade) for grade in grades if isinstance(grade, dict)]
+
+
+def _flaky_scenarios(payload: dict[str, object]) -> list[FlakyScenario]:
+    grades: list[GradeResult] = []
+    for grade in _payload_grades(payload):
+        try:
+            grades.append(GradeResult.model_validate(grade))
+        except ValueError:
+            continue
+    return detect_flaky_scenarios(grades)
 
 
 def _grade_failure_key(grade: dict[str, object]) -> tuple[str, str]:

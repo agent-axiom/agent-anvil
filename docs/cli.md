@@ -21,8 +21,8 @@ uv run anvil compare runs/baseline runs/latest --json
 regressions.
 
 `anvil compare --json` emits pass-rate deltas, new/resolved failures, severity
-changes, scenario regressions, and scenario improvements as machine-readable
-JSON for CI bots and PR comments.
+changes, flaky scenario deltas, scenario regressions, and scenario improvements
+as machine-readable JSON for CI bots and PR comments.
 
 ## Repair And Draft Scenario Helpers
 
