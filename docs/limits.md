@@ -67,6 +67,7 @@ Current scenarios cover expected tools, forbidden tools, required arguments,
 clarification, max steps, policy preconditions, ordered tool calls, exact tool
 sequences, max tool call counts, min tool call counts, required and forbidden
 argument values via simple JSON paths, simple JSON-path checks over tool
-results, and final-output contains/not-contains checks. Planned assertions
-include richer JSONPath support, latency/cost budgets, retry/backoff checks,
-conditional assertions, and stronger flaky-run classification.
+results, final-output contains/not-contains checks, and trace metric budgets
+for latency, token counts, model/tool call counts, and estimated cost. Planned
+assertions include richer JSONPath support, retry/backoff checks, conditional
+assertions, and stronger flaky-run classification.

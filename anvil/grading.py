@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from anvil.config import DEFAULT_OPENAI_MODEL
 from anvil.redaction import redact_payload
 from anvil.scenario import PolicyConfig, ScenarioCase, ScenarioDefaults, ToolPrecondition
-from anvil.trace import TraceRun
+from anvil.trace import TraceMetrics, TraceRun
 
 
 class DeterministicCheck(StrEnum):
@@ -229,7 +229,7 @@ def _assertions_satisfied(scenario: ScenarioCase, trace: TraceRun) -> CheckOutco
     final_output = trace.final_output or ""
 
     for assertion in scenario.expected.assertions:
-        failure = _assertion_failure(assertion, calls, tool_names, final_output)
+        failure = _assertion_failure(assertion, calls, tool_names, final_output, trace.metrics)
         if failure:
             failures.append(failure)
 
@@ -245,6 +245,7 @@ def _assertion_failure(
     calls: Sequence[Any],
     tool_names: list[str],
     final_output: str,
+    metrics: TraceMetrics,
 ) -> str | None:
     handlers = {
         "tool_called": lambda: _assert_tool_called(assertion.tool, tool_names),
@@ -276,6 +277,8 @@ def _assertion_failure(
             assertion.text,
             final_output,
         ),
+        "metric_lte": lambda: _assert_metric_lte(assertion.metric, assertion.value, metrics),
+        "metric_gte": lambda: _assert_metric_gte(assertion.metric, assertion.value, metrics),
     }
     return handlers[assertion.type]()
 
@@ -390,6 +393,44 @@ def _assert_final_output_not_contains(text: str | None, final_output: str) -> st
     if forbidden_text.lower() in final_output.lower():
         return f"final output contains forbidden text {forbidden_text!r}"
     return None
+
+
+def _assert_metric_lte(
+    metric_name: str | None,
+    value: float | None,
+    metrics: TraceMetrics,
+) -> str | None:
+    observed = _trace_metric_value(metrics, metric_name)
+    if value is not None and observed > value:
+        return (
+            f"metric {metric_name} expected <= {_format_number(value)}, "
+            f"got {_format_number(observed)}"
+        )
+    return None
+
+
+def _assert_metric_gte(
+    metric_name: str | None,
+    value: float | None,
+    metrics: TraceMetrics,
+) -> str | None:
+    observed = _trace_metric_value(metrics, metric_name)
+    if value is not None and observed < value:
+        return (
+            f"metric {metric_name} expected >= {_format_number(value)}, "
+            f"got {_format_number(observed)}"
+        )
+    return None
+
+
+def _trace_metric_value(metrics: TraceMetrics, metric_name: str | None) -> float:
+    if metric_name is None:
+        return 0.0
+    return float(getattr(metrics, metric_name))
+
+
+def _format_number(value: float) -> str:
+    return f"{value:g}"
 
 
 def _first_tool_index(tool_names: list[str], tool_name: str | None) -> int | None:
