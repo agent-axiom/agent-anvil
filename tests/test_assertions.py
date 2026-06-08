@@ -64,6 +64,30 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
     assert expected.assertions[7].values == ["UNKNOWN", "", None]
 
 
+@pytest.mark.parametrize("assertion_type", ["tool_argument_matches", "tool_result_matches"])
+def test_match_assertions_require_explicit_equals(assertion_type: str) -> None:
+    with pytest.raises(ValueError, match="missing required fields: equals"):
+        expected_with_assertions(
+            [{"type": assertion_type, "tool": "lookup_order", "path": "$.verified"}]
+        )
+
+
+@pytest.mark.parametrize("assertion_type", ["tool_argument_matches", "tool_result_matches"])
+def test_match_assertions_accept_explicit_null_equals(assertion_type: str) -> None:
+    expected = expected_with_assertions(
+        [
+            {
+                "type": assertion_type,
+                "tool": "lookup_order",
+                "path": "$.verified",
+                "equals": None,
+            }
+        ]
+    )
+
+    assert expected.assertions[0].equals is None
+
+
 @pytest.mark.parametrize(
     ("assertion", "steps", "passed", "reason"),
     [
