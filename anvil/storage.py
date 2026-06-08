@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -14,10 +15,32 @@ from anvil.grading import GradeResult
 from anvil.trace import TraceRun
 
 RESULTS_SCHEMA_VERSION = "anvil.results.v1"
+RUN_MANIFEST_SCHEMA_VERSION = "anvil.run_manifest.v1"
 
 
 class ResultsArtifactError(ValueError):
     pass
+
+
+class RunManifestError(ValueError):
+    pass
+
+
+class RunManifestFilePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: str
+    sha256: str
+    size_bytes: int
+
+
+class RunManifestPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["anvil.run_manifest.v1"] = RUN_MANIFEST_SCHEMA_VERSION
+    run_id: str
+    generated_at: datetime
+    files: list[RunManifestFilePayload]
 
 
 class ResultsFlakyScenarioPayload(BaseModel):
@@ -109,6 +132,73 @@ def write_results(
     return results_path
 
 
+def write_run_manifest(run_dir: str | Path, *, run_id: str) -> Path:
+    selected_run_dir = Path(run_dir)
+    files = [
+        RunManifestFilePayload(
+            path=_manifest_path(selected_run_dir, artifact),
+            sha256=_sha256_file(artifact),
+            size_bytes=artifact.stat().st_size,
+        )
+        for artifact in _run_manifest_artifacts(selected_run_dir)
+    ]
+    payload = RunManifestPayload(
+        run_id=run_id,
+        generated_at=datetime.now(UTC),
+        files=files,
+    ).model_dump(mode="json")
+    manifest_path = selected_run_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return manifest_path
+
+
+def validate_run_manifest(run_dir: str | Path) -> dict[str, Any] | None:
+    selected_run_dir = Path(run_dir)
+    manifest_path = selected_run_dir / "manifest.json"
+    if not manifest_path.exists():
+        return None
+
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except OSError as error:
+        msg = f"could not read run manifest {manifest_path}: {error}"
+        raise RunManifestError(msg) from error
+    except json.JSONDecodeError as error:
+        msg = f"could not parse run manifest {manifest_path} as JSON: {error}"
+        raise RunManifestError(msg) from error
+    if not isinstance(payload, dict):
+        msg = f"run manifest {manifest_path} did not contain a JSON object"
+        raise RunManifestError(msg)
+
+    try:
+        manifest = RunManifestPayload.model_validate(payload)
+    except ValidationError as error:
+        msg = f"run manifest {manifest_path} did not match {RUN_MANIFEST_SCHEMA_VERSION}: {error}"
+        raise RunManifestError(msg) from error
+
+    for file_payload in manifest.files:
+        artifact_path = _manifest_artifact_path(selected_run_dir, file_payload.path)
+        if not artifact_path.is_file():
+            msg = f"manifest file missing: {file_payload.path}"
+            raise RunManifestError(msg)
+        actual_sha256 = _sha256_file(artifact_path)
+        if actual_sha256 != file_payload.sha256:
+            msg = (
+                f"manifest hash mismatch for {file_payload.path}: "
+                f"expected {file_payload.sha256}, got {actual_sha256}"
+            )
+            raise RunManifestError(msg)
+        actual_size = artifact_path.stat().st_size
+        if actual_size != file_payload.size_bytes:
+            msg = (
+                f"manifest size mismatch for {file_payload.path}: "
+                f"expected {file_payload.size_bytes}, got {actual_size}"
+            )
+            raise RunManifestError(msg)
+
+    return cast(dict[str, Any], manifest.model_dump(mode="json"))
+
+
 def update_latest_link(runs_dir: str | Path, run_dir: Path) -> Path:
     latest = Path(runs_dir) / "latest"
     if latest.is_symlink() or latest.exists():
@@ -154,3 +244,39 @@ def _validated_results_payload(
         msg = f"results artifact {results_path} did not match {RESULTS_SCHEMA_VERSION}: {error}"
         raise ResultsArtifactError(msg) from error
     return cast(dict[str, Any], validated.model_dump(mode="json"))
+
+
+def _run_manifest_artifacts(run_dir: Path) -> list[Path]:
+    artifacts = [path for path in (run_dir / "traces").glob("*.json") if path.is_file()]
+    artifacts.extend(
+        path for path in [run_dir / "report.md", run_dir / "results.json"] if path.is_file()
+    )
+    return sorted(artifacts, key=lambda path: _manifest_path(run_dir, path))
+
+
+def _manifest_path(run_dir: Path, path: Path) -> str:
+    return path.relative_to(run_dir).as_posix()
+
+
+def _manifest_artifact_path(run_dir: Path, path: str) -> Path:
+    manifest_path = Path(path)
+    if manifest_path.is_absolute():
+        msg = f"manifest path escapes run directory: {path}"
+        raise RunManifestError(msg)
+
+    run_root = run_dir.resolve()
+    artifact_path = (run_dir / manifest_path).resolve()
+    try:
+        artifact_path.relative_to(run_root)
+    except ValueError as error:
+        msg = f"manifest path escapes run directory: {path}"
+        raise RunManifestError(msg) from error
+    return artifact_path
+
+
+def _sha256_file(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

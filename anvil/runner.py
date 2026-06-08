@@ -26,6 +26,7 @@ from anvil.storage import (
     load_results,
     update_latest_link,
     write_results,
+    write_run_manifest,
     write_trace,
 )
 from anvil.trace import TraceRun
@@ -206,6 +207,7 @@ def run_suite(
         grades=grades,
         clusters=clusters,
     )
+    write_run_manifest(run_dir, run_id=selected_run_id)
     update_latest_link(runs_dir, run_dir)
 
     passed_trials = sum(1 for grade in grades if grade.passed)
@@ -259,6 +261,7 @@ def regenerate_report(run_dir: str | Path) -> Path:
     )
     report_path = Path(run_dir) / "report.md"
     report_path.write_text(report, encoding="utf-8")
+    write_run_manifest(run_dir, run_id=str(payload["run_id"]))
     return report_path
 
 

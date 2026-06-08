@@ -1,0 +1,22 @@
+{
+  "schema_version": "anvil.run_manifest.v1",
+  "run_id": "run_contract",
+  "generated_at": "2026-05-01T20:00:02Z",
+  "files": [
+    {
+      "path": "report.md",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "size_bytes": 123
+    },
+    {
+      "path": "results.json",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "size_bytes": 456
+    },
+    {
+      "path": "traces/refund_valid_order_trial_1.json",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "size_bytes": 789
+    }
+  ]
+}

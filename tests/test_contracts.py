@@ -16,13 +16,14 @@ from anvil.leaderboard import (
 )
 from anvil.runner import CompareResultPayload
 from anvil.scenario import ScenarioSuite
-from anvil.storage import ResultsPayload
+from anvil.storage import ResultsPayload, RunManifestPayload
 from anvil.trace import TraceRun
 
 CONTRACT_SCHEMAS = {
     "anvil.trace.v1": "anvil.trace.v1.schema.json",
     "anvil.scenario.v1": "anvil.scenario.v1.schema.json",
     "anvil.results.v1": "anvil.results.v1.schema.json",
+    "anvil.run_manifest.v1": "anvil.run_manifest.v1.schema.json",
     "anvil.doctor.report.v1": "anvil.doctor.report.v1.schema.json",
     "anvil.compare.result.v1": "anvil.compare.result.v1.schema.json",
     "agent-anvil.leaderboard.v1": "agent-anvil.leaderboard.v1.schema.json",
@@ -91,6 +92,9 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     results = ResultsPayload.model_validate_json(
         Path("fixtures/contracts/results-valid.json").read_text(encoding="utf-8")
     )
+    run_manifest = RunManifestPayload.model_validate_json(
+        Path("fixtures/contracts/run-manifest-valid.json").read_text(encoding="utf-8")
+    )
     compare = CompareResultPayload.model_validate_json(
         Path("fixtures/contracts/compare-result-valid.json").read_text(encoding="utf-8")
     )
@@ -101,6 +105,8 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     assert scenario.name == "contract_scenario_suite"
     assert results.schema_version == "anvil.results.v1"
     assert results.summary.pass_rate == 100.0
+    assert run_manifest.schema_version == "anvil.run_manifest.v1"
+    assert run_manifest.files[0].path == "report.md"
     assert doctor.schema_version == "anvil.doctor.report.v1"
     assert doctor.checks[0].name == "scenario_file"
     assert compare.schema_version == "anvil.compare.result.v1"
@@ -125,6 +131,7 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     for text in (readme, artifacts):
         assert "schemas/anvil.trace.v1.schema.json" in text
     assert "schemas/anvil.results.v1.schema.json" in artifacts
+    assert "schemas/anvil.run_manifest.v1.schema.json" in artifacts
     assert "schemas/anvil.compare.result.v1.schema.json" in artifacts
     assert "schemas/agent-anvil.leaderboard.github_run_verification.v1.schema.json" in artifacts
     assert "schemas/agent-anvil.leaderboard.audit.v1.schema.json" in artifacts
@@ -133,6 +140,7 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "uv run anvil schema export --out schemas" in cli_doc
     assert "fixtures/contracts/trace-valid.json" in contracts
     assert "fixtures/contracts/results-valid.json" in contracts
+    assert "fixtures/contracts/run-manifest-valid.json" in contracts
     assert "fixtures/contracts/doctor-report-valid.json" in contracts
     assert "fixtures/contracts/compare-result-valid.json" in contracts
     assert "fixtures/contracts/leaderboard-github-run-verification-valid.json" in contracts

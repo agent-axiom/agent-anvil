@@ -77,6 +77,7 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Trace JSON Schema](../schemas/anvil.trace.v1.schema.json)
 - [Scenario JSON Schema](../schemas/anvil.scenario.v1.schema.json)
 - [Results JSON Schema](../schemas/anvil.results.v1.schema.json)
+- [Run manifest JSON Schema](../schemas/anvil.run_manifest.v1.schema.json)
 - [Compare result JSON Schema](../schemas/anvil.compare.result.v1.schema.json)
 - [Leaderboard submission JSON Schema](../schemas/agent-anvil.leaderboard.v1.schema.json)
 - [Leaderboard index JSON Schema](../schemas/agent-anvil.leaderboard.index.v1.schema.json)

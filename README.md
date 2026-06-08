@@ -255,8 +255,8 @@ scenario syntax, see the [scenario authoring guide](docs/scenarios.md).
 
 This repo runs Agent Anvil against itself in GitHub Actions. The separate
 `Agent Anvil` workflow uploads `agent-anvil-runs` with `report.md`,
-`results.json`, traces, and `repair_plan.md`. It also writes an Agent Anvil
-summary directly into the GitHub Actions run page.
+`results.json`, `manifest.json`, traces, and `repair_plan.md`. It also writes
+an Agent Anvil summary directly into the GitHub Actions run page.
 
 ```yaml
 - uses: actions/checkout@v6
