@@ -56,6 +56,8 @@ def test_doctor_fails_when_workflow_is_missing(tmp_path: Path) -> None:
     assert "- external_agent_conformance: PASS" in result.stdout
     assert "- github_workflow: FAIL" in result.stdout
     assert "workflow file does not exist" in result.stdout
+    assert "Hint:" in result.stdout
+    assert "uv run anvil init --profile ci-safe" in result.stdout
 
 
 def test_doctor_fails_for_invalid_scenario_yaml(tmp_path: Path) -> None:
@@ -105,6 +107,32 @@ def test_doctor_can_print_json_report(tmp_path: Path) -> None:
         "external_agent_conformance",
         "github_workflow",
     }
+
+
+def test_doctor_json_includes_failure_hints(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--workflow",
+            str(tmp_path / ".github" / "workflows" / "agent-anvil.yml"),
+            "--json",
+        ],
+    )
+
+    payload = json.loads(result.stdout)
+    workflow_check = next(
+        check for check in payload["checks"] if check["name"] == "github_workflow"
+    )
+    assert result.exit_code == 1
+    assert workflow_check["passed"] is False
+    assert "uv run anvil init --profile ci-safe" in workflow_check["hint"]
 
 
 def test_doctor_writes_json_report_to_out_path(tmp_path: Path) -> None:
@@ -163,6 +191,31 @@ def test_doctor_appends_github_step_summary(tmp_path: Path) -> None:
     assert "Status: PASS" in summary
     assert "| scenario_file | PASS |" in summary
     assert "| github_workflow | PASS |" in summary
+
+
+def test_doctor_github_step_summary_includes_failure_hints(tmp_path: Path) -> None:
+    scenario_path = tmp_path / "scenarios" / "starter.yaml"
+    summary_path = tmp_path / "github-summary.md"
+    _write_jsonl_scenario(
+        scenario_path, command=f"{sys.executable} fixtures/conformance/pass_agent.py"
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "doctor",
+            str(scenario_path),
+            "--workflow",
+            str(tmp_path / ".github" / "workflows" / "agent-anvil.yml"),
+            "--github-summary",
+        ],
+        env={"GITHUB_STEP_SUMMARY": str(summary_path)},
+    )
+
+    summary = summary_path.read_text(encoding="utf-8")
+    assert result.exit_code == 1
+    assert "Status: FAIL" in summary
+    assert "uv run anvil init --profile ci-safe" in summary
 
 
 def _write_jsonl_scenario(path: Path, *, command: str) -> None:
