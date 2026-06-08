@@ -290,6 +290,57 @@ def test_cli_requires_explicit_offline_without_openai_key(
     assert "--offline" in result.stderr
 
 
+def test_cli_validate_accepts_valid_scenario_without_writing_runs(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "valid.yaml"
+    scenario_file.write_text(
+        """
+name: valid_suite
+agent: examples.support_agent
+scenarios:
+  - id: smoke
+    input: "hello"
+    expected:
+      should_not_call_tools:
+        - issue_refund
+""",
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["validate", str(scenario_file)])
+
+    assert result.exit_code == 0
+    assert "Scenario suite is valid" in result.stdout
+    assert "Suite: valid_suite" in result.stdout
+    assert "Scenarios: 1" in result.stdout
+    assert not (tmp_path / "runs").exists()
+
+
+def test_cli_validate_rejects_invalid_scenario_file(tmp_path: Path) -> None:
+    scenario_file = tmp_path / "invalid.yaml"
+    scenario_file.write_text(
+        """
+name: invalid_suite
+agent: examples.support_agent
+scenarios:
+  - id: refund
+    input: "refund"
+    expected:
+      should_call_tools:
+        - issue_refund
+      should_not_call_tools:
+        - issue_refund
+""",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(app, ["validate", str(scenario_file)])
+
+    assert result.exit_code == 1
+    assert "Invalid scenario suite" in result.stderr
+    assert "tools cannot be both required and forbidden" in result.stderr
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,

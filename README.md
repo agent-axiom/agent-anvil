@@ -144,6 +144,7 @@ uv sync --group dev
 Run the deterministic demo without OpenAI credentials:
 
 ```bash
+uv run anvil validate scenarios/external_jsonl_agent.yaml
 uv run anvil run scenarios/external_jsonl_agent.yaml --offline
 ```
 

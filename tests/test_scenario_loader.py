@@ -325,3 +325,50 @@ def test_expected_tool_contracts_reject_ambiguous_tool_sets(
         ScenarioSuite.model_validate(payload)
 
     assert reason in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    ("assertions", "reason"),
+    [
+        (
+            [
+                {"type": "tool_called", "tool": "issue_refund"},
+                {"type": "tool_not_called", "tool": "issue_refund"},
+            ],
+            "tools cannot be both required and forbidden by assertions",
+        ),
+        (
+            [
+                {"type": "min_tool_calls", "tool": "lookup_order", "count": 2},
+                {"type": "max_tool_calls", "tool": "lookup_order", "count": 1},
+            ],
+            "min_tool_calls cannot exceed max_tool_calls",
+        ),
+        (
+            [
+                {"type": "tool_sequence", "tools": ["lookup_order", ""]},
+            ],
+            "tool names must not be empty",
+        ),
+    ],
+)
+def test_expected_assertions_reject_contradictory_tool_invariants(
+    assertions: list[dict[str, object]],
+    reason: str,
+) -> None:
+    payload = {
+        "name": "suite",
+        "agent": "examples.support_agent",
+        "scenarios": [
+            {
+                "id": "smoke",
+                "input": "hello",
+                "expected": {"assertions": assertions},
+            }
+        ],
+    }
+
+    with pytest.raises(ValidationError) as exc_info:
+        ScenarioSuite.model_validate(payload)
+
+    assert reason in str(exc_info.value)
