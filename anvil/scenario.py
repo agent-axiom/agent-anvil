@@ -24,6 +24,43 @@ class ExpectedBehavior(BaseModel):
     success_criteria: list[str] = Field(default_factory=list)
     assertions: list[AssertionCheck] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_tool_contracts(self) -> ExpectedBehavior:
+        _validate_tool_name_list("expected", self.should_call_tools)
+        _validate_tool_name_list("forbidden", self.should_not_call_tools)
+        _validate_required_tool_arg_names(self.required_tool_args)
+
+        required = set(self.should_call_tools)
+        forbidden = set(self.should_not_call_tools)
+        overlap = sorted(required & forbidden)
+        if overlap:
+            joined = ", ".join(overlap)
+            raise ValueError(f"tools cannot be both required and forbidden: {joined}")
+
+        args_forbidden = sorted(set(self.required_tool_args) & forbidden)
+        if args_forbidden:
+            joined = ", ".join(args_forbidden)
+            raise ValueError(f"required args cannot target forbidden tools: {joined}")
+        return self
+
+
+def _validate_tool_name_list(kind: str, tool_names: list[str]) -> None:
+    invalid = [tool_name for tool_name in tool_names if not tool_name.strip()]
+    if invalid:
+        raise ValueError("tool names must not be empty")
+
+    duplicates = sorted({tool_name for tool_name in tool_names if tool_names.count(tool_name) > 1})
+    if duplicates:
+        label = "expected" if kind == "expected" else "forbidden"
+        joined = ", ".join(duplicates)
+        raise ValueError(f"duplicate {label} tool names: {joined}")
+
+
+def _validate_required_tool_arg_names(required_tool_args: dict[str, dict[str, Any]]) -> None:
+    invalid = [tool_name for tool_name in required_tool_args if not tool_name.strip()]
+    if invalid:
+        raise ValueError("tool names must not be empty")
+
 
 AssertionType = Literal[
     "tool_called",
