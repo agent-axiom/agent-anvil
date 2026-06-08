@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict
 from pathlib import Path
 
 import typer
@@ -87,6 +88,7 @@ GITHUB_SUMMARY_OPTION = typer.Option(
     "--github",
     help="Render Markdown optimized for GitHub Step Summary.",
 )
+COMPARE_JSON_OPTION = typer.Option(False, "--json", help="Render compare result as JSON.")
 AGENT_MODE_OPTION = typer.Option(
     None,
     "--agent-mode",
@@ -1044,8 +1046,16 @@ def fuzz(
 
 
 @app.command()
-def compare(baseline_dir: Path, latest_dir: Path) -> None:
+def compare(
+    baseline_dir: Path,
+    latest_dir: Path,
+    json_output: bool = COMPARE_JSON_OPTION,
+) -> None:
     result = compare_runs(baseline_dir, latest_dir)
+    if json_output:
+        typer.echo(json.dumps(asdict(result), indent=2, sort_keys=True))
+        return
+
     typer.echo(f"Baseline pass rate: {result.baseline_pass_rate:.1f}%")
     typer.echo(f"Latest pass rate: {result.latest_pass_rate:.1f}%")
     typer.echo(f"Delta: {result.delta:+.1f}%")

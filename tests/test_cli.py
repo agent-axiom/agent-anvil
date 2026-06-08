@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -591,3 +592,48 @@ def test_cli_compare_reports_new_failures_and_scenario_regressions(tmp_path: Pat
     assert "- premature_tool_execution / high: 0 -> 1" in compare_result.stdout
     assert "Scenario regressions:" in compare_result.stdout
     assert "- refund_missing_order_id: 100.0% -> 0.0% (-100.0%)" in compare_result.stdout
+
+
+def test_cli_compare_can_emit_json(
+    scenario_file: Path,
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    baseline_dir = tmp_path / "baseline"
+    latest_dir = tmp_path / "latest"
+    runner.invoke(
+        app,
+        [
+            "run",
+            str(scenario_file),
+            "--runs-dir",
+            str(baseline_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+    runner.invoke(
+        app,
+        [
+            "run",
+            "scenarios/refund_agent_patched.yaml",
+            "--runs-dir",
+            str(latest_dir),
+            "--trials",
+            "1",
+            "--offline",
+        ],
+    )
+
+    compare_result = runner.invoke(
+        app,
+        ["compare", str(baseline_dir / "latest"), str(latest_dir / "latest"), "--json"],
+    )
+
+    assert compare_result.exit_code == 0
+    payload = json.loads(compare_result.stdout)
+    assert payload["latest_pass_rate"] == 100.0
+    assert payload["resolved_failures"][0]["failure_type"] == "premature_tool_execution"
+    assert payload["scenario_improvements"][0]["scenario_id"] == "refund_missing_order_id"
+    assert "Baseline pass rate" not in compare_result.stdout
