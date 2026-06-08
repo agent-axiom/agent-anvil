@@ -179,6 +179,81 @@ def test_generate_pr_comment_includes_compare_delta(tmp_path: Path) -> None:
     assert "- Newly flaky: `refund_valid_order` 1/2 trials passed (50.0%)" in comment
 
 
+def test_generate_pr_comment_warns_when_compare_artifact_is_missing(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        json.dumps(
+            {
+                "suite": "refund_agent_regression_suite",
+                "run_id": "run_test",
+                "summary": {
+                    "total_scenarios": 1,
+                    "total_trials": 1,
+                    "passed_trials": 1,
+                    "failed_trials": 0,
+                    "pass_rate": 100.0,
+                    "flaky_scenarios": [],
+                },
+                "grades": [
+                    {
+                        "scenario_id": "refund_valid_order",
+                        "trial": 1,
+                        "passed": True,
+                        "deterministic_passed": True,
+                        "semantic": {"passed": True, "score": 1.0},
+                        "trace_path": "runs/test/traces/refund_valid_order_trial_1.json",
+                        "deterministic_checks": [],
+                    }
+                ],
+                "clusters": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    missing_compare_path = tmp_path / "missing-compare.json"
+
+    comment = generate_pr_comment(run_dir, compare_path=missing_compare_path)
+
+    assert "### Compared with baseline" in comment
+    assert "Compare artifact unavailable" in comment
+    assert str(missing_compare_path) in comment
+    assert "No agent regressions detected." in comment
+
+
+def test_generate_pr_comment_warns_when_compare_artifact_is_malformed(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        json.dumps(
+            {
+                "suite": "refund_agent_regression_suite",
+                "run_id": "run_test",
+                "summary": {
+                    "total_scenarios": 1,
+                    "total_trials": 1,
+                    "passed_trials": 1,
+                    "failed_trials": 0,
+                    "pass_rate": 100.0,
+                    "flaky_scenarios": [],
+                },
+                "grades": [],
+                "clusters": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    malformed_compare_path = tmp_path / "compare.json"
+    malformed_compare_path.write_text("{not-json", encoding="utf-8")
+
+    comment = generate_pr_comment(run_dir, compare_path=malformed_compare_path)
+
+    assert "### Compared with baseline" in comment
+    assert "Compare artifact unavailable" in comment
+    assert "could not be parsed as JSON" in comment
+    assert str(malformed_compare_path) in comment
+
+
 def test_write_pr_comment_and_cli(tmp_path: Path, scenario_file: Path) -> None:
     result = run_suite(
         scenario_file,
