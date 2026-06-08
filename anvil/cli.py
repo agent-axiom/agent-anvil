@@ -58,7 +58,7 @@ from anvil.storage import ResultsArtifactError
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
 from anvil.trace import TraceArtifactError
-from anvil.trace_bridge import export_openai_trace, import_openai_trace
+from anvil.trace_bridge import OpenAITracePayloadError, export_openai_trace, import_openai_trace
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
 adapter_app = typer.Typer(help="Generate external-agent adapter templates.")
@@ -96,6 +96,15 @@ def _handle_trace_artifact_errors() -> Iterator[None]:
         yield
     except TraceArtifactError as error:
         typer.echo(f"Invalid trace artifact: {error}", err=True)
+        raise typer.Exit(1) from error
+
+
+@contextmanager
+def _handle_openai_trace_payload_errors() -> Iterator[None]:
+    try:
+        yield
+    except OpenAITracePayloadError as error:
+        typer.echo(f"Invalid OpenAI trace payload: {error}", err=True)
         raise typer.Exit(1) from error
 
 
@@ -1300,7 +1309,8 @@ def trace_import(
     if trace_format != "openai-trace":
         typer.echo("Only --format openai-trace is supported.", err=True)
         raise typer.Exit(2)
-    traces = import_openai_trace(source_file, out_dir=out)
+    with _handle_openai_trace_payload_errors():
+        traces = import_openai_trace(source_file, out_dir=out)
     typer.echo(f"Wrote {out / 'traces'} ({len(traces)} traces)")
 
 

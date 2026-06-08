@@ -4,12 +4,13 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from anvil.cli import app
 from anvil.storage import write_trace
 from anvil.trace import TraceRun
-from anvil.trace_bridge import export_openai_trace, import_openai_trace
+from anvil.trace_bridge import OpenAITracePayloadError, export_openai_trace, import_openai_trace
 
 
 def _trace() -> TraceRun:
@@ -100,6 +101,42 @@ def test_import_openai_trace_writes_anvil_trace(tmp_path: Path) -> None:
     assert trace.steps[1]["tool_name"] == "lookup_order"
 
 
+def test_import_openai_trace_rejects_non_object_payload(tmp_path: Path) -> None:
+    source = tmp_path / "openai-trace.json"
+    source.write_text(json.dumps([]), encoding="utf-8")
+
+    with pytest.raises(
+        OpenAITracePayloadError,
+        match="trace payload must be a JSON object",
+    ):
+        import_openai_trace(source, out_dir=tmp_path / "imported")
+
+
+def test_import_openai_trace_rejects_missing_traces_list(tmp_path: Path) -> None:
+    source = tmp_path / "openai-trace.json"
+    source.write_text(json.dumps({"format": "openai-trace"}), encoding="utf-8")
+
+    with pytest.raises(
+        OpenAITracePayloadError,
+        match="trace payload traces must be a list",
+    ):
+        import_openai_trace(source, out_dir=tmp_path / "imported")
+
+
+def test_import_openai_trace_rejects_non_object_trace_items(tmp_path: Path) -> None:
+    source = tmp_path / "openai-trace.json"
+    source.write_text(
+        json.dumps({"format": "openai-trace", "traces": ["not-an-object"]}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        OpenAITracePayloadError,
+        match="each trace payload item must be a JSON object",
+    ):
+        import_openai_trace(source, out_dir=tmp_path / "imported")
+
+
 def test_cli_trace_export_and_import(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     (run_dir / "traces").mkdir(parents=True)
@@ -138,4 +175,54 @@ def test_cli_trace_export_prints_clean_error_for_invalid_trace_artifact(
     assert result.exit_code == 1
     assert "Invalid trace artifact:" in result.stderr
     assert "could not parse trace artifact" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_trace_import_prints_clean_error_for_malformed_payload(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "bad-openai-trace.json"
+    source.write_text("{not json", encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "trace",
+            "import",
+            str(source),
+            "--format",
+            "openai-trace",
+            "--out",
+            str(tmp_path / "out"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Invalid OpenAI trace payload:" in result.stderr
+    assert "could not parse" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_trace_import_prints_clean_error_for_wrong_format(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "wrong-format.json"
+    source.write_text(json.dumps({"format": "not-openai-trace"}), encoding="utf-8")
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "trace",
+            "import",
+            str(source),
+            "--format",
+            "openai-trace",
+            "--out",
+            str(tmp_path / "out"),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Invalid OpenAI trace payload:" in result.stderr
+    assert "trace payload format must be openai-trace" in result.stderr
     assert "Traceback" not in result.stderr
