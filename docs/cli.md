@@ -198,7 +198,8 @@ uv run anvil leaderboard export docs/paper/results.json \
   --commit-sha "$(git rev-parse HEAD)"
 uv run anvil leaderboard validate leaderboard_submission.json
 uv run anvil leaderboard validate leaderboard_submission.json \
-  --require-trust github_actions
+  --require-trust github_actions \
+  --github-run
 uv run anvil leaderboard inspect leaderboard_submission.json \
   --out leaderboard_inspection.md
 uv run anvil leaderboard reproduce leaderboard_submission.json \
@@ -209,11 +210,15 @@ uv run anvil leaderboard pr leaderboard_submission.json \
 uv run anvil leaderboard build submissions \
   --out leaderboard.csv \
   --json-out leaderboard.json \
-  --no-artifacts
+  --no-artifacts \
+  --github-run
 ```
 
 Use `--no-artifacts` on `leaderboard validate` when validating a submitted JSON
 row in a repository that does not also contain the referenced result artifacts.
+Use `--github-run` in public leaderboard CI to verify that a `github_actions`
+row points to a completed successful GitHub Actions run for the submitted
+repository/SHA.
 `leaderboard inspect` renders a reviewable trust report with benchmark hashes,
 artifact status, warnings, and a reproducibility checklist for maintainers or
 community reviewers.

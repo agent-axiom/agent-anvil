@@ -322,6 +322,9 @@ to generate a verifiable `github_actions` row.
 Use the [auto-PR workflow](docs/examples/leaderboard-auto-pr-workflow.yml)
 when you want the same run to open a reviewable pull request against the public
 leaderboard repository with a generated PR body and provenance checks.
+Maintainer and leaderboard CI jobs can add `--github-run` to validate that the
+declared public GitHub Actions run exists, completed successfully, and matches
+the submitted repository/SHA.
 
 ## Why AI Was Necessary
 

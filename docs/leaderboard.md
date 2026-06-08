@@ -120,9 +120,10 @@ are self-reported, CI-verified, or independently re-run by maintainers.
    headline metrics. The script is intentionally review-first and must be run in
    a sandbox because it executes submitted code.
 6. The user opens a pull request to the leaderboard submissions repository.
-7. The leaderboard CI runs `anvil leaderboard validate --no-artifacts` for schema
-   and evidence-hash checks, then verifies `github_actions` evidence through the
-   GitHub API before labeling the row by `verification.trust_level`.
+7. The leaderboard CI runs
+   `anvil leaderboard validate --no-artifacts --github-run` for schema,
+   evidence-hash, and GitHub Actions run checks before labeling the row by
+   `verification.trust_level`.
 8. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
    `leaderboard.csv` and `leaderboard.json`.
 9. Maintainers can optionally re-run the agent and mark the row as
@@ -130,12 +131,22 @@ are self-reported, CI-verified, or independently re-run by maintainers.
    attestation. The attestation must match the original row evidence hash and
    point to a successful public GitHub Actions rerun.
 
-For stricter public rows, generate the submission in GitHub Actions and validate
-with:
+For stricter public rows, generate the submission in GitHub Actions. Producer
+workflows should validate structural trust metadata while the run is still in
+progress:
 
 ```bash
 uv run anvil leaderboard validate leaderboard_submission.json \
   --require-trust github_actions
+```
+
+Public leaderboard or maintainer CI should add `--github-run` after the
+producer run has completed:
+
+```bash
+uv run anvil leaderboard validate leaderboard_submission.json \
+  --require-trust github_actions \
+  --github-run
 ```
 
 A copy-paste workflow is available at
