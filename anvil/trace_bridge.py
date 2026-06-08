@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from pydantic import ValidationError
+
 from anvil.storage import write_trace
 from anvil.trace import TraceRun, TraceStatus, load_trace_artifact
 
@@ -102,17 +104,23 @@ def _export_event(step: Any) -> dict[str, Any]:
 
 def _import_trace(item: dict[str, Any], *, run_id: str) -> TraceRun:
     now = datetime.now(UTC)
-    return TraceRun(
-        run_id=run_id,
-        scenario_id=str(item.get("scenario_id", "imported_trace")),
-        trial=int(item.get("trial", 1)),
-        input=str(item.get("input", "")),
-        started_at=_parse_datetime(item.get("started_at")) or now,
-        ended_at=_parse_datetime(item.get("ended_at")) or now,
-        status=_trace_status(item.get("status")),
-        steps=[_import_event(event) for event in _event_payloads(item.get("events", []))],
-        final_output=item.get("final_output"),
-    )
+    try:
+        return TraceRun(
+            run_id=run_id,
+            scenario_id=str(item.get("scenario_id", "imported_trace")),
+            trial=int(item.get("trial", 1)),
+            input=str(item.get("input", "")),
+            started_at=_parse_datetime(item.get("started_at")) or now,
+            ended_at=_parse_datetime(item.get("ended_at")) or now,
+            status=_trace_status(item.get("status")),
+            steps=[_import_event(event) for event in _event_payloads(item.get("events", []))],
+            final_output=item.get("final_output"),
+        )
+    except OpenAITracePayloadError:
+        raise
+    except (TypeError, ValueError, ValidationError) as error:
+        msg = f"could not convert OpenAI trace item to anvil.trace.v1: {error}"
+        raise OpenAITracePayloadError(msg) from error
 
 
 def _event_payloads(value: object) -> list[dict[str, Any]]:

@@ -175,6 +175,32 @@ def test_import_openai_trace_rejects_non_object_events(tmp_path: Path) -> None:
         import_openai_trace(source, out_dir=tmp_path / "imported")
 
 
+def test_import_openai_trace_wraps_converted_trace_validation_errors(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "openai-trace.json"
+    source.write_text(
+        json.dumps(
+            {
+                "format": "openai-trace",
+                "traces": [
+                    {
+                        "scenario_id": "bad_tool_call",
+                        "events": [{"type": "tool_call", "arguments": {"order_id": "ORD-123"}}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        OpenAITracePayloadError,
+        match=r"could not convert OpenAI trace item to anvil\.trace\.v1",
+    ):
+        import_openai_trace(source, out_dir=tmp_path / "imported")
+
+
 def test_cli_trace_export_and_import(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     (run_dir / "traces").mkdir(parents=True)
