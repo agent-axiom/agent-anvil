@@ -570,6 +570,36 @@ def verify_leaderboard_github_run(
         require_trust_level="github_actions",
         verify_github_run=True,
     )
+    return _github_run_verification_report(selected_submission_path, submission)
+
+
+def verify_leaderboard_github_runs(
+    submissions_dir: str | Path,
+    *,
+    out_dir: str | Path,
+) -> list[Path]:
+    selected_submissions_dir = Path(submissions_dir)
+    selected_out_dir = Path(out_dir)
+    submissions = _load_submission_files(
+        selected_submissions_dir,
+        verify_artifacts=False,
+        require_trust_level="github_actions",
+        verify_github_run=True,
+    )
+    selected_out_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for submission_path, submission in submissions:
+        report = _github_run_verification_report(submission_path, submission)
+        report_path = selected_out_dir / f"{submission_path.stem}.github_run_verification.json"
+        report_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        written.append(report_path)
+    return written
+
+
+def _github_run_verification_report(
+    selected_submission_path: Path,
+    submission: LeaderboardSubmission,
+) -> LeaderboardGithubRunVerification:
     verification = submission.verification
     return LeaderboardGithubRunVerification(
         schema_version=LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION,

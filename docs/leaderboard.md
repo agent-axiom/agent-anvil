@@ -152,6 +152,8 @@ uv run anvil leaderboard validate leaderboard_submission.json \
   --github-run
 uv run anvil leaderboard verify-run leaderboard_submission.json \
   --out github_run_verification.json
+uv run anvil leaderboard verify-all submissions \
+  --out github-run-verifications
 ```
 
 Use `--json` when another CI step should consume the verification directly from
@@ -159,6 +161,8 @@ stdout. The JSON report uses
 `agent-anvil.leaderboard.github_run_verification.v1` and includes the submitted
 repository, SHA, GitHub run URL, evidence hash, benchmark name, and verifier
 version.
+Use `verify-all` in leaderboard maintainer CI when you want one stored
+verification report per submitted row.
 
 A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).
