@@ -39,6 +39,7 @@ AssertionType = Literal[
     "final_output_not_contains",
     "metric_lte",
     "metric_gte",
+    "no_tool_errors",
 ]
 
 MetricName = Literal[
@@ -84,6 +85,7 @@ class AssertionCheck(BaseModel):
             "final_output_not_contains": ("text",),
             "metric_lte": ("metric", "value"),
             "metric_gte": ("metric", "value"),
+            "no_tool_errors": (),
         }
         missing = [
             field

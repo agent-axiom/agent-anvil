@@ -106,6 +106,7 @@ expected:
     - type: metric_lte
       metric: estimated_cost_usd
       value: 0.01
+    - type: no_tool_errors
 ```
 
 Supported assertion types:
@@ -123,6 +124,7 @@ Supported assertion types:
 - `final_output_not_contains`
 - `metric_lte`
 - `metric_gte`
+- `no_tool_errors`
 
 `path` currently supports simple JSON paths such as `$.order_id` or
 `$.eligible_for_refund` over tool arguments/results.
@@ -130,6 +132,10 @@ Supported assertion types:
 Metric assertions compare trace-level run metrics. Supported metric names are
 `latency_ms`, `tool_call_count`, `model_call_count`, `input_tokens`,
 `output_tokens`, `total_tokens`, and `estimated_cost_usd`.
+
+`no_tool_errors` fails when the trace contains `tool_argument_error` or
+`tool_execution_error` events. Add `tool: tool_name` to scope the assertion to a
+single tool.
 
 ## Policies
 

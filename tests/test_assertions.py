@@ -63,10 +63,11 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
             {"type": "final_output_not_contains", "text": "guaranteed"},
             {"type": "metric_lte", "metric": "latency_ms", "value": 2500},
             {"type": "metric_gte", "metric": "total_tokens", "value": 100},
+            {"type": "no_tool_errors"},
         ]
     )
 
-    assert len(expected.assertions) == 13
+    assert len(expected.assertions) == 14
     assert isinstance(expected.assertions[0], AssertionCheck)
     assert expected.assertions[7].values == ["UNKNOWN", "", None]
 
@@ -218,6 +219,32 @@ def test_metric_assertions_reject_negative_values() -> None:
             ],
             False,
             "lookup_order result $.eligible_for_refund expected True, got False",
+        ),
+        (
+            {"type": "no_tool_errors"},
+            [
+                {
+                    "type": "tool_argument_error",
+                    "tool_name": "issue_refund",
+                    "arguments": {"order_id": "ORD-123"},
+                    "error": "invalid args",
+                }
+            ],
+            False,
+            "tool errors observed: tool_argument_error(issue_refund)",
+        ),
+        (
+            {"type": "no_tool_errors", "tool": "issue_refund"},
+            [
+                {
+                    "type": "tool_execution_error",
+                    "tool_name": "lookup_order",
+                    "arguments": {"order_id": "ORD-123"},
+                    "error": "timeout",
+                }
+            ],
+            True,
+            "assertion passed",
         ),
     ],
 )
