@@ -522,6 +522,45 @@ def test_validate_leaderboard_submission_rejects_failed_github_actions_run(
         )
 
 
+@pytest.mark.parametrize(
+    "github_run_url",
+    [
+        "/agent-axiom/agent-anvil/actions/runs/12345",
+        "http://github.com/agent-axiom/agent-anvil/actions/runs/12345",
+    ],
+)
+def test_validate_leaderboard_submission_rejects_non_https_absolute_github_run_url(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    github_run_url: str,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    payload = json.loads(submission_path.read_text(encoding="utf-8"))
+    payload["verification"]["github_run_url"] = github_run_url
+    submission_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        raise AssertionError("invalid run URL should be rejected before API fetch")
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    with pytest.raises(LeaderboardValidationError, match="absolute HTTPS"):
+        validate_leaderboard_submission(
+            submission_path,
+            verify_artifacts=False,
+            verify_github_run=True,
+        )
+
+
 def test_cli_leaderboard_validate_can_verify_github_actions_run(
     scenario_file: Path,
     tmp_path: Path,

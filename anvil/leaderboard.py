@@ -366,6 +366,10 @@ def _github_actions_run_reference(
     verification: LeaderboardVerification,
 ) -> tuple[str, str, str]:
     parsed = urlparse(verification.github_run_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise LeaderboardValidationError(
+            "github_actions trust requires verification.github_run_url to be an absolute HTTPS URL"
+        )
     path_parts = [part for part in parsed.path.strip("/").split("/") if part]
     min_run_path_parts = 5
     if len(path_parts) < min_run_path_parts or path_parts[2:4] != ["actions", "runs"]:
