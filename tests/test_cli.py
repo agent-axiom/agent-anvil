@@ -551,6 +551,24 @@ def test_cli_validate_json_rejects_duplicate_run_traces(tmp_path: Path) -> None:
     assert result.stderr == ""
 
 
+def test_cli_validate_json_rejects_trace_from_different_run(tmp_path: Path) -> None:
+    run_dir = _write_run_artifacts(tmp_path)
+    trace_path = run_dir / "traces" / "refund_valid_order_trial_1.json"
+    trace_payload = json.loads(trace_path.read_text(encoding="utf-8"))
+    trace_payload["run_id"] = "run_other"
+    trace_path.write_text(json.dumps(trace_payload), encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["validate", "--json", "run", str(run_dir)])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "invalid"
+    assert payload["kind"] == "run"
+    assert "refund_valid_order_trial_1.json" in payload["error"]
+    assert "run_id run_other does not match results run_id run_test" in payload["error"]
+    assert result.stderr == ""
+
+
 def test_cli_run_writes_artifacts_and_returns_failure_for_failed_suite(
     scenario_file: Path,
     tmp_path: Path,

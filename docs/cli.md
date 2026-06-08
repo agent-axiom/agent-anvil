@@ -30,8 +30,8 @@ It can also validate persisted trace and results artifacts with
 `anvil validate trace <trace.json>` and `anvil validate results <run-dir|results.json>`.
 Use `anvil validate run <run-dir>` to verify `results.json` plus every trace
 artifact in a persisted run directory, including that every `results.grades`
-entry has a matching `scenario_id` / `trial` trace and there are no orphan
-or duplicate traces.
+entry has a matching `scenario_id` / `trial` trace, every trace belongs to the
+same `run_id`, and there are no orphan or duplicate traces.
 Use `--json` for machine-readable preflight output in CI/editor integrations.
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent

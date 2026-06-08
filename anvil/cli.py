@@ -927,6 +927,7 @@ def _load_run_artifacts(run_dir: Path) -> tuple[dict[str, Any], int]:
         msg = f"run artifact {run_dir} does not contain trace JSON files"
         raise TraceArtifactError(msg)
 
+    expected_run_id = str(payload.get("run_id"))
     observed_trace_paths: dict[tuple[str, int], str] = {}
     for trace_path in trace_paths:
         try:
@@ -934,6 +935,12 @@ def _load_run_artifacts(run_dir: Path) -> tuple[dict[str, Any], int]:
         except TraceArtifactError as error:
             msg = f"{trace_path.name}: {error}"
             raise TraceArtifactError(msg) from error
+        if trace.run_id != expected_run_id:
+            msg = (
+                f"{trace_path.name}: run_id {trace.run_id} "
+                f"does not match results run_id {expected_run_id}"
+            )
+            raise TraceArtifactError(msg)
         trace_key = (trace.scenario_id, trace.trial)
         if trace_key in observed_trace_paths:
             msg = (
