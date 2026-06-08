@@ -43,7 +43,7 @@ def test_doctor_passes_for_marketplace_action_workflow(tmp_path: Path) -> None:
     _write_workflow(
         workflow_path,
         scenario_path=scenario_path,
-        action_ref="agent-axiom/agent-anvil-action@v1.0.1",
+        action_ref="agent-axiom/agent-anvil-action@v1.0.2",
     )
 
     result = CliRunner().invoke(
@@ -77,7 +77,7 @@ jobs:
   agent-anvil:
     steps:
       - uses: actions/checkout@v6
-      - uses: agent-axiom/agent-anvil-action@v1.0.1
+      - uses: agent-axiom/agent-anvil-action@v1.0.2
         with:
           scenario: {scenario_path.as_posix()}
           post-pr-comment: "true"
@@ -119,7 +119,7 @@ jobs:
   agent-anvil:
     steps:
       - uses: actions/checkout@v6
-      - uses: agent-axiom/agent-anvil-action@v1.0.1
+      - uses: agent-axiom/agent-anvil-action@v1.0.2
         with:
           scenario: {scenario_path.as_posix()}
           post-pr-comment: "true"
@@ -155,7 +155,7 @@ def test_doctor_rejects_workflow_without_checkout_before_agent_anvil_action(
 jobs:
   agent-anvil:
     steps:
-      - uses: agent-axiom/agent-anvil-action@v1.0.1
+      - uses: agent-axiom/agent-anvil-action@v1.0.2
         with:
           scenario: {scenario_path.as_posix()}
 """,
@@ -187,7 +187,7 @@ def test_doctor_rejects_workflow_with_action_only_in_comments(tmp_path: Path) ->
     workflow_path.parent.mkdir(parents=True, exist_ok=True)
     workflow_path.write_text(
         f"""name: Agent Anvil
-# uses: agent-axiom/agent-anvil-action@v1.0.1
+# uses: agent-axiom/agent-anvil-action@v1.0.2
 # scenario: {scenario_path.as_posix()}
 jobs:
   agent-anvil:
