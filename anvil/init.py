@@ -255,7 +255,8 @@ def _doctor_step(
         run: |
           uvx --from {package_ref} anvil doctor "{scenario_arg}" \\
             --workflow "{workflow_arg}" \\
-            --out runs/doctor.json
+            --out runs/doctor.json \\
+            --github-summary
 
 """
 
