@@ -168,6 +168,43 @@ def test_validate_run_manifest_rejects_duplicate_file_entries(tmp_path) -> None:
         validate_run_manifest(run_dir)
 
 
+def test_validate_run_manifest_rejects_omitted_core_artifact_entries(tmp_path) -> None:
+    run_dir = tmp_path / "run_test"
+    traces_dir = run_dir / "traces"
+    traces_dir.mkdir(parents=True)
+    report = run_dir / "report.md"
+    results = run_dir / "results.json"
+    trace = traces_dir / "trace.json"
+    report.write_text("# Report\n", encoding="utf-8")
+    results.write_text('{"ok":true}\n', encoding="utf-8")
+    trace.write_text('{"schema_version":"anvil.trace.v1"}\n', encoding="utf-8")
+    manifest_files = [
+        {
+            "path": path.relative_to(run_dir).as_posix(),
+            "sha256": sha256(path.read_bytes()).hexdigest(),
+            "size_bytes": path.stat().st_size,
+        }
+        for path in [report, results]
+    ]
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "anvil.run_manifest.v1",
+                "run_id": "run_test",
+                "generated_at": "2026-05-01T20:00:02Z",
+                "files": manifest_files,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        RunManifestError,
+        match=r"manifest missing artifact entry: traces/trace\.json",
+    ):
+        validate_run_manifest(run_dir)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
