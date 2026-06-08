@@ -107,6 +107,7 @@ def test_ci_runs_against_python_312_and_314() -> None:
         step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7.0.1"
     )
     assert upload["with"]["name"] == "coverage-xml-${{ matrix.python-version }}"
+    assert upload["continue-on-error"] is True
 
 
 MARKETPLACE_ACTION_REF = "agent-axiom/agent-anvil-action@v1.0.13"
