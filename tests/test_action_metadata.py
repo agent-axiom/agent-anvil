@@ -33,6 +33,8 @@ def test_composite_action_exposes_agent_anvil_inputs() -> None:
         "pr-comment",
         "post-pr-comment",
         "pr-comment-path",
+        "compare-baseline",
+        "compare-path",
         "uv-cache",
     }
     assert action["inputs"]["python-version"]["default"] == "3.12"
@@ -57,6 +59,8 @@ def test_composite_action_fails_when_expected_failure_passes(tmp_path: Path) -> 
         .replace("${{ inputs.pr-comment }}", "false")
         .replace("${{ inputs.post-pr-comment }}", "false")
         .replace("${{ inputs.pr-comment-path }}", "agent-anvil-pr-comment.md")
+        .replace("${{ inputs.compare-baseline }}", "")
+        .replace("${{ inputs.compare-path }}", "agent-anvil-compare.json")
     )
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
@@ -186,8 +190,23 @@ def test_composite_action_can_generate_pr_comment_file() -> None:
     assert action["inputs"]["pr-comment"]["default"] == "false"
     assert action["inputs"]["post-pr-comment"]["default"] == "false"
     assert action["inputs"]["pr-comment-path"]["default"] == "agent-anvil-pr-comment.md"
-    assert 'anvil pr-comment "$runs_dir/latest" --out "$comment_path"' in run_step["run"]
+    assert action["inputs"]["compare-baseline"]["default"] == ""
+    assert action["inputs"]["compare-path"]["default"] == "agent-anvil-compare.json"
+    assert 'pr_args=(pr-comment "$runs_dir/latest" --out "$comment_path")' in run_step["run"]
+    assert 'anvil "${pr_args[@]}"' in run_step["run"]
     assert 'gh pr comment "$pr_number" --body-file "$comment_path"' in run_step["run"]
+
+
+def test_composite_action_can_wire_compare_artifact_into_pr_comment() -> None:
+    action = yaml.safe_load(Path("action.yml").read_text(encoding="utf-8"))
+    run_step = next(step for step in action["runs"]["steps"] if step["name"] == "Run Agent Anvil")
+
+    assert 'baseline_dir="${{ inputs.compare-baseline }}"' in run_step["run"]
+    assert 'compare_path="${{ inputs.compare-path }}"' in run_step["run"]
+    assert (
+        'anvil compare "$baseline_dir" "$runs_dir/latest" --out "$compare_path"' in run_step["run"]
+    )
+    assert 'pr_args+=(--compare "$compare_path")' in run_step["run"]
 
 
 def test_composite_action_skips_pr_comment_publish_outside_pull_request(tmp_path: Path) -> None:
@@ -205,6 +224,8 @@ def test_composite_action_skips_pr_comment_publish_outside_pull_request(tmp_path
         .replace("${{ inputs.pr-comment }}", "false")
         .replace("${{ inputs.post-pr-comment }}", "true")
         .replace("${{ inputs.pr-comment-path }}", "agent-anvil-pr-comment.md")
+        .replace("${{ inputs.compare-baseline }}", "")
+        .replace("${{ inputs.compare-path }}", "agent-anvil-compare.json")
         .replace("${{ github.event_name }}", "push")
         .replace("${{ github.event.pull_request.number }}", "")
     )

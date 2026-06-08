@@ -245,6 +245,9 @@ failing trace path, and optional baseline-vs-latest compare deltas. The composit
 action can generate this file with `pr-comment: "true"`. In `pull_request`
 workflows with `pull-requests: write`, `post-pr-comment: "true"` publishes it
 directly with `gh pr comment`.
+Set the action input `compare-baseline` to a prior run directory when the comment
+should include `anvil compare` deltas; the action writes `compare-path` and passes
+it through to `anvil pr-comment --compare`.
 
 ## Why This Is A System, Not A Prompt
 
