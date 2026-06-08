@@ -297,6 +297,14 @@ def _validate_trust_metadata(submission: LeaderboardSubmission) -> None:
             f"verification.github_repository ({verification.github_repository})"
         )
 
+    submitter_sha = submission.submitter.commit_sha.strip()
+    github_sha = verification.github_sha.strip()
+    if submitter_sha != github_sha:
+        raise LeaderboardValidationError(
+            "github_actions trust requires submitter.commit_sha to match "
+            f"verification.github_sha ({github_sha})"
+        )
+
 
 def inspect_leaderboard_submission(
     submission_path: str | Path,

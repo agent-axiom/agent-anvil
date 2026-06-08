@@ -94,7 +94,9 @@ leaderboard should label it as self-reported.
 contains `verification.github_run_url`, `verification.github_repository`, and
 `verification.github_sha` assembled from GitHub environment variables. The live
 Agent Anvil validator rejects `github_actions` rows that omit those fields or
-whose run URL does not point at the declared repository. The live
+whose run URL does not point at the declared repository. It also requires the
+submitted `submitter.commit_sha` to match `verification.github_sha`, so the
+public CI evidence and reproduction target refer to the same source revision. The live
 leaderboard repository verifies that the run exists, completed successfully, and
 matches the submitted repository/SHA through the GitHub API. This is not
 cryptographic proof that the agent is honest, but it gives reviewers a public
