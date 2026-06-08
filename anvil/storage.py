@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from anvil.clustering import FailureCluster
+from anvil.flakiness import detect_flaky_scenarios
 from anvil.grading import GradeResult
 from anvil.trace import TraceRun
 
@@ -55,6 +56,7 @@ def write_results(
             "passed_trials": passed_trials,
             "failed_trials": total_trials - passed_trials,
             "pass_rate": round((passed_trials / total_trials * 100) if total_trials else 0.0, 1),
+            "flaky_scenarios": [scenario.to_json() for scenario in detect_flaky_scenarios(grades)],
         },
         "grades": [grade.model_dump(mode="json") for grade in grades],
         "clusters": [cluster.model_dump(mode="json") for cluster in clusters],
