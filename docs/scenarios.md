@@ -107,6 +107,8 @@ expected:
       metric: estimated_cost_usd
       value: 0.01
     - type: no_tool_errors
+    - type: tool_retried_after_error
+      tool: lookup_order
 ```
 
 Supported assertion types:
@@ -125,6 +127,7 @@ Supported assertion types:
 - `metric_lte`
 - `metric_gte`
 - `no_tool_errors`
+- `tool_retried_after_error`
 
 `path` currently supports simple JSON paths such as `$.order_id` or
 `$.eligible_for_refund` over tool arguments/results.
@@ -136,6 +139,10 @@ Metric assertions compare trace-level run metrics. Supported metric names are
 `no_tool_errors` fails when the trace contains `tool_argument_error` or
 `tool_execution_error` events. Add `tool: tool_name` to scope the assertion to a
 single tool.
+
+`tool_retried_after_error` requires the named tool to have a tool argument or
+execution error, then a later successful `tool_call` for the same tool. Use it
+for scenarios that intentionally inject transient tool failures.
 
 ## Policies
 

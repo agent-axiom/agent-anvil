@@ -64,10 +64,11 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
             {"type": "metric_lte", "metric": "latency_ms", "value": 2500},
             {"type": "metric_gte", "metric": "total_tokens", "value": 100},
             {"type": "no_tool_errors"},
+            {"type": "tool_retried_after_error", "tool": "lookup_order"},
         ]
     )
 
-    assert len(expected.assertions) == 14
+    assert len(expected.assertions) == 15
     assert isinstance(expected.assertions[0], AssertionCheck)
     assert expected.assertions[7].values == ["UNKNOWN", "", None]
 
@@ -107,6 +108,11 @@ def test_metric_assertions_reject_negative_values() -> None:
         expected_with_assertions(
             [{"type": "metric_lte", "metric": "estimated_cost_usd", "value": -0.01}]
         )
+
+
+def test_tool_retried_after_error_assertion_requires_tool() -> None:
+    with pytest.raises(ValueError, match="missing required fields: tool"):
+        expected_with_assertions([{"type": "tool_retried_after_error"}])
 
 
 @pytest.mark.parametrize(
@@ -245,6 +251,44 @@ def test_metric_assertions_reject_negative_values() -> None:
             ],
             True,
             "assertion passed",
+        ),
+        (
+            {"type": "tool_retried_after_error", "tool": "lookup_order"},
+            [
+                {
+                    "type": "tool_execution_error",
+                    "tool_name": "lookup_order",
+                    "arguments": {"order_id": "ORD-123"},
+                    "error": "timeout",
+                },
+                {
+                    "type": "tool_call",
+                    "tool_name": "lookup_order",
+                    "arguments": {"order_id": "ORD-123"},
+                    "result": {"status": "found"},
+                },
+            ],
+            True,
+            "assertion passed",
+        ),
+        (
+            {"type": "tool_retried_after_error", "tool": "lookup_order"},
+            [
+                {
+                    "type": "tool_execution_error",
+                    "tool_name": "lookup_order",
+                    "arguments": {"order_id": "ORD-123"},
+                    "error": "timeout",
+                }
+            ],
+            False,
+            "lookup_order error was not followed by retry",
+        ),
+        (
+            {"type": "tool_retried_after_error", "tool": "lookup_order"},
+            [{"type": "tool_call", "tool_name": "lookup_order", "arguments": {}, "result": {}}],
+            False,
+            "lookup_order error was not observed",
         ),
     ],
 )

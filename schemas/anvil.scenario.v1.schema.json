@@ -123,7 +123,8 @@
             "final_output_not_contains",
             "metric_lte",
             "metric_gte",
-            "no_tool_errors"
+            "no_tool_errors",
+            "tool_retried_after_error"
           ],
           "title": "Type",
           "type": "string"
