@@ -171,6 +171,9 @@ submissions, and leaderboard indexes. See [Stable Contracts](contracts.md).
 
 ```bash
 uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
+uv run anvil pr-comment runs/latest \
+  --compare runs/latest/compare.json \
+  --out agent-anvil-pr-comment.md
 ```
 
 ## Paper Benchmark And Leaderboard Submissions

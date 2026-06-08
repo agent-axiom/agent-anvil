@@ -92,6 +92,93 @@ def test_generate_pr_comment_highlights_flaky_scenarios(tmp_path: Path) -> None:
     assert "- `refund_missing_order_id`: 1/2 trials passed (50.0%)" in comment
 
 
+def test_generate_pr_comment_includes_compare_delta(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        json.dumps(
+            {
+                "suite": "refund_agent_regression_suite",
+                "run_id": "run_test",
+                "summary": {
+                    "total_scenarios": 1,
+                    "total_trials": 1,
+                    "passed_trials": 0,
+                    "failed_trials": 1,
+                    "pass_rate": 0.0,
+                    "flaky_scenarios": [],
+                },
+                "grades": [
+                    {
+                        "scenario_id": "refund_missing_order_id",
+                        "trial": 1,
+                        "passed": False,
+                        "deterministic_passed": False,
+                        "semantic": {
+                            "passed": False,
+                            "score": 0.1,
+                            "failure_type": "premature_tool_execution",
+                            "severity": "high",
+                        },
+                        "trace_path": "runs/test/traces/refund_missing_order_id_trial_1.json",
+                        "deterministic_checks": [],
+                    }
+                ],
+                "clusters": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    compare_path = tmp_path / "compare.json"
+    compare_path.write_text(
+        json.dumps(
+            {
+                "baseline_pass_rate": 100.0,
+                "latest_pass_rate": 0.0,
+                "delta": -100.0,
+                "new_failures": [
+                    {
+                        "failure_type": "premature_tool_execution",
+                        "severity": "high",
+                        "baseline_count": 0,
+                        "latest_count": 1,
+                    }
+                ],
+                "resolved_failures": [],
+                "severity_changes": [],
+                "scenario_regressions": [
+                    {
+                        "scenario_id": "refund_missing_order_id",
+                        "baseline_pass_rate": 100.0,
+                        "latest_pass_rate": 0.0,
+                        "delta": -100.0,
+                    }
+                ],
+                "scenario_improvements": [],
+                "new_flaky_scenarios": [
+                    {
+                        "scenario_id": "refund_valid_order",
+                        "passed_trials": 1,
+                        "failed_trials": 1,
+                        "total_trials": 2,
+                        "pass_rate": 50.0,
+                    }
+                ],
+                "resolved_flaky_scenarios": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    comment = generate_pr_comment(run_dir, compare_path=compare_path)
+
+    assert "### Compared with baseline" in comment
+    assert "Pass rate: **100.0% -> 0.0% (-100.0%)**" in comment
+    assert "- New failure: `premature_tool_execution / high` 0 -> 1" in comment
+    assert "- Regressed scenario: `refund_missing_order_id` 100.0% -> 0.0%" in comment
+    assert "- Newly flaky: `refund_valid_order` 1/2 trials passed (50.0%)" in comment
+
+
 def test_write_pr_comment_and_cli(tmp_path: Path, scenario_file: Path) -> None:
     result = run_suite(
         scenario_file,
@@ -108,3 +195,31 @@ def test_write_pr_comment_and_cli(tmp_path: Path, scenario_file: Path) -> None:
     assert out.exists()
     assert cli_result.exit_code == 0
     assert f"Wrote {out}" in cli_result.stdout
+
+    compare_path = tmp_path / "compare.json"
+    compare_path.write_text(
+        json.dumps(
+            {
+                "baseline_pass_rate": 100.0,
+                "latest_pass_rate": result.pass_rate,
+                "delta": round(result.pass_rate - 100.0, 1),
+            }
+        ),
+        encoding="utf-8",
+    )
+    compare_out = tmp_path / "comment-with-compare.md"
+
+    compare_cli_result = CliRunner().invoke(
+        app,
+        [
+            "pr-comment",
+            str(result.run_dir),
+            "--out",
+            str(compare_out),
+            "--compare",
+            str(compare_path),
+        ],
+    )
+
+    assert compare_cli_result.exit_code == 0
+    assert "### Compared with baseline" in compare_out.read_text(encoding="utf-8")

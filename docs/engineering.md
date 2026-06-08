@@ -235,12 +235,16 @@ behavior and policy contract.
 
 ```bash
 uv run anvil pr-comment runs/latest --out agent-anvil-pr-comment.md
+uv run anvil pr-comment runs/latest \
+  --compare runs/latest/compare.json \
+  --out agent-anvil-pr-comment.md
 ```
 
-It includes pass rate, top failure cluster, examples, repair hints, and the first
-failing trace path. The composite action can generate this file with
-`pr-comment: "true"`. In `pull_request` workflows with `pull-requests: write`,
-`post-pr-comment: "true"` publishes it directly with `gh pr comment`.
+It includes pass rate, top failure cluster, examples, repair hints, the first
+failing trace path, and optional baseline-vs-latest compare deltas. The composite
+action can generate this file with `pr-comment: "true"`. In `pull_request`
+workflows with `pull-requests: write`, `post-pr-comment: "true"` publishes it
+directly with `gh pr comment`.
 
 ## Why This Is A System, Not A Prompt
 
