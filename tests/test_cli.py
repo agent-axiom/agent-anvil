@@ -546,6 +546,8 @@ def test_cli_compare_reports_resolved_failures(
     assert "Latest pass rate: 100.0%" in compare_result.stdout
     assert "Resolved failures:" in compare_result.stdout
     assert "- premature_tool_execution / high: 1 -> 0" in compare_result.stdout
+    assert "Scenario improvements:" in compare_result.stdout
+    assert "- refund_missing_order_id: 0.0% -> 100.0% (+100.0%)" in compare_result.stdout
 
 
 def test_cli_compare_reports_new_failures_and_scenario_regressions(tmp_path: Path) -> None:
