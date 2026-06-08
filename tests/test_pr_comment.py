@@ -254,6 +254,49 @@ def test_generate_pr_comment_warns_when_compare_artifact_is_malformed(tmp_path: 
     assert str(malformed_compare_path) in comment
 
 
+def test_generate_pr_comment_warns_when_versioned_compare_artifact_is_invalid(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "run_test"
+    run_dir.mkdir()
+    (run_dir / "results.json").write_text(
+        json.dumps(
+            {
+                "suite": "refund_agent_regression_suite",
+                "run_id": "run_test",
+                "summary": {
+                    "total_scenarios": 1,
+                    "total_trials": 1,
+                    "passed_trials": 1,
+                    "failed_trials": 0,
+                    "pass_rate": 100.0,
+                    "flaky_scenarios": [],
+                },
+                "grades": [],
+                "clusters": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    invalid_compare_path = tmp_path / "compare.json"
+    invalid_compare_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "anvil.compare.result.v1",
+                "baseline_pass_rate": 50.0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    comment = generate_pr_comment(run_dir, compare_path=invalid_compare_path)
+
+    assert "### Compared with baseline" in comment
+    assert "Compare artifact unavailable" in comment
+    assert "did not match anvil.compare.result.v1" in comment
+    assert "Pass rate: **50.0%" not in comment
+
+
 def test_write_pr_comment_and_cli(tmp_path: Path, scenario_file: Path) -> None:
     result = run_suite(
         scenario_file,
