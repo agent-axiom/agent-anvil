@@ -15,7 +15,7 @@ from anvil.conformance import (
     write_conformance_report,
 )
 from anvil.contracts import export_schema_contracts
-from anvil.doctor import render_doctor_report, run_doctor
+from anvil.doctor import render_doctor_json, render_doctor_report, run_doctor, write_doctor_json
 from anvil.fix import generate_fix_patch
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
@@ -158,6 +158,16 @@ DOCTOR_SKIP_CONFORMANCE_OPTION = typer.Option(
     False,
     "--skip-conformance",
     help="Skip active external-agent conformance checks.",
+)
+DOCTOR_JSON_OPTION = typer.Option(
+    False,
+    "--json",
+    help="Print the doctor report as JSON.",
+)
+DOCTOR_OUT_OPTION = typer.Option(
+    None,
+    "--out",
+    help="Write the doctor JSON report here.",
 )
 INIT_AGENT_COMMAND_OPTION = typer.Option(
     None,
@@ -493,6 +503,8 @@ def doctor(
     workflow: Path = DOCTOR_WORKFLOW_OPTION,
     max_steps: int = DOCTOR_MAX_STEPS_OPTION,
     skip_conformance: bool = DOCTOR_SKIP_CONFORMANCE_OPTION,
+    json_output: bool = DOCTOR_JSON_OPTION,
+    out: Path | None = DOCTOR_OUT_OPTION,
 ) -> None:
     report = run_doctor(
         scenario_file,
@@ -500,7 +512,14 @@ def doctor(
         max_steps=max_steps,
         skip_conformance=skip_conformance,
     )
-    typer.echo(render_doctor_report(report))
+    if out is not None:
+        write_doctor_json(report, out)
+    if json_output:
+        typer.echo(render_doctor_json(report), nl=False)
+    else:
+        typer.echo(render_doctor_report(report))
+        if out is not None:
+            typer.echo(f"Wrote doctor report: {_display_path(out)}")
     if not report.passed:
         raise typer.Exit(1)
 

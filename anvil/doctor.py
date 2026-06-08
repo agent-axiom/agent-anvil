@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from anvil.conformance import run_external_agent_conformance
 from anvil.scenario import ExternalAgentConfig, ScenarioSuite, load_scenario_file
@@ -47,6 +49,30 @@ def render_doctor_report(report: DoctorReport) -> str:
         check_status = "PASS" if check.passed else "FAIL"
         lines.append(f"- {check.name}: {check_status} - {check.message}")
     return "\n".join(lines)
+
+
+def render_doctor_json(report: DoctorReport) -> str:
+    return json.dumps(doctor_report_payload(report), indent=2) + "\n"
+
+
+def write_doctor_json(report: DoctorReport, out_path: Path) -> Path:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(render_doctor_json(report), encoding="utf-8")
+    return out_path
+
+
+def doctor_report_payload(report: DoctorReport) -> dict[str, Any]:
+    return {
+        "passed": report.passed,
+        "checks": [
+            {
+                "name": check.name,
+                "passed": check.passed,
+                "message": check.message,
+            }
+            for check in report.checks
+        ],
+    }
 
 
 def _load_suite(scenario_path: Path, checks: list[DoctorCheck]) -> ScenarioSuite | None:
