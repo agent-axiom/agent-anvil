@@ -272,6 +272,17 @@ def test_leaderboard_auto_pr_workflow_is_copy_pasteable() -> None:
     assert "docs/examples/leaderboard-auto-pr-workflow.yml" in leaderboard_doc
 
 
+def test_leaderboard_index_workflow_exports_verification_reports() -> None:
+    workflow = Path("docs/examples/leaderboard-index-workflow.yml").read_text(encoding="utf-8")
+    leaderboard_doc = Path("docs/leaderboard.md").read_text(encoding="utf-8")
+
+    assert "anvil leaderboard build submissions" in workflow
+    assert "anvil leaderboard verify-all submissions" in workflow
+    assert "--out github-run-verifications" in workflow
+    assert "github-run-verifications" in workflow
+    assert "Use `verify-all` in leaderboard maintainer CI" in leaderboard_doc
+
+
 def test_leaderboard_uvx_examples_pin_current_release() -> None:
     version = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"][
         "version"

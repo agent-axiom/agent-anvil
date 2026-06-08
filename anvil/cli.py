@@ -38,6 +38,7 @@ from anvil.leaderboard import (
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
     verify_leaderboard_github_run,
+    verify_leaderboard_github_runs,
 )
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools, snapshot_mcp_tools
@@ -393,6 +394,11 @@ LEADERBOARD_VERIFY_RUN_OUT_OPTION = typer.Option(
     None,
     "--out",
     help="Write the GitHub run verification report JSON here.",
+)
+LEADERBOARD_VERIFY_ALL_OUT_OPTION = typer.Option(
+    ...,
+    "--out",
+    help="Write one GitHub run verification report JSON file per submission here.",
 )
 LEADERBOARD_INDEX_OUT_OPTION = typer.Option(
     Path("leaderboard.csv"),
@@ -929,6 +935,22 @@ def leaderboard_verify_run(
     typer.echo(f"SHA: {report.github_sha}")
     typer.echo(f"Run: {report.github_run_url}")
     typer.echo(f"Evidence SHA-256: {report.evidence_sha256}")
+
+
+@leaderboard_app.command("verify-all")
+def leaderboard_verify_all(
+    submissions_dir: Path,
+    out: Path = LEADERBOARD_VERIFY_ALL_OUT_OPTION,
+) -> None:
+    try:
+        reports = verify_leaderboard_github_runs(submissions_dir, out_dir=out)
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    for report_path in reports:
+        typer.echo(f"Wrote GitHub run verification report: {_display_path(report_path)}")
+    typer.echo(f"Verified GitHub Actions runs: {len(reports)}")
 
 
 @leaderboard_app.command("inspect")
