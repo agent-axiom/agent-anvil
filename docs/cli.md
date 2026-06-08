@@ -14,10 +14,15 @@ uv run anvil run scenarios/refund_agent.yaml --no-redact
 uv run anvil report runs/latest
 uv run anvil summary runs/latest --github
 uv run anvil compare runs/baseline runs/latest
+uv run anvil compare runs/baseline runs/latest --json
 ```
 
 `anvil run` exits with code `1` when any trial fails, so it can fail CI on agent
 regressions.
+
+`anvil compare --json` emits pass-rate deltas, new/resolved failures, severity
+changes, scenario regressions, and scenario improvements as machine-readable
+JSON for CI bots and PR comments.
 
 ## Repair And Draft Scenario Helpers
 
