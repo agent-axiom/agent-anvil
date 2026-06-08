@@ -1,14 +1,28 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializeAsAny,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 TRACE_SCHEMA_VERSION = "anvil.trace.v1"
 TraceSchemaVersion = Literal["anvil.trace.v1"]
 TraceStatus = Literal["running", "completed", "failed"]
+
+
+class TraceArtifactError(ValueError):
+    pass
 
 
 class TraceStep(BaseModel):
@@ -154,3 +168,25 @@ class TraceRun(BaseModel):
 
     def tool_names(self) -> list[str]:
         return [str(step.get("tool_name")) for step in self.tool_calls()]
+
+
+def load_trace_artifact(path: str | Path) -> TraceRun:
+    selected_path = Path(path)
+    try:
+        payload = json.loads(selected_path.read_text(encoding="utf-8"))
+    except OSError as error:
+        msg = f"could not read trace artifact {selected_path}: {error}"
+        raise TraceArtifactError(msg) from error
+    except json.JSONDecodeError as error:
+        msg = f"could not parse trace artifact {selected_path} as JSON: {error}"
+        raise TraceArtifactError(msg) from error
+
+    if not isinstance(payload, dict):
+        msg = f"trace artifact {selected_path} did not contain a JSON object"
+        raise TraceArtifactError(msg)
+
+    try:
+        return TraceRun.model_validate(payload)
+    except ValidationError as error:
+        msg = f"trace artifact {selected_path} did not match {TRACE_SCHEMA_VERSION}: {error}"
+        raise TraceArtifactError(msg) from error

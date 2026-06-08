@@ -10,7 +10,9 @@ from anvil.trace import (
     AgentProtocolErrorStep,
     ModelCallStep,
     ToolCallStep,
+    TraceArtifactError,
     TraceRun,
+    load_trace_artifact,
 )
 
 
@@ -89,6 +91,61 @@ def test_trace_run_rejects_unknown_schema_version() -> None:
                 "final_output": "Done.",
             }
         )
+
+
+def test_load_trace_artifact_reads_valid_trace(tmp_path) -> None:
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text(
+        TraceRun(
+            run_id="run_20260501_001",
+            scenario_id="refund_valid_order",
+            trial=1,
+            input="Please refund order ORD-123.",
+            started_at=datetime(2026, 5, 1, 20, 0, tzinfo=UTC),
+            ended_at=datetime(2026, 5, 1, 20, 0, 4, tzinfo=UTC),
+            status="completed",
+            steps=[],
+            final_output="Done.",
+        ).model_dump_json(),
+        encoding="utf-8",
+    )
+
+    trace = load_trace_artifact(trace_path)
+
+    assert trace.schema_version == TRACE_SCHEMA_VERSION
+    assert trace.scenario_id == "refund_valid_order"
+
+
+def test_load_trace_artifact_rejects_malformed_json(tmp_path) -> None:
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(TraceArtifactError, match="could not parse trace artifact"):
+        load_trace_artifact(trace_path)
+
+
+def test_load_trace_artifact_rejects_invalid_schema(tmp_path) -> None:
+    trace_path = tmp_path / "trace.json"
+    trace_path.write_text(
+        """
+{
+  "schema_version": "anvil.trace.v999",
+  "run_id": "run_20260501_001",
+  "scenario_id": "refund_valid_order",
+  "trial": 1,
+  "input": "Please refund order ORD-123.",
+  "started_at": "2026-05-01T20:00:00Z",
+  "ended_at": "2026-05-01T20:00:04Z",
+  "status": "completed",
+  "steps": [],
+  "final_output": "Done."
+}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(TraceArtifactError, match=r"did not match anvil\.trace\.v1"):
+        load_trace_artifact(trace_path)
 
 
 def test_trace_steps_are_typed_but_dict_compatible(trace_steps: list[dict[str, object]]) -> None:

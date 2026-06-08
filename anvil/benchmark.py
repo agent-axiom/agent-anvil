@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from anvil.grading import DeterministicCheck, SemanticGrader
 from anvil.outcomes import OutcomeCategory, classify_grade
 from anvil.runner import default_semantic_grader, run_suite
-from anvil.trace import TraceRun
+from anvil.trace import TraceRun, load_trace_artifact
 
 
 class BenchmarkOutput(BaseModel):
@@ -595,7 +595,7 @@ def _display_path(path: Path) -> Path:
 
 
 def _load_trace(path: str | Path) -> TraceRun:
-    return TraceRun.model_validate_json(Path(path).read_text(encoding="utf-8"))
+    return load_trace_artifact(path)
 
 
 def _outcome_counts(trials: list[BenchmarkTrialResult]) -> dict[str, int]:

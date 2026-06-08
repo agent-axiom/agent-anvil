@@ -120,3 +120,22 @@ def test_cli_trace_export_and_import(tmp_path: Path) -> None:
     assert export_result.exit_code == 0
     assert import_result.exit_code == 0
     assert (imported / "traces" / "refund_valid_order_trial_1.json").exists()
+
+
+def test_cli_trace_export_prints_clean_error_for_invalid_trace_artifact(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "run"
+    (run_dir / "traces").mkdir(parents=True)
+    (run_dir / "traces" / "bad-trace.json").write_text("{not json", encoding="utf-8")
+    out = tmp_path / "openai-trace.json"
+
+    result = CliRunner().invoke(
+        app,
+        ["trace", "export", str(run_dir), "--format", "openai-trace", "--out", str(out)],
+    )
+
+    assert result.exit_code == 1
+    assert "Invalid trace artifact:" in result.stderr
+    assert "could not parse trace artifact" in result.stderr
+    assert "Traceback" not in result.stderr
