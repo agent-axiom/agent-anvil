@@ -6,7 +6,7 @@ from typing import Any
 import yaml
 
 from anvil.redaction import redact_payload
-from anvil.trace import TraceRun
+from anvil.trace import TraceRun, load_trace_artifact
 
 DEFAULT_AGENT = "examples.support_agent"
 DESTRUCTIVE_TOOL_PREFIXES = ("issue_", "delete_", "transfer_", "refund_", "charge_")
@@ -14,7 +14,7 @@ UNKNOWN_ARGUMENT_VALUES = {"", "unknown", "none", "null", "n/a", "missing"}
 
 
 def load_trace(path: str | Path) -> TraceRun:
-    return TraceRun.model_validate_json(Path(path).read_text(encoding="utf-8"))
+    return load_trace_artifact(path)
 
 
 def write_learned_scenario(

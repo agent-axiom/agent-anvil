@@ -57,6 +57,7 @@ from anvil.scenario import ExternalAgentConfig
 from anvil.storage import ResultsArtifactError
 from anvil.summary import generate_github_summary
 from anvil.terminal import print_run_summary
+from anvil.trace import TraceArtifactError
 from anvil.trace_bridge import export_openai_trace, import_openai_trace
 
 app = typer.Typer(help="Agent Anvil CI-first eval harness.")
@@ -86,6 +87,15 @@ def _handle_results_artifact_errors() -> Iterator[None]:
         yield
     except ResultsArtifactError as error:
         typer.echo(f"Invalid results artifact: {error}", err=True)
+        raise typer.Exit(1) from error
+
+
+@contextmanager
+def _handle_trace_artifact_errors() -> Iterator[None]:
+    try:
+        yield
+    except TraceArtifactError as error:
+        typer.echo(f"Invalid trace artifact: {error}", err=True)
         raise typer.Exit(1) from error
 
 
@@ -1021,7 +1031,8 @@ def learn(
         except ValueError as error:
             typer.echo(str(error), err=True)
             raise typer.Exit(1) from error
-        trace = load_trace(imported_trace_path)
+        with _handle_trace_artifact_errors():
+            trace = load_trace(imported_trace_path)
         learned_path = write_learned_scenario(
             trace,
             out_path=out,
@@ -1034,7 +1045,8 @@ def learn(
         return
 
     trace_path = Path(trace_file)
-    trace = load_trace(trace_path)
+    with _handle_trace_artifact_errors():
+        trace = load_trace(trace_path)
     learned_path = write_learned_scenario(
         trace,
         out_path=out,
@@ -1274,7 +1286,8 @@ def trace_export(
     if trace_format != "openai-trace":
         typer.echo("Only --format openai-trace is supported.", err=True)
         raise typer.Exit(2)
-    output_path = export_openai_trace(run_dir, out_path=out)
+    with _handle_trace_artifact_errors():
+        output_path = export_openai_trace(run_dir, out_path=out)
     typer.echo(f"Wrote {output_path}")
 
 

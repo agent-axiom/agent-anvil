@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from anvil.storage import write_trace
-from anvil.trace import TraceRun, TraceStatus
+from anvil.trace import TraceRun, TraceStatus, load_trace_artifact
 
 OPENAI_TRACE_FORMAT = "openai-trace"
 
@@ -14,7 +14,7 @@ OPENAI_TRACE_FORMAT = "openai-trace"
 def export_openai_trace(run_dir: str | Path, *, out_path: str | Path) -> Path:
     selected_run_dir = Path(run_dir)
     traces = [
-        _export_trace(TraceRun.model_validate_json(path.read_text(encoding="utf-8")))
+        _export_trace(load_trace_artifact(path))
         for path in sorted((selected_run_dir / "traces").glob("*.json"))
     ]
     payload = {

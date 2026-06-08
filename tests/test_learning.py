@@ -91,6 +91,19 @@ def test_cli_learn_writes_scenario_file(tmp_path: Path) -> None:
     assert suite.scenarios[0].expected.should_not_call_tools == ["issue_refund"]
 
 
+def test_cli_learn_prints_clean_error_for_invalid_trace_artifact(tmp_path: Path) -> None:
+    trace_path = tmp_path / "bad-trace.json"
+    trace_path.write_text("{not json", encoding="utf-8")
+    out_path = tmp_path / "learned.yaml"
+
+    result = CliRunner().invoke(app, ["learn", str(trace_path), "--out", str(out_path)])
+
+    assert result.exit_code == 1
+    assert "Invalid trace artifact:" in result.stderr
+    assert "could not parse trace artifact" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_cli_learn_jsonl_ingests_trace_and_writes_scenario(tmp_path: Path) -> None:
     source = tmp_path / "agent_failure.jsonl"
     source.write_text(
