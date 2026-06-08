@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "DoctorCheckPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hint"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "passed",
+        "message"
+      ],
+      "title": "DoctorCheckPayload",
+      "type": "object"
+    }
+  },
+  "$id": "anvil.doctor.report.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Agent Anvil doctor diagnostic report schema.",
+  "properties": {
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/DoctorCheckPayload"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": "anvil.doctor.report.v1",
+      "default": "anvil.doctor.report.v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "passed",
+    "checks"
+  ],
+  "title": "DoctorReportPayload",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "anvil.doctor.report.v1"
+}
