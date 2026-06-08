@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 from anvil.cli import app
 from anvil.doctor import DoctorReportPayload
 from anvil.leaderboard import LeaderboardIndex, LeaderboardSubmission
+from anvil.runner import CompareResultPayload
 from anvil.scenario import ScenarioSuite
 from anvil.trace import TraceRun
 
@@ -16,6 +17,7 @@ CONTRACT_SCHEMAS = {
     "anvil.trace.v1": "anvil.trace.v1.schema.json",
     "anvil.scenario.v1": "anvil.scenario.v1.schema.json",
     "anvil.doctor.report.v1": "anvil.doctor.report.v1.schema.json",
+    "anvil.compare.result.v1": "anvil.compare.result.v1.schema.json",
     "agent-anvil.leaderboard.v1": "agent-anvil.leaderboard.v1.schema.json",
     "agent-anvil.leaderboard.index.v1": "agent-anvil.leaderboard.index.v1.schema.json",
 }
@@ -67,6 +69,9 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     doctor = DoctorReportPayload.model_validate_json(
         Path("fixtures/contracts/doctor-report-valid.json").read_text(encoding="utf-8")
     )
+    compare = CompareResultPayload.model_validate_json(
+        Path("fixtures/contracts/compare-result-valid.json").read_text(encoding="utf-8")
+    )
 
     assert valid_trace.schema_version == "anvil.trace.v1"
     assert failed_trace.status == "failed"
@@ -74,6 +79,8 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     assert scenario.name == "contract_scenario_suite"
     assert doctor.schema_version == "anvil.doctor.report.v1"
     assert doctor.checks[0].name == "scenario_file"
+    assert compare.schema_version == "anvil.compare.result.v1"
+    assert compare.new_failures[0].failure_type == "invalid_tool_args"
     assert submission.schema_version == "agent-anvil.leaderboard.v1"
     assert index.schema_version == "agent-anvil.leaderboard.index.v1"
 
@@ -89,11 +96,13 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "contracts.md" in artifacts
     for text in (readme, artifacts):
         assert "schemas/anvil.trace.v1.schema.json" in text
+    assert "schemas/anvil.compare.result.v1.schema.json" in artifacts
 
     assert "uv run anvil schema export --out schemas" in contracts
     assert "uv run anvil schema export --out schemas" in cli_doc
     assert "fixtures/contracts/trace-valid.json" in contracts
     assert "fixtures/contracts/doctor-report-valid.json" in contracts
+    assert "fixtures/contracts/compare-result-valid.json" in contracts
     assert "External Agent Conformance" in contracts
     assert "compatible HTTP endpoint agent" in contracts
     assert "anvil.schema.export.v1" in contracts

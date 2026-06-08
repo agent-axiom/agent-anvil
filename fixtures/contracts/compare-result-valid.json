@@ -1,0 +1,63 @@
+{
+  "schema_version": "anvil.compare.result.v1",
+  "baseline_pass_rate": 50.0,
+  "latest_pass_rate": 75.0,
+  "delta": 25.0,
+  "new_failures": [
+    {
+      "failure_type": "invalid_tool_args",
+      "severity": "medium",
+      "baseline_count": 0,
+      "latest_count": 1
+    }
+  ],
+  "resolved_failures": [
+    {
+      "failure_type": "premature_tool_execution",
+      "severity": "high",
+      "baseline_count": 2,
+      "latest_count": 0
+    }
+  ],
+  "severity_changes": [
+    {
+      "failure_type": "tool_omission",
+      "baseline_severity": "high",
+      "latest_severity": "low"
+    }
+  ],
+  "scenario_regressions": [
+    {
+      "scenario_id": "refund_valid_order",
+      "baseline_pass_rate": 100.0,
+      "latest_pass_rate": 50.0,
+      "delta": -50.0
+    }
+  ],
+  "scenario_improvements": [
+    {
+      "scenario_id": "refund_missing_order_id",
+      "baseline_pass_rate": 0.0,
+      "latest_pass_rate": 100.0,
+      "delta": 100.0
+    }
+  ],
+  "new_flaky_scenarios": [
+    {
+      "scenario_id": "refund_valid_order",
+      "passed_trials": 1,
+      "failed_trials": 1,
+      "total_trials": 2,
+      "pass_rate": 50.0
+    }
+  ],
+  "resolved_flaky_scenarios": [
+    {
+      "scenario_id": "refund_missing_order_id",
+      "passed_trials": 1,
+      "failed_trials": 1,
+      "total_trials": 2,
+      "pass_rate": 50.0
+    }
+  ]
+}

@@ -4,7 +4,9 @@ import os
 from dataclasses import dataclass
 from inspect import Parameter, signature
 from pathlib import Path
-from typing import cast
+from typing import Any, Literal, cast
+
+from pydantic import BaseModel, ConfigDict
 
 from anvil.agent import AgentRunner, load_agent_runner
 from anvil.clustering import FailureCluster, cluster_failures
@@ -27,6 +29,8 @@ from anvil.storage import (
     write_trace,
 )
 from anvil.trace import TraceRun
+
+COMPARE_RESULT_SCHEMA_VERSION = "anvil.compare.result.v1"
 
 
 @dataclass(frozen=True)
@@ -77,6 +81,58 @@ class CompareResult:
     scenario_improvements: list[ScenarioRegression]
     new_flaky_scenarios: list[FlakyScenario]
     resolved_flaky_scenarios: list[FlakyScenario]
+
+
+class FailureDeltaPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    failure_type: str
+    severity: str
+    baseline_count: int
+    latest_count: int
+
+
+class SeverityChangePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    failure_type: str
+    baseline_severity: str
+    latest_severity: str
+
+
+class ScenarioRegressionPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scenario_id: str
+    baseline_pass_rate: float
+    latest_pass_rate: float
+    delta: float
+
+
+class FlakyScenarioPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scenario_id: str
+    passed_trials: int
+    failed_trials: int
+    total_trials: int
+    pass_rate: float
+
+
+class CompareResultPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["anvil.compare.result.v1"] = COMPARE_RESULT_SCHEMA_VERSION
+    baseline_pass_rate: float
+    latest_pass_rate: float
+    delta: float
+    new_failures: list[FailureDeltaPayload]
+    resolved_failures: list[FailureDeltaPayload]
+    severity_changes: list[SeverityChangePayload]
+    scenario_regressions: list[ScenarioRegressionPayload]
+    scenario_improvements: list[ScenarioRegressionPayload]
+    new_flaky_scenarios: list[FlakyScenarioPayload]
+    resolved_flaky_scenarios: list[FlakyScenarioPayload]
 
 
 class OpenAIKeyMissingError(RuntimeError):
@@ -253,6 +309,41 @@ def compare_runs(baseline_dir: str | Path, latest_dir: str | Path) -> CompareRes
             scenario for scenario in baseline_flaky if scenario.scenario_id not in latest_flaky_ids
         ],
     )
+
+
+def compare_result_payload(result: CompareResult) -> dict[str, Any]:
+    payload = CompareResultPayload(
+        baseline_pass_rate=result.baseline_pass_rate,
+        latest_pass_rate=result.latest_pass_rate,
+        delta=result.delta,
+        new_failures=[
+            FailureDeltaPayload.model_validate(delta.__dict__) for delta in result.new_failures
+        ],
+        resolved_failures=[
+            FailureDeltaPayload.model_validate(delta.__dict__) for delta in result.resolved_failures
+        ],
+        severity_changes=[
+            SeverityChangePayload.model_validate(change.__dict__)
+            for change in result.severity_changes
+        ],
+        scenario_regressions=[
+            ScenarioRegressionPayload.model_validate(regression.__dict__)
+            for regression in result.scenario_regressions
+        ],
+        scenario_improvements=[
+            ScenarioRegressionPayload.model_validate(improvement.__dict__)
+            for improvement in result.scenario_improvements
+        ],
+        new_flaky_scenarios=[
+            FlakyScenarioPayload.model_validate(scenario.to_json())
+            for scenario in result.new_flaky_scenarios
+        ],
+        resolved_flaky_scenarios=[
+            FlakyScenarioPayload.model_validate(scenario.to_json())
+            for scenario in result.resolved_flaky_scenarios
+        ],
+    )
+    return payload.model_dump(mode="json")
 
 
 def _run_agent(agent: AgentRunner, **kwargs: object) -> TraceRun:

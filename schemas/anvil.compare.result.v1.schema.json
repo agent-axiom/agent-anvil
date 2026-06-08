@@ -1,0 +1,209 @@
+{
+  "$defs": {
+    "FailureDeltaPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_count": {
+          "title": "Baseline Count",
+          "type": "integer"
+        },
+        "failure_type": {
+          "title": "Failure Type",
+          "type": "string"
+        },
+        "latest_count": {
+          "title": "Latest Count",
+          "type": "integer"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "failure_type",
+        "severity",
+        "baseline_count",
+        "latest_count"
+      ],
+      "title": "FailureDeltaPayload",
+      "type": "object"
+    },
+    "FlakyScenarioPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "failed_trials": {
+          "title": "Failed Trials",
+          "type": "integer"
+        },
+        "pass_rate": {
+          "title": "Pass Rate",
+          "type": "number"
+        },
+        "passed_trials": {
+          "title": "Passed Trials",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "total_trials": {
+          "title": "Total Trials",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "passed_trials",
+        "failed_trials",
+        "total_trials",
+        "pass_rate"
+      ],
+      "title": "FlakyScenarioPayload",
+      "type": "object"
+    },
+    "ScenarioRegressionPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_pass_rate": {
+          "title": "Baseline Pass Rate",
+          "type": "number"
+        },
+        "delta": {
+          "title": "Delta",
+          "type": "number"
+        },
+        "latest_pass_rate": {
+          "title": "Latest Pass Rate",
+          "type": "number"
+        },
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "baseline_pass_rate",
+        "latest_pass_rate",
+        "delta"
+      ],
+      "title": "ScenarioRegressionPayload",
+      "type": "object"
+    },
+    "SeverityChangePayload": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_severity": {
+          "title": "Baseline Severity",
+          "type": "string"
+        },
+        "failure_type": {
+          "title": "Failure Type",
+          "type": "string"
+        },
+        "latest_severity": {
+          "title": "Latest Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "failure_type",
+        "baseline_severity",
+        "latest_severity"
+      ],
+      "title": "SeverityChangePayload",
+      "type": "object"
+    }
+  },
+  "$id": "anvil.compare.result.v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Agent Anvil compare result schema for CI and PR-comment integrations.",
+  "properties": {
+    "baseline_pass_rate": {
+      "title": "Baseline Pass Rate",
+      "type": "number"
+    },
+    "delta": {
+      "title": "Delta",
+      "type": "number"
+    },
+    "latest_pass_rate": {
+      "title": "Latest Pass Rate",
+      "type": "number"
+    },
+    "new_failures": {
+      "items": {
+        "$ref": "#/$defs/FailureDeltaPayload"
+      },
+      "title": "New Failures",
+      "type": "array"
+    },
+    "new_flaky_scenarios": {
+      "items": {
+        "$ref": "#/$defs/FlakyScenarioPayload"
+      },
+      "title": "New Flaky Scenarios",
+      "type": "array"
+    },
+    "resolved_failures": {
+      "items": {
+        "$ref": "#/$defs/FailureDeltaPayload"
+      },
+      "title": "Resolved Failures",
+      "type": "array"
+    },
+    "resolved_flaky_scenarios": {
+      "items": {
+        "$ref": "#/$defs/FlakyScenarioPayload"
+      },
+      "title": "Resolved Flaky Scenarios",
+      "type": "array"
+    },
+    "scenario_improvements": {
+      "items": {
+        "$ref": "#/$defs/ScenarioRegressionPayload"
+      },
+      "title": "Scenario Improvements",
+      "type": "array"
+    },
+    "scenario_regressions": {
+      "items": {
+        "$ref": "#/$defs/ScenarioRegressionPayload"
+      },
+      "title": "Scenario Regressions",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "anvil.compare.result.v1",
+      "default": "anvil.compare.result.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "severity_changes": {
+      "items": {
+        "$ref": "#/$defs/SeverityChangePayload"
+      },
+      "title": "Severity Changes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "baseline_pass_rate",
+    "latest_pass_rate",
+    "delta",
+    "new_failures",
+    "resolved_failures",
+    "severity_changes",
+    "scenario_regressions",
+    "scenario_improvements",
+    "new_flaky_scenarios",
+    "resolved_flaky_scenarios"
+  ],
+  "title": "CompareResultPayload",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "anvil.compare.result.v1"
+}
