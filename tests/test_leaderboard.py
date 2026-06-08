@@ -345,6 +345,71 @@ def test_export_leaderboard_submission_marks_github_actions_trust(
     assert submission.submitter.commit_sha == "abc123"
 
 
+@pytest.mark.parametrize(
+    ("field", "match"),
+    [
+        ("github_run_url", "verification.github_run_url"),
+        ("github_repository", "verification.github_repository"),
+        ("github_sha", "verification.github_sha"),
+    ],
+)
+def test_validate_leaderboard_submission_rejects_github_actions_without_ci_metadata(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    match: str,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    out_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=out_path,
+        agent_name="Support Agent",
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    payload["verification"]["trust_level"] = "github_actions"
+    payload["verification"]["github_run_url"] = (
+        "https://github.com/agent-axiom/agent-anvil/actions/runs/12345"
+    )
+    payload["verification"]["github_repository"] = "agent-axiom/agent-anvil"
+    payload["verification"]["github_sha"] = "abc123"
+    payload["verification"][field] = ""
+    out_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(LeaderboardValidationError, match=match):
+        validate_leaderboard_submission(out_path, verify_artifacts=False)
+
+
+def test_validate_leaderboard_submission_rejects_github_actions_run_url_repo_mismatch(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    out_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=out_path,
+        agent_name="Support Agent",
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    payload["verification"]["trust_level"] = "github_actions"
+    payload["verification"]["github_run_url"] = "https://github.com/other/repo/actions/runs/12345"
+    payload["verification"]["github_repository"] = "agent-axiom/agent-anvil"
+    payload["verification"]["github_sha"] = "abc123"
+    out_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(LeaderboardValidationError, match=r"verification\.github_run_url"):
+        validate_leaderboard_submission(out_path, verify_artifacts=False)
+
+
 def test_build_leaderboard_index_writes_ranked_csv_and_json(
     scenario_file: Path,
     tmp_path: Path,

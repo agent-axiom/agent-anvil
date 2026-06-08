@@ -255,6 +255,7 @@ def validate_leaderboard_submission(
     submission = LeaderboardSubmission.model_validate_json(
         selected_submission_path.read_text(encoding="utf-8")
     )
+    _validate_trust_metadata(submission)
     if require_trust_level and submission.verification.trust_level != require_trust_level:
         raise LeaderboardValidationError(
             "trust level mismatch: "
@@ -273,6 +274,28 @@ def validate_leaderboard_submission(
         _validate_artifact_hashes(submission)
 
     return submission
+
+
+def _validate_trust_metadata(submission: LeaderboardSubmission) -> None:
+    verification = submission.verification
+    if verification.trust_level != "github_actions":
+        return
+
+    required_fields = {
+        "verification.github_run_url": verification.github_run_url,
+        "verification.github_repository": verification.github_repository,
+        "verification.github_sha": verification.github_sha,
+    }
+    missing = [field for field, value in required_fields.items() if not value.strip()]
+    if missing:
+        raise LeaderboardValidationError("github_actions trust requires " + ", ".join(missing))
+
+    expected_repo_path = f"/{verification.github_repository}/actions/runs/"
+    if expected_repo_path not in verification.github_run_url:
+        raise LeaderboardValidationError(
+            "github_actions trust requires verification.github_run_url to point to "
+            f"verification.github_repository ({verification.github_repository})"
+        )
 
 
 def inspect_leaderboard_submission(

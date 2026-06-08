@@ -93,6 +93,8 @@ leaderboard should label it as self-reported.
 `github_actions` means the submission was generated in GitHub Actions and
 contains `verification.github_run_url`, `verification.github_repository`, and
 `verification.github_sha` assembled from GitHub environment variables. The live
+Agent Anvil validator rejects `github_actions` rows that omit those fields or
+whose run URL does not point at the declared repository. The live
 leaderboard repository verifies that the run exists, completed successfully, and
 matches the submitted repository/SHA through the GitHub API. This is not
 cryptographic proof that the agent is honest, but it gives reviewers a public
