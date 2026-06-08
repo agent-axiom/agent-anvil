@@ -305,6 +305,7 @@ uv run anvil leaderboard export docs/paper/results.json \
   --repo-url "https://github.com/acme/my-agent"
 uv run anvil leaderboard validate leaderboard_submission.json
 uv run anvil leaderboard inspect leaderboard_submission.json --out leaderboard_inspection.md
+uv run anvil leaderboard verify-run leaderboard_submission.json
 uv run anvil leaderboard reproduce leaderboard_submission.json --out reproduce_leaderboard_submission.sh
 uv run anvil leaderboard build submissions --out leaderboard.csv --json-out leaderboard.json
 ```
@@ -324,7 +325,8 @@ when you want the same run to open a reviewable pull request against the public
 leaderboard repository with a generated PR body and provenance checks.
 Maintainer and leaderboard CI jobs can add `--github-run` to validate that the
 declared public GitHub Actions run exists, completed successfully, and matches
-the submitted repository/SHA.
+the submitted repository/SHA, or use `anvil leaderboard verify-run` for a single
+submitted `github_actions` row.
 
 ## Why AI Was Necessary
 

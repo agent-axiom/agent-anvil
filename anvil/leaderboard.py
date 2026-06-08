@@ -540,6 +540,15 @@ def generate_leaderboard_reproduction_script(
     )
 
 
+def verify_leaderboard_github_run(submission_path: str | Path) -> LeaderboardSubmission:
+    return validate_leaderboard_submission(
+        submission_path,
+        verify_artifacts=False,
+        require_trust_level="github_actions",
+        verify_github_run=True,
+    )
+
+
 def build_leaderboard_index(
     submissions_dir: str | Path,
     *,

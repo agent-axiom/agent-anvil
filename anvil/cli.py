@@ -37,6 +37,7 @@ from anvil.leaderboard import (
     inspect_leaderboard_submission,
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
+    verify_leaderboard_github_run,
 )
 from anvil.learning import load_trace, write_learned_scenario
 from anvil.mcp_audit import audit_mcp_tools, load_mcp_tools, snapshot_mcp_tools
@@ -890,6 +891,22 @@ def leaderboard_validate(
             "verified" if submission.verification.trust_level == "github_actions" else "not checked"
         )
         typer.echo(f"GitHub run: {status}")
+
+
+@leaderboard_app.command("verify-run")
+def leaderboard_verify_run(submission_file: Path) -> None:
+    try:
+        submission = verify_leaderboard_github_run(submission_file)
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    verification = submission.verification
+    typer.echo("GitHub Actions run is verified")
+    typer.echo(f"Repository: {verification.github_repository}")
+    typer.echo(f"SHA: {verification.github_sha}")
+    typer.echo(f"Run: {verification.github_run_url}")
+    typer.echo(f"Evidence SHA-256: {verification.evidence_sha256}")
 
 
 @leaderboard_app.command("inspect")
