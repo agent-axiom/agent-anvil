@@ -80,11 +80,19 @@
           "default": null,
           "title": "Tool"
         },
+        "tools": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tools",
+          "type": "array"
+        },
         "type": {
           "enum": [
             "tool_called",
             "tool_not_called",
             "tool_called_before",
+            "tool_sequence",
             "min_tool_calls",
             "max_tool_calls",
             "forbidden_arg_value",

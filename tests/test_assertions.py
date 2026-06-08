@@ -33,6 +33,7 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
             {"type": "tool_called", "tool": "lookup_order"},
             {"type": "tool_not_called", "tool": "issue_refund"},
             {"type": "tool_called_before", "before": "issue_refund", "after": "lookup_order"},
+            {"type": "tool_sequence", "tools": ["lookup_order", "issue_refund"]},
             {"type": "min_tool_calls", "tool": "lookup_order", "count": 1},
             {"type": "max_tool_calls", "tool": "lookup_order", "count": 1},
             {
@@ -52,9 +53,9 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
         ]
     )
 
-    assert len(expected.assertions) == 9
+    assert len(expected.assertions) == 10
     assert isinstance(expected.assertions[0], AssertionCheck)
-    assert expected.assertions[5].values == ["UNKNOWN", "", None]
+    assert expected.assertions[6].values == ["UNKNOWN", "", None]
 
 
 @pytest.mark.parametrize(
@@ -80,6 +81,24 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
             ],
             False,
             "lookup_order was not called before issue_refund",
+        ),
+        (
+            {"type": "tool_sequence", "tools": ["lookup_order", "issue_refund"]},
+            [
+                {"type": "tool_call", "tool_name": "lookup_order", "arguments": {}, "result": {}},
+                {"type": "tool_call", "tool_name": "issue_refund", "arguments": {}, "result": {}},
+            ],
+            True,
+            "assertion passed",
+        ),
+        (
+            {"type": "tool_sequence", "tools": ["lookup_order", "issue_refund"]},
+            [
+                {"type": "tool_call", "tool_name": "issue_refund", "arguments": {}, "result": {}},
+                {"type": "tool_call", "tool_name": "lookup_order", "arguments": {}, "result": {}},
+            ],
+            False,
+            "tool sequence expected lookup_order -> issue_refund, got issue_refund -> lookup_order",
         ),
         (
             {"type": "min_tool_calls", "tool": "lookup_order", "count": 2},
