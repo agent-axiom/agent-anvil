@@ -37,6 +37,12 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
             {"type": "min_tool_calls", "tool": "lookup_order", "count": 1},
             {"type": "max_tool_calls", "tool": "lookup_order", "count": 1},
             {
+                "type": "tool_argument_matches",
+                "tool": "issue_refund",
+                "path": "$.order_id",
+                "equals": "ORD-123",
+            },
+            {
                 "type": "forbidden_arg_value",
                 "tool": "issue_refund",
                 "path": "$.order_id",
@@ -53,9 +59,9 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
         ]
     )
 
-    assert len(expected.assertions) == 10
+    assert len(expected.assertions) == 11
     assert isinstance(expected.assertions[0], AssertionCheck)
-    assert expected.assertions[6].values == ["UNKNOWN", "", None]
+    assert expected.assertions[7].values == ["UNKNOWN", "", None]
 
 
 @pytest.mark.parametrize(
@@ -114,6 +120,24 @@ def test_assertion_schema_accepts_v1_tool_and_output_assertions() -> None:
             ],
             False,
             "lookup_order called 2 times, max is 1",
+        ),
+        (
+            {
+                "type": "tool_argument_matches",
+                "tool": "issue_refund",
+                "path": "$.order_id",
+                "equals": "ORD-123",
+            },
+            [
+                {
+                    "type": "tool_call",
+                    "tool_name": "issue_refund",
+                    "arguments": {"order_id": "UNKNOWN"},
+                    "result": {},
+                }
+            ],
+            False,
+            "issue_refund argument $.order_id expected 'ORD-123', got 'UNKNOWN'",
         ),
         (
             {

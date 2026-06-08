@@ -95,6 +95,7 @@
             "tool_sequence",
             "min_tool_calls",
             "max_tool_calls",
+            "tool_argument_matches",
             "forbidden_arg_value",
             "tool_result_matches",
             "final_output_contains",
