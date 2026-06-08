@@ -165,6 +165,11 @@ DOCTOR_SKIP_CONFORMANCE_OPTION = typer.Option(
     "--skip-conformance",
     help="Skip active external-agent conformance checks.",
 )
+DOCTOR_SKIP_WORKFLOW_OPTION = typer.Option(
+    False,
+    "--skip-workflow",
+    help="Skip GitHub Actions workflow checks for local-only diagnostics.",
+)
 DOCTOR_JSON_OPTION = typer.Option(
     False,
     "--json",
@@ -514,6 +519,7 @@ def doctor(
     workflow: Path = DOCTOR_WORKFLOW_OPTION,
     max_steps: int = DOCTOR_MAX_STEPS_OPTION,
     skip_conformance: bool = DOCTOR_SKIP_CONFORMANCE_OPTION,
+    skip_workflow: bool = DOCTOR_SKIP_WORKFLOW_OPTION,
     json_output: bool = DOCTOR_JSON_OPTION,
     out: Path | None = DOCTOR_OUT_OPTION,
     github_summary: bool = DOCTOR_GITHUB_SUMMARY_OPTION,
@@ -523,6 +529,7 @@ def doctor(
         workflow_path=workflow,
         max_steps=max_steps,
         skip_conformance=skip_conformance,
+        skip_workflow=skip_workflow,
     )
     if out is not None:
         write_doctor_json(report, out)
