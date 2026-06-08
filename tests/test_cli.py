@@ -6,7 +6,9 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from anvil.cli import app
+from anvil.grading import GradeResult, SemanticGrade
 from anvil.scenario import ExternalAgentConfig, load_scenario_file
+from anvil.storage import write_results
 
 
 def test_cli_init_writes_starter_scenario_and_workflow(tmp_path: Path) -> None:
@@ -637,3 +639,73 @@ def test_cli_compare_can_emit_json(
     assert payload["resolved_failures"][0]["failure_type"] == "premature_tool_execution"
     assert payload["scenario_improvements"][0]["scenario_id"] == "refund_missing_order_id"
     assert "Baseline pass rate" not in compare_result.stdout
+
+
+def test_cli_compare_json_includes_flaky_scenario_deltas(tmp_path: Path) -> None:
+    baseline_dir = tmp_path / "baseline"
+    latest_dir = tmp_path / "latest"
+    baseline_dir.mkdir()
+    latest_dir.mkdir()
+    write_results(
+        run_dir=baseline_dir,
+        suite_name="suite",
+        run_id="baseline",
+        total_scenarios=2,
+        clusters=[],
+        grades=[
+            _grade("newly_flaky", 1, True),
+            _grade("newly_flaky", 2, True),
+            _grade("stabilized", 1, True),
+            _grade("stabilized", 2, False),
+        ],
+    )
+    write_results(
+        run_dir=latest_dir,
+        suite_name="suite",
+        run_id="latest",
+        total_scenarios=2,
+        clusters=[],
+        grades=[
+            _grade("newly_flaky", 1, True),
+            _grade("newly_flaky", 2, False),
+            _grade("stabilized", 1, True),
+            _grade("stabilized", 2, True),
+        ],
+    )
+
+    compare_result = CliRunner().invoke(
+        app,
+        ["compare", str(baseline_dir), str(latest_dir), "--json"],
+    )
+
+    assert compare_result.exit_code == 0
+    payload = json.loads(compare_result.stdout)
+    assert payload["new_flaky_scenarios"] == [
+        {
+            "scenario_id": "newly_flaky",
+            "passed_trials": 1,
+            "failed_trials": 1,
+            "total_trials": 2,
+            "pass_rate": 50.0,
+        }
+    ]
+    assert payload["resolved_flaky_scenarios"] == [
+        {
+            "scenario_id": "stabilized",
+            "passed_trials": 1,
+            "failed_trials": 1,
+            "total_trials": 2,
+            "pass_rate": 50.0,
+        }
+    ]
+
+
+def _grade(scenario_id: str, trial: int, passed: bool) -> GradeResult:
+    return GradeResult(
+        scenario_id=scenario_id,
+        trial=trial,
+        passed=passed,
+        deterministic_passed=passed,
+        semantic=SemanticGrade(passed=passed, score=1.0 if passed else 0.0),
+        trace_path=f"runs/test/traces/{scenario_id}_trial_{trial}.json",
+    )

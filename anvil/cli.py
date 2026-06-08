@@ -24,6 +24,7 @@ from anvil.doctor import (
     write_doctor_json,
 )
 from anvil.fix import generate_fix_patch
+from anvil.flakiness import FlakyScenario
 from anvil.fuzzing import fuzz_scenario_file
 from anvil.ingest import ingest_jsonl_trace
 from anvil.init import DEFAULT_SCENARIO_PATH, DEFAULT_WORKFLOW_PATH, initialize_project
@@ -1061,6 +1062,11 @@ def compare(
     typer.echo(f"Delta: {result.delta:+.1f}%")
     _print_failure_deltas("New failures", result.new_failures)
     _print_failure_deltas("Resolved failures", result.resolved_failures)
+    _print_flaky_scenario_deltas("New flaky scenarios", result.new_flaky_scenarios)
+    _print_flaky_scenario_deltas(
+        "Resolved flaky scenarios",
+        result.resolved_flaky_scenarios,
+    )
 
     if result.severity_changes:
         typer.echo("Severity changes:")
@@ -1272,6 +1278,18 @@ def _print_failure_deltas(title: str, deltas: list[FailureDelta]) -> None:
         typer.echo(
             f"- {delta.failure_type} / {delta.severity}: "
             f"{delta.baseline_count} -> {delta.latest_count}"
+        )
+
+
+def _print_flaky_scenario_deltas(title: str, scenarios: list[FlakyScenario]) -> None:
+    if not scenarios:
+        typer.echo(f"{title}: none")
+        return
+    typer.echo(f"{title}:")
+    for scenario in scenarios:
+        typer.echo(
+            f"- {scenario.scenario_id}: {scenario.passed_trials}/{scenario.total_trials} "
+            f"trials passed ({scenario.pass_rate:.1f}%)"
         )
 
 
