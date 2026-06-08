@@ -23,6 +23,19 @@ steps, final output, status, and metrics. Legacy traces without a
 Compatible v1 changes may add optional fields. Incompatible changes require a
 new schema version and migration notes.
 
+## Compare Result Schema
+
+Machine-readable compare artifacts use:
+
+```json
+{
+  "schema_version": "anvil.compare.result.v1"
+}
+```
+
+This schema is intended for CI bots and PR comments that consume
+`anvil compare --json` or `anvil compare --out compare.json`.
+
 ## Leaderboard Submission Schema
 
 Leaderboard submissions use:

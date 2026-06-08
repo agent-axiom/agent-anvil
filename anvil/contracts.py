@@ -14,6 +14,7 @@ from anvil.leaderboard import (
     LeaderboardIndex,
     LeaderboardSubmission,
 )
+from anvil.runner import COMPARE_RESULT_SCHEMA_VERSION, CompareResultPayload
 from anvil.scenario import ScenarioSuite
 from anvil.trace import TRACE_SCHEMA_VERSION, TraceRun
 
@@ -48,6 +49,12 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         filename="anvil.doctor.report.v1.schema.json",
         model=DoctorReportPayload,
         description="Agent Anvil doctor diagnostic report schema.",
+    ),
+    SchemaContract(
+        schema_id=COMPARE_RESULT_SCHEMA_VERSION,
+        filename="anvil.compare.result.v1.schema.json",
+        model=CompareResultPayload,
+        description="Agent Anvil compare result schema for CI and PR-comment integrations.",
     ),
     SchemaContract(
         schema_id=LEADERBOARD_SCHEMA_VERSION,

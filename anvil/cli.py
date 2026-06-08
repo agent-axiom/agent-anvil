@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict
 from pathlib import Path
 
 import typer
@@ -46,6 +45,7 @@ from anvil.repair import generate_repair_plan
 from anvil.runner import (
     FailureDelta,
     OpenAIKeyMissingError,
+    compare_result_payload,
     compare_runs,
     default_semantic_grader,
     regenerate_report,
@@ -1064,7 +1064,7 @@ def compare(
     out: Path | None = COMPARE_OUT_OPTION,
 ) -> None:
     result = compare_runs(baseline_dir, latest_dir)
-    json_payload = json.dumps(asdict(result), indent=2, sort_keys=True)
+    json_payload = json.dumps(compare_result_payload(result), indent=2, sort_keys=True)
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(f"{json_payload}\n", encoding="utf-8")

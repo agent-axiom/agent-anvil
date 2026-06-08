@@ -635,6 +635,7 @@ def test_cli_compare_can_emit_json(
 
     assert compare_result.exit_code == 0
     payload = json.loads(compare_result.stdout)
+    assert payload["schema_version"] == "anvil.compare.result.v1"
     assert payload["latest_pass_rate"] == 100.0
     assert payload["resolved_failures"][0]["failure_type"] == "premature_tool_execution"
     assert payload["scenario_improvements"][0]["scenario_id"] == "refund_missing_order_id"
@@ -671,6 +672,7 @@ def test_cli_compare_can_write_json_artifact(tmp_path: Path) -> None:
 
     assert compare_result.exit_code == 0
     payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "anvil.compare.result.v1"
     assert payload["baseline_pass_rate"] == 100.0
     assert payload["latest_pass_rate"] == 0.0
     assert payload["scenario_regressions"][0]["scenario_id"] == "scenario"
@@ -717,6 +719,7 @@ def test_cli_compare_json_includes_flaky_scenario_deltas(tmp_path: Path) -> None
 
     assert compare_result.exit_code == 0
     payload = json.loads(compare_result.stdout)
+    assert payload["schema_version"] == "anvil.compare.result.v1"
     assert payload["new_flaky_scenarios"] == [
         {
             "scenario_id": "newly_flaky",
