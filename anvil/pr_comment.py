@@ -91,12 +91,15 @@ def _display_trace_path(trace_path: str) -> str:
 def _compare_delta_lines(compare_path: str | Path | None) -> list[str]:
     if compare_path is None:
         return []
+    selected_compare_path = Path(compare_path)
     try:
-        payload = json.loads(Path(compare_path).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
+        payload = json.loads(selected_compare_path.read_text(encoding="utf-8"))
+    except OSError:
+        return _compare_unavailable_lines(selected_compare_path, "could not be read")
+    except json.JSONDecodeError:
+        return _compare_unavailable_lines(selected_compare_path, "could not be parsed as JSON")
     if not isinstance(payload, dict):
-        return []
+        return _compare_unavailable_lines(selected_compare_path, "did not contain a JSON object")
 
     compare = cast(dict[str, object], payload)
     lines: list[str] = []
@@ -113,6 +116,10 @@ def _compare_delta_lines(compare_path: str | Path | None) -> list[str]:
     lines.extend(_flaky_delta_lines("Newly flaky", compare.get("new_flaky_scenarios")))
     lines.extend(_flaky_delta_lines("Stabilized", compare.get("resolved_flaky_scenarios")))
     return lines
+
+
+def _compare_unavailable_lines(compare_path: Path, reason: str) -> list[str]:
+    return [f"- Compare artifact unavailable: `{compare_path}` {reason}."]
 
 
 def _failure_delta_lines(label: str, items: object) -> list[str]:

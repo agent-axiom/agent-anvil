@@ -182,6 +182,9 @@ uv run anvil pr-comment runs/latest \
   --out agent-anvil-pr-comment.md
 ```
 
+When `--compare` is set, malformed or missing compare artifacts are surfaced in
+the generated PR comment instead of being silently ignored.
+
 ## Paper Benchmark And Leaderboard Submissions
 
 ```bash
