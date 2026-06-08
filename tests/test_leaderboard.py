@@ -627,6 +627,91 @@ def test_cli_leaderboard_verify_run_reports_verified_github_actions_run(
     assert "Run: https://github.com/agent-axiom/agent-anvil/actions/runs/12345" in result.stdout
 
 
+def test_cli_leaderboard_verify_run_can_print_machine_readable_json(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["leaderboard", "verify-run", str(submission_path), "--json"])
+
+    assert result.exit_code == 0
+    report = json.loads(result.stdout)
+    assert report["schema_version"] == "agent-anvil.leaderboard.github_run_verification.v1"
+    assert report["status"] == "verified"
+    assert report["submission_path"] == str(submission_path)
+    assert report["agent_name"] == "Support Agent"
+    assert report["benchmark_name"] == "paper_benchmark"
+    assert report["trust_level"] == "github_actions"
+    assert report["github_repository"] == "agent-axiom/agent-anvil"
+    assert report["github_sha"] == "abc123"
+    assert (
+        report["github_run_url"] == "https://github.com/agent-axiom/agent-anvil/actions/runs/12345"
+    )
+    assert report["evidence_sha256"]
+    assert report["generated_at"]
+    assert report["generated_by"].startswith("agent-anvil/")
+    assert "GitHub Actions run is verified" not in result.stdout
+
+
+def test_cli_leaderboard_verify_run_can_write_verification_report(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    report_path = tmp_path / "github_run_verification.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "verify-run",
+            str(submission_path),
+            "--out",
+            str(report_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert f"Wrote GitHub run verification report: {report_path}" in result.stdout
+    assert "GitHub Actions run is verified" in result.stdout
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["schema_version"] == "agent-anvil.leaderboard.github_run_verification.v1"
+    assert report["status"] == "verified"
+    assert report["submission_path"] == str(submission_path)
+    assert report["github_repository"] == "agent-axiom/agent-anvil"
+
+
 def test_cli_leaderboard_verify_run_rejects_self_reported_submission(
     scenario_file: Path,
     tmp_path: Path,

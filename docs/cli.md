@@ -200,7 +200,9 @@ uv run anvil leaderboard validate leaderboard_submission.json
 uv run anvil leaderboard validate leaderboard_submission.json \
   --require-trust github_actions \
   --github-run
-uv run anvil leaderboard verify-run leaderboard_submission.json
+uv run anvil leaderboard verify-run leaderboard_submission.json \
+  --out github_run_verification.json
+uv run anvil leaderboard verify-run leaderboard_submission.json --json
 uv run anvil leaderboard inspect leaderboard_submission.json \
   --out leaderboard_inspection.md
 uv run anvil leaderboard reproduce leaderboard_submission.json \
@@ -222,7 +224,8 @@ row points to a completed successful GitHub Actions run for the submitted
 repository/SHA.
 `leaderboard verify-run` is the single-submission maintainer check for the same
 GitHub Actions trust evidence; it skips local artifact hashes and requires a
-`github_actions` row.
+`github_actions` row. Add `--json` for machine-readable stdout or `--out` to
+persist a signed-off verification artifact in CI.
 `leaderboard inspect` renders a reviewable trust report with benchmark hashes,
 artifact status, warnings, and a reproducibility checklist for maintainers or
 community reviewers.
