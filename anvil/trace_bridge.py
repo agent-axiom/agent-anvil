@@ -110,9 +110,21 @@ def _import_trace(item: dict[str, Any], *, run_id: str) -> TraceRun:
         started_at=_parse_datetime(item.get("started_at")) or now,
         ended_at=_parse_datetime(item.get("ended_at")) or now,
         status=_trace_status(item.get("status")),
-        steps=[_import_event(event) for event in item.get("events", [])],
+        steps=[_import_event(event) for event in _event_payloads(item.get("events", []))],
         final_output=item.get("final_output"),
     )
+
+
+def _event_payloads(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        raise OpenAITracePayloadError("trace payload events must be a list")
+    return [_event_payload(item) for item in value]
+
+
+def _event_payload(value: object) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise OpenAITracePayloadError("each trace event must be a JSON object")
+    return cast("dict[str, Any]", value)
 
 
 def _import_event(event: dict[str, Any]) -> dict[str, Any]:

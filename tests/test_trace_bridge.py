@@ -137,6 +137,44 @@ def test_import_openai_trace_rejects_non_object_trace_items(tmp_path: Path) -> N
         import_openai_trace(source, out_dir=tmp_path / "imported")
 
 
+def test_import_openai_trace_rejects_non_list_events(tmp_path: Path) -> None:
+    source = tmp_path / "openai-trace.json"
+    source.write_text(
+        json.dumps(
+            {
+                "format": "openai-trace",
+                "traces": [{"scenario_id": "bad_events", "events": "not-a-list"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        OpenAITracePayloadError,
+        match="trace payload events must be a list",
+    ):
+        import_openai_trace(source, out_dir=tmp_path / "imported")
+
+
+def test_import_openai_trace_rejects_non_object_events(tmp_path: Path) -> None:
+    source = tmp_path / "openai-trace.json"
+    source.write_text(
+        json.dumps(
+            {
+                "format": "openai-trace",
+                "traces": [{"scenario_id": "bad_events", "events": ["not-an-object"]}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        OpenAITracePayloadError,
+        match="each trace event must be a JSON object",
+    ):
+        import_openai_trace(source, out_dir=tmp_path / "imported")
+
+
 def test_cli_trace_export_and_import(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     (run_dir / "traces").mkdir(parents=True)
