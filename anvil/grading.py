@@ -254,6 +254,7 @@ def _assertion_failure(
             assertion.after,
             tool_names,
         ),
+        "tool_sequence": lambda: _assert_tool_sequence(assertion.tools, tool_names),
         "min_tool_calls": lambda: _assert_min_tool_calls(
             assertion.tool,
             assertion.count,
@@ -304,6 +305,15 @@ def _assert_tool_called_before(
     if after_index >= before_index:
         return f"{after} was not called before {before}"
     return None
+
+
+def _assert_tool_sequence(expected_tools: list[str], tool_names: list[str]) -> str | None:
+    if tool_names == expected_tools:
+        return None
+    return (
+        "tool sequence expected "
+        f"{_format_tool_sequence(expected_tools)}, got {_format_tool_sequence(tool_names)}"
+    )
 
 
 def _assert_max_tool_calls(
@@ -373,6 +383,10 @@ def _first_tool_index(tool_names: list[str], tool_name: str | None) -> int | Non
         return tool_names.index(tool_name)
     except ValueError:
         return None
+
+
+def _format_tool_sequence(tool_names: list[str]) -> str:
+    return " -> ".join(tool_names) if tool_names else "<none>"
 
 
 def _json_path_get(value: Any, path: str) -> Any:

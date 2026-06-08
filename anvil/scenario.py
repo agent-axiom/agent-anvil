@@ -29,6 +29,7 @@ AssertionType = Literal[
     "tool_called",
     "tool_not_called",
     "tool_called_before",
+    "tool_sequence",
     "min_tool_calls",
     "max_tool_calls",
     "forbidden_arg_value",
@@ -43,6 +44,7 @@ class AssertionCheck(BaseModel):
 
     type: AssertionType
     tool: str | None = None
+    tools: list[str] = Field(default_factory=list)
     before: str | None = None
     after: str | None = None
     count: int | None = Field(default=None, ge=0)
@@ -57,6 +59,7 @@ class AssertionCheck(BaseModel):
             "tool_called": ("tool",),
             "tool_not_called": ("tool",),
             "tool_called_before": ("before", "after"),
+            "tool_sequence": ("tools",),
             "min_tool_calls": ("tool", "count"),
             "max_tool_calls": ("tool", "count"),
             "forbidden_arg_value": ("tool", "path"),
@@ -65,7 +68,7 @@ class AssertionCheck(BaseModel):
             "final_output_not_contains": ("text",),
         }
         missing = [
-            field for field in required_by_type[self.type] if getattr(self, field) in (None, "")
+            field for field in required_by_type[self.type] if getattr(self, field) in (None, "", [])
         ]
         if missing:
             joined = ", ".join(missing)
