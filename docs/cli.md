@@ -246,6 +246,10 @@ uv run anvil leaderboard inspect leaderboard_submission.json \
   --out leaderboard_inspection.md
 uv run anvil leaderboard reproduce leaderboard_submission.json \
   --out reproduce_leaderboard_submission.sh
+uv run anvil leaderboard validate-rerun \
+  submissions/support-agent.json \
+  maintainer_reruns/support-agent.json \
+  --github-run
 uv run anvil leaderboard pr leaderboard_submission.json \
   --leaderboard-repo ../agent-anvil-leaderboard \
   --pr-body-out agent-anvil-leaderboard-pr.md
@@ -280,6 +284,10 @@ community reviewers.
 submitted repository at the claimed commit, reruns the benchmark, exports a new
 submission, and compares the evidence hash plus headline metrics. Review the
 script before executing it because it runs the submitted agent repository.
+`leaderboard validate-rerun` checks one maintainer rerun attestation against the
+original accepted submission. Add `--github-run` when maintainer CI should also
+verify the attestation's public GitHub Actions rerun URL, status, repository,
+and SHA.
 `leaderboard pr` validates the compact submission, writes it under
 `submissions/<agent-name>.json` in a local checkout of the public submissions
 repository, can write a review-ready PR body with provenance evidence, and

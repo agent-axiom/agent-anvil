@@ -42,6 +42,7 @@ from anvil.leaderboard import (
     inspect_leaderboard_submission,
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
+    validate_maintainer_rerun_attestation,
     verify_leaderboard_github_run,
     verify_leaderboard_github_runs,
 )
@@ -1539,6 +1540,30 @@ def leaderboard_attest_rerun(
     typer.echo(f"Wrote maintainer rerun attestation: {_display_path(out)}")
     typer.echo(f"Original evidence SHA-256: {attestation.original_evidence_sha256}")
     typer.echo(f"Rerun evidence SHA-256: {attestation.rerun_evidence_sha256}")
+
+
+@leaderboard_app.command("validate-rerun")
+def leaderboard_validate_rerun(
+    original_submission: Path,
+    attestation: Path,
+    verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
+) -> None:
+    try:
+        validated = validate_maintainer_rerun_attestation(
+            original_submission_path=original_submission,
+            attestation_path=attestation,
+            verify_github_run=verify_github_run,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo("Maintainer rerun attestation: verified")
+    typer.echo(f"Agent: {validated.agent_name}")
+    typer.echo(f"Benchmark: {validated.benchmark_name}")
+    typer.echo(f"Original evidence SHA-256: {validated.original_evidence_sha256}")
+    typer.echo(f"Rerun evidence SHA-256: {validated.rerun_evidence_sha256}")
+    typer.echo(f"GitHub run: {validated.github_run_url}")
 
 
 @leaderboard_app.command("build")

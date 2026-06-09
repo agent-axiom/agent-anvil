@@ -1446,6 +1446,81 @@ def test_create_maintainer_rerun_attestation_writes_verified_overlay(
     assert index.rows[0].trust_level == "maintainer_rerun"
 
 
+def test_validate_maintainer_rerun_attestation_accepts_verified_overlay(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    original_path = tmp_path / "submissions" / "support-agent.json"
+    rerun_path = tmp_path / "rerun-support-agent.json"
+    original = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=original_path,
+        agent_name="Support Agent",
+    )
+    shutil.copyfile(original_path, rerun_path)
+    attestation_path = tmp_path / "maintainer_reruns" / "support-agent.json"
+    create_maintainer_rerun_attestation(
+        original_submission_path=original_path,
+        rerun_submission_path=rerun_path,
+        out_path=attestation_path,
+        github_run_url="https://github.com/agent-axiom/agent-anvil/actions/runs/98765",
+    )
+
+    attestation = leaderboard_module.validate_maintainer_rerun_attestation(
+        original_submission_path=original_path,
+        attestation_path=attestation_path,
+    )
+
+    assert attestation.status == "verified"
+    assert attestation.original_evidence_sha256 == original.verification.evidence_sha256
+
+
+def test_cli_leaderboard_validate_rerun_reports_verified_attestation(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    original_path = tmp_path / "submissions" / "support-agent.json"
+    rerun_path = tmp_path / "rerun-support-agent.json"
+    original = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=original_path,
+        agent_name="Support Agent",
+    )
+    shutil.copyfile(original_path, rerun_path)
+    attestation_path = tmp_path / "maintainer_reruns" / "support-agent.json"
+    create_maintainer_rerun_attestation(
+        original_submission_path=original_path,
+        rerun_submission_path=rerun_path,
+        out_path=attestation_path,
+        github_run_url="https://github.com/agent-axiom/agent-anvil/actions/runs/98765",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "validate-rerun",
+            str(original_path),
+            str(attestation_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Maintainer rerun attestation: verified" in result.output
+    assert f"Original evidence SHA-256: {original.verification.evidence_sha256}" in result.output
+
+
 def test_create_maintainer_rerun_attestation_rejects_metric_mismatch(
     scenario_file: Path,
     tmp_path: Path,
