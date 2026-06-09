@@ -883,6 +883,88 @@ def _github_run_verification_report(
     )
 
 
+def create_maintainer_rerun_attestation(
+    *,
+    original_submission_path: str | Path,
+    rerun_submission_path: str | Path,
+    out_path: str | Path,
+    github_run_url: str,
+    github_repository: str = "",
+    github_sha: str = "",
+    notes: str = "",
+) -> LeaderboardMaintainerRerun:
+    selected_original_path = Path(original_submission_path)
+    selected_rerun_path = Path(rerun_submission_path)
+    selected_out_path = Path(out_path)
+    original = validate_leaderboard_submission(
+        selected_original_path,
+        verify_artifacts=False,
+    )
+    rerun = validate_leaderboard_submission(
+        selected_rerun_path,
+        verify_artifacts=False,
+    )
+    _validate_rerun_submission_matches_original(
+        original=original,
+        rerun=rerun,
+        rerun_path=selected_rerun_path,
+    )
+    attestation = LeaderboardMaintainerRerun(
+        schema_version=LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION,
+        status="verified",
+        original_evidence_sha256=original.verification.evidence_sha256,
+        rerun_evidence_sha256=rerun.verification.evidence_sha256,
+        agent_name=original.submitter.agent_name,
+        benchmark_name=original.benchmark.name,
+        total_trials=original.metrics.total_trials,
+        final_answer_pass_rate=original.metrics.final_answer_pass_rate,
+        trace_aware_pass_rate=original.metrics.trace_aware_pass_rate,
+        github_run_url=github_run_url,
+        github_repository=github_repository,
+        github_sha=github_sha,
+        generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        generated_by=f"agent-anvil/{_anvil_version()}",
+        notes=notes,
+    )
+    _validate_maintainer_rerun_attestation(
+        attestation,
+        original,
+        attestation_path=selected_out_path,
+    )
+    selected_out_path.parent.mkdir(parents=True, exist_ok=True)
+    selected_out_path.write_text(attestation.model_dump_json(indent=2), encoding="utf-8")
+    return attestation
+
+
+def _validate_rerun_submission_matches_original(
+    *,
+    original: LeaderboardSubmission,
+    rerun: LeaderboardSubmission,
+    rerun_path: Path,
+) -> None:
+    expected_fields: dict[str, object] = {
+        "agent_name": original.submitter.agent_name,
+        "benchmark_name": original.benchmark.name,
+        "total_trials": original.metrics.total_trials,
+        "final_answer_pass_rate": original.metrics.final_answer_pass_rate,
+        "trace_aware_pass_rate": original.metrics.trace_aware_pass_rate,
+    }
+    actual_fields: dict[str, object] = {
+        "agent_name": rerun.submitter.agent_name,
+        "benchmark_name": rerun.benchmark.name,
+        "total_trials": rerun.metrics.total_trials,
+        "final_answer_pass_rate": rerun.metrics.final_answer_pass_rate,
+        "trace_aware_pass_rate": rerun.metrics.trace_aware_pass_rate,
+    }
+    for field_name, expected_value in expected_fields.items():
+        actual_value = actual_fields[field_name]
+        if actual_value != expected_value:
+            raise LeaderboardValidationError(
+                f"maintainer rerun {field_name} mismatch in {rerun_path}: "
+                f"expected {expected_value!r}, got {actual_value!r}"
+            )
+
+
 def _load_maintainer_rerun_attestations(
     maintainer_reruns_dir: str | Path | None,
 ) -> dict[str, tuple[Path, LeaderboardMaintainerRerun]]:

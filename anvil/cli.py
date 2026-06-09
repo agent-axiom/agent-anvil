@@ -36,6 +36,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     audit_leaderboard_submissions,
     build_leaderboard_index,
+    create_maintainer_rerun_attestation,
     export_leaderboard_submission,
     generate_leaderboard_reproduction_script,
     inspect_leaderboard_submission,
@@ -403,6 +404,26 @@ LEADERBOARD_MAINTAINER_RERUNS_OPTION = typer.Option(
     None,
     "--maintainer-reruns",
     help="Directory of maintainer rerun attestation JSON files to overlay onto rows.",
+)
+LEADERBOARD_ATTEST_RERUN_OUT_OPTION = typer.Option(
+    ...,
+    "--out",
+    help="Write the maintainer rerun attestation JSON here.",
+)
+LEADERBOARD_ATTEST_RERUN_GITHUB_RUN_URL_OPTION = typer.Option(
+    ...,
+    "--github-run-url",
+    help="Public GitHub Actions run URL for the maintainer rerun.",
+)
+LEADERBOARD_ATTEST_RERUN_GITHUB_REPOSITORY_OPTION = typer.Option(
+    "",
+    "--github-repository",
+    help="GitHub repository for the maintainer rerun, such as OWNER/REPO.",
+)
+LEADERBOARD_ATTEST_RERUN_GITHUB_SHA_OPTION = typer.Option(
+    "",
+    "--github-sha",
+    help="Commit SHA used by the maintainer rerun.",
 )
 LEADERBOARD_VERIFY_RUN_JSON_OPTION = typer.Option(
     False,
@@ -1490,6 +1511,34 @@ def leaderboard_reproduce(
 
     typer.echo(f"Wrote leaderboard reproduction script: {_display_path(script.path)}")
     typer.echo("Review before executing; the script clones and runs the submitted agent repo.")
+
+
+@leaderboard_app.command("attest-rerun")
+def leaderboard_attest_rerun(
+    original_submission: Path,
+    rerun_submission: Path,
+    out: Path = LEADERBOARD_ATTEST_RERUN_OUT_OPTION,
+    github_run_url: str = LEADERBOARD_ATTEST_RERUN_GITHUB_RUN_URL_OPTION,
+    github_repository: str = LEADERBOARD_ATTEST_RERUN_GITHUB_REPOSITORY_OPTION,
+    github_sha: str = LEADERBOARD_ATTEST_RERUN_GITHUB_SHA_OPTION,
+    notes: str = LEADERBOARD_NOTES_OPTION,
+) -> None:
+    try:
+        attestation = create_maintainer_rerun_attestation(
+            original_submission_path=original_submission,
+            rerun_submission_path=rerun_submission,
+            out_path=out,
+            github_run_url=github_run_url,
+            github_repository=github_repository,
+            github_sha=github_sha,
+            notes=notes,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"Wrote maintainer rerun attestation: {_display_path(out)}")
+    typer.echo(f"Original evidence SHA-256: {attestation.original_evidence_sha256}")
+    typer.echo(f"Rerun evidence SHA-256: {attestation.rerun_evidence_sha256}")
 
 
 @leaderboard_app.command("build")

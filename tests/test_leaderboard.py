@@ -16,6 +16,7 @@ from anvil.leaderboard import (
     LeaderboardValidationError,
     audit_leaderboard_submissions,
     build_leaderboard_index,
+    create_maintainer_rerun_attestation,
     export_leaderboard_submission,
     generate_leaderboard_reproduction_script,
     inspect_leaderboard_submission,
@@ -1287,6 +1288,127 @@ def test_cli_leaderboard_build_applies_maintainer_rerun_attestations(
     assert result.exit_code == 0
     payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["rows"][0]["trust_level"] == "maintainer_rerun"
+
+
+def test_create_maintainer_rerun_attestation_writes_verified_overlay(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    original_path = submissions_dir / "support-agent.json"
+    rerun_path = tmp_path / "rerun-support-agent.json"
+    original = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=original_path,
+        agent_name="Support Agent",
+    )
+    shutil.copyfile(original_path, rerun_path)
+    attestation_path = tmp_path / "maintainer_reruns" / "support-agent.json"
+
+    attestation = create_maintainer_rerun_attestation(
+        original_submission_path=original_path,
+        rerun_submission_path=rerun_path,
+        out_path=attestation_path,
+        github_run_url="https://github.com/agent-axiom/agent-anvil/actions/runs/98765",
+        github_repository="agent-axiom/agent-anvil",
+        github_sha="abc123",
+        notes="sandboxed maintainer rerun",
+    )
+
+    payload = json.loads(attestation_path.read_text(encoding="utf-8"))
+    assert attestation.schema_version == "agent-anvil.leaderboard.maintainer_rerun.v1"
+    assert payload["status"] == "verified"
+    assert payload["original_evidence_sha256"] == original.verification.evidence_sha256
+    assert payload["rerun_evidence_sha256"] == original.verification.evidence_sha256
+    assert payload["github_run_url"].endswith("/actions/runs/98765")
+    assert payload["notes"] == "sandboxed maintainer rerun"
+
+    index = build_leaderboard_index(
+        submissions_dir,
+        maintainer_reruns_dir=attestation_path.parent,
+    )
+    assert index.rows[0].trust_level == "maintainer_rerun"
+
+
+def test_create_maintainer_rerun_attestation_rejects_metric_mismatch(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    original_path = tmp_path / "original.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=original_path,
+        agent_name="Support Agent",
+    )
+    better_results = tmp_path / "paper" / "better-results.json"
+    _write_better_result(tmp_path / "paper" / "results.json", better_results)
+    rerun_path = tmp_path / "rerun.json"
+    export_leaderboard_submission(
+        results_json=better_results,
+        manifest_path=manifest_path,
+        out_path=rerun_path,
+        agent_name="Support Agent",
+    )
+
+    with pytest.raises(LeaderboardValidationError, match="trace_aware_pass_rate"):
+        create_maintainer_rerun_attestation(
+            original_submission_path=original_path,
+            rerun_submission_path=rerun_path,
+            out_path=tmp_path / "maintainer_reruns" / "support-agent.json",
+            github_run_url="https://github.com/agent-axiom/agent-anvil/actions/runs/98765",
+        )
+
+
+def test_cli_leaderboard_attest_rerun_writes_attestation(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    original_path = tmp_path / "original.json"
+    rerun_path = tmp_path / "rerun.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=original_path,
+        agent_name="Support Agent",
+    )
+    shutil.copyfile(original_path, rerun_path)
+    out_path = tmp_path / "maintainer_reruns" / "support-agent.json"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "attest-rerun",
+            str(original_path),
+            str(rerun_path),
+            "--out",
+            str(out_path),
+            "--github-run-url",
+            "https://github.com/agent-axiom/agent-anvil/actions/runs/98765",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Wrote maintainer rerun attestation:" in result.stdout
+    assert out_path.exists()
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "agent-anvil.leaderboard.maintainer_rerun.v1"
 
 
 def test_build_leaderboard_index_rejects_duplicate_evidence_hash(
