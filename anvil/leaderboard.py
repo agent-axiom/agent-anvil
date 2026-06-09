@@ -29,6 +29,7 @@ LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION = (
     "agent-anvil.leaderboard.github_run_verification.v1"
 )
 LEADERBOARD_AUDIT_SCHEMA_VERSION = "agent-anvil.leaderboard.audit.v1"
+LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION = "agent-anvil.leaderboard.maintainer_rerun.v1"
 
 
 class LeaderboardSubmitter(BaseModel):
@@ -154,6 +155,26 @@ class LeaderboardGithubRunVerification(BaseModel):
     evidence_sha256: str
     generated_at: str
     generated_by: str
+
+
+class LeaderboardMaintainerRerun(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["agent-anvil.leaderboard.maintainer_rerun.v1"]
+    status: Literal["verified"]
+    original_evidence_sha256: str = Field(min_length=1)
+    rerun_evidence_sha256: str = Field(min_length=1)
+    agent_name: str = Field(min_length=1)
+    benchmark_name: str = Field(min_length=1)
+    total_trials: int
+    final_answer_pass_rate: float
+    trace_aware_pass_rate: float
+    github_run_url: str = Field(min_length=1)
+    github_repository: str = ""
+    github_sha: str = ""
+    generated_at: str
+    generated_by: str
+    notes: str = ""
 
 
 class LeaderboardAuditSummary(BaseModel):
@@ -862,6 +883,91 @@ def _github_run_verification_report(
     )
 
 
+def _load_maintainer_rerun_attestations(
+    maintainer_reruns_dir: str | Path | None,
+) -> dict[str, tuple[Path, LeaderboardMaintainerRerun]]:
+    if maintainer_reruns_dir is None:
+        return {}
+    selected_dir = Path(maintainer_reruns_dir)
+    if not selected_dir.exists():
+        raise LeaderboardValidationError(f"maintainer reruns directory missing: {selected_dir}")
+    files = sorted(path for path in selected_dir.rglob("*.json") if path.is_file())
+    attestations: dict[str, tuple[Path, LeaderboardMaintainerRerun]] = {}
+    for path in files:
+        try:
+            attestation = LeaderboardMaintainerRerun.model_validate_json(
+                path.read_text(encoding="utf-8")
+            )
+        except (OSError, ValidationError) as error:
+            raise LeaderboardValidationError(
+                f"invalid maintainer rerun attestation at {path}: {error}"
+            ) from error
+        evidence_hash = attestation.original_evidence_sha256
+        if evidence_hash in attestations:
+            previous_path, _ = attestations[evidence_hash]
+            raise LeaderboardValidationError(
+                "duplicate maintainer rerun attestation for evidence hash "
+                f"{evidence_hash}: {path} and {previous_path}"
+            )
+        attestations[evidence_hash] = (path, attestation)
+    return attestations
+
+
+def _validate_maintainer_rerun_attestation(
+    attestation: LeaderboardMaintainerRerun,
+    submission: LeaderboardSubmission,
+    *,
+    attestation_path: Path,
+) -> None:
+    expected_hash = submission.verification.evidence_sha256
+    if attestation.original_evidence_sha256 != expected_hash:
+        raise LeaderboardValidationError(
+            f"maintainer rerun original_evidence_sha256 mismatch at {attestation_path}: "
+            f"expected {expected_hash}, got {attestation.original_evidence_sha256}"
+        )
+    expected_fields: dict[str, object] = {
+        "agent_name": submission.submitter.agent_name,
+        "benchmark_name": submission.benchmark.name,
+        "total_trials": submission.metrics.total_trials,
+        "final_answer_pass_rate": submission.metrics.final_answer_pass_rate,
+        "trace_aware_pass_rate": submission.metrics.trace_aware_pass_rate,
+    }
+    for field_name, expected_value in expected_fields.items():
+        actual_value = getattr(attestation, field_name)
+        if actual_value != expected_value:
+            raise LeaderboardValidationError(
+                f"maintainer rerun {field_name} mismatch at {attestation_path}: "
+                f"expected {expected_value!r}, got {actual_value!r}"
+            )
+    _validate_maintainer_rerun_run_url(attestation.github_run_url, attestation_path)
+
+
+def _validate_maintainer_rerun_run_url(run_url: str, attestation_path: Path) -> None:
+    parsed = urlparse(run_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise LeaderboardValidationError(
+            f"maintainer rerun github_run_url must be an absolute HTTPS URL at {attestation_path}"
+        )
+    path_parts = [part for part in parsed.path.strip("/").split("/") if part]
+    min_run_path_parts = 5
+    if len(path_parts) < min_run_path_parts or path_parts[2:4] != ["actions", "runs"]:
+        raise LeaderboardValidationError(
+            "maintainer rerun github_run_url must look like "
+            f"https://github.com/OWNER/REPO/actions/runs/RUN_ID at {attestation_path}"
+        )
+
+
+def _validate_required_row_trust_level(
+    rows: list[LeaderboardRow],
+    require_trust_level: str,
+) -> None:
+    for row in rows:
+        if row.trust_level != require_trust_level:
+            raise LeaderboardValidationError(
+                f"trust level mismatch: expected {require_trust_level}, got {row.trust_level}"
+            )
+
+
 def build_leaderboard_index(
     submissions_dir: str | Path,
     *,
@@ -870,20 +976,45 @@ def build_leaderboard_index(
     verify_artifacts: bool = False,
     require_trust_level: str | None = None,
     verify_github_run: bool = False,
+    maintainer_reruns_dir: str | Path | None = None,
 ) -> LeaderboardIndex:
     selected_submissions_dir = Path(submissions_dir)
     submissions = _load_submission_files(
         selected_submissions_dir,
         verify_artifacts=verify_artifacts,
-        require_trust_level=require_trust_level,
+        require_trust_level=None,
         verify_github_run=verify_github_run,
     )
-    rows = _rank_rows(
-        [
-            _row_from_submission(submission_path, submission)
-            for submission_path, submission in submissions
-        ]
-    )
+    maintainer_reruns = _load_maintainer_rerun_attestations(maintainer_reruns_dir)
+    rows: list[LeaderboardRow] = []
+    used_maintainer_reruns: set[str] = set()
+    for submission_path, submission in submissions:
+        row = _row_from_submission(submission_path, submission)
+        evidence_hash = submission.verification.evidence_sha256
+        if evidence_hash in maintainer_reruns:
+            attestation_path, attestation = maintainer_reruns[evidence_hash]
+            _validate_maintainer_rerun_attestation(
+                attestation,
+                submission,
+                attestation_path=attestation_path,
+            )
+            used_maintainer_reruns.add(evidence_hash)
+            row = row.model_copy(
+                update={
+                    "trust_level": "maintainer_rerun",
+                    "github_run_url": attestation.github_run_url,
+                }
+            )
+        rows.append(row)
+    unused_reruns = sorted(set(maintainer_reruns) - used_maintainer_reruns)
+    if unused_reruns:
+        raise LeaderboardValidationError(
+            "maintainer rerun original_evidence_sha256 has no matching submission evidence: "
+            + ", ".join(unused_reruns)
+        )
+    if require_trust_level:
+        _validate_required_row_trust_level(rows, require_trust_level)
+    rows = _rank_rows(rows)
     index = LeaderboardIndex(
         schema_version=LEADERBOARD_INDEX_SCHEMA_VERSION,
         generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),

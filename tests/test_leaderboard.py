@@ -12,6 +12,7 @@ import anvil.leaderboard as leaderboard_module
 from anvil.benchmark import run_benchmark
 from anvil.cli import app
 from anvil.leaderboard import (
+    LeaderboardSubmission,
     LeaderboardValidationError,
     audit_leaderboard_submissions,
     build_leaderboard_index,
@@ -1133,6 +1134,74 @@ def test_build_leaderboard_index_writes_ranked_csv_and_json(
     assert json_payload["rows"][0]["benchmark_scenario_count"] == 1
 
 
+def test_build_leaderboard_index_applies_maintainer_rerun_attestation(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    maintainer_reruns_dir = tmp_path / "maintainer_reruns"
+    _write_maintainer_rerun_attestation(
+        maintainer_reruns_dir / "support-agent.json",
+        submission=submission,
+    )
+
+    index = build_leaderboard_index(
+        submissions_dir,
+        verify_artifacts=True,
+        maintainer_reruns_dir=maintainer_reruns_dir,
+    )
+
+    assert index.rows[0].trust_level == "maintainer_rerun"
+    assert (
+        index.rows[0].github_run_url
+        == "https://github.com/agent-axiom/agent-anvil/actions/runs/98765"
+    )
+
+
+def test_build_leaderboard_index_rejects_mismatched_maintainer_rerun_attestation(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    maintainer_reruns_dir = tmp_path / "maintainer_reruns"
+    attestation_path = _write_maintainer_rerun_attestation(
+        maintainer_reruns_dir / "support-agent.json",
+        submission=submission,
+    )
+    payload = json.loads(attestation_path.read_text(encoding="utf-8"))
+    payload["original_evidence_sha256"] = "0" * 64
+    attestation_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(LeaderboardValidationError, match="original_evidence_sha256"):
+        build_leaderboard_index(
+            submissions_dir,
+            verify_artifacts=True,
+            maintainer_reruns_dir=maintainer_reruns_dir,
+        )
+
+
 def test_cli_leaderboard_build_writes_index_files(
     scenario_file: Path,
     tmp_path: Path,
@@ -1172,6 +1241,52 @@ def test_cli_leaderboard_build_writes_index_files(
     assert "Rows: 1" in result.stdout
     assert csv_path.exists()
     assert json_path.exists()
+
+
+def test_cli_leaderboard_build_applies_maintainer_rerun_attestations(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    maintainer_reruns_dir = tmp_path / "maintainer_reruns"
+    _write_maintainer_rerun_attestation(
+        maintainer_reruns_dir / "support-agent.json",
+        submission=submission,
+    )
+    csv_path = tmp_path / "leaderboard.csv"
+    json_path = tmp_path / "leaderboard.json"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "build",
+            str(submissions_dir),
+            "--out",
+            str(csv_path),
+            "--json-out",
+            str(json_path),
+            "--no-artifacts",
+            "--maintainer-reruns",
+            str(maintainer_reruns_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert payload["rows"][0]["trust_level"] == "maintainer_rerun"
 
 
 def test_build_leaderboard_index_rejects_duplicate_evidence_hash(
@@ -1398,6 +1513,36 @@ def _write_github_actions_submission(
         repo_url="https://github.com/agent-axiom/agent-anvil",
     )
     return out_path
+
+
+def _write_maintainer_rerun_attestation(
+    path: Path,
+    *,
+    submission: LeaderboardSubmission,
+) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "agent-anvil.leaderboard.maintainer_rerun.v1",
+                "status": "verified",
+                "original_evidence_sha256": submission.verification.evidence_sha256,
+                "rerun_evidence_sha256": submission.verification.evidence_sha256,
+                "agent_name": submission.submitter.agent_name,
+                "benchmark_name": submission.benchmark.name,
+                "total_trials": submission.metrics.total_trials,
+                "final_answer_pass_rate": submission.metrics.final_answer_pass_rate,
+                "trace_aware_pass_rate": submission.metrics.trace_aware_pass_rate,
+                "github_run_url": "https://github.com/agent-axiom/agent-anvil/actions/runs/98765",
+                "github_repository": "agent-axiom/agent-anvil",
+                "github_sha": "abc123",
+                "generated_at": "2026-06-09T00:00:00Z",
+                "generated_by": "agent-anvil/0.2.60",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 def _github_run_payload(

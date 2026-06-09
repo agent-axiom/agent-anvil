@@ -110,6 +110,30 @@ Direct user submissions may only claim `self_reported` or `github_actions`.
 `maintainer_rerun` is reserved for maintainer-side rerun attestations, not for
 edited submission JSON.
 
+A maintainer rerun attestation is a separate JSON document stored outside the
+user submissions directory. Agent Anvil overlays it onto the matching row only
+when `original_evidence_sha256`, headline metrics, agent name, benchmark name,
+and GitHub Actions rerun URL are valid:
+
+```json
+{
+  "schema_version": "agent-anvil.leaderboard.maintainer_rerun.v1",
+  "status": "verified",
+  "original_evidence_sha256": "...",
+  "rerun_evidence_sha256": "...",
+  "agent_name": "Support Agent",
+  "benchmark_name": "paper_benchmark",
+  "total_trials": 6,
+  "final_answer_pass_rate": 100.0,
+  "trace_aware_pass_rate": 100.0,
+  "github_run_url": "https://github.com/OWNER/REPO/actions/runs/123456",
+  "github_repository": "OWNER/REPO",
+  "github_sha": "...",
+  "generated_at": "2026-06-09T00:00:00Z",
+  "generated_by": "agent-anvil/0.2.60"
+}
+```
+
 ## Recommended Submission Flow
 
 1. The user runs the benchmark in their own repository or CI.
@@ -131,8 +155,9 @@ edited submission JSON.
    `anvil leaderboard validate --no-artifacts --github-run` for schema,
    evidence-hash, and GitHub Actions run checks before labeling the row by
    `verification.trust_level`.
-9. The leaderboard CI runs `anvil leaderboard build submissions` to regenerate
-   `leaderboard.csv` and `leaderboard.json`.
+9. The leaderboard CI runs
+   `anvil leaderboard build submissions --maintainer-reruns maintainer_reruns`
+   to regenerate `leaderboard.csv` and `leaderboard.json`.
 10. Maintainers can optionally re-run the agent and mark the row as
    `maintainer_rerun` by adding a separate `maintainer_reruns/*.json`
    attestation. The attestation must match the original row evidence hash and
