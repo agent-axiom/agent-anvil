@@ -399,6 +399,11 @@ LEADERBOARD_VERIFY_GITHUB_RUN_OPTION = typer.Option(
     "--github-run/--no-github-run",
     help="Verify GitHub Actions run metadata for github_actions submissions.",
 )
+LEADERBOARD_MAINTAINER_RERUNS_OPTION = typer.Option(
+    None,
+    "--maintainer-reruns",
+    help="Directory of maintainer rerun attestation JSON files to overlay onto rows.",
+)
 LEADERBOARD_VERIFY_RUN_JSON_OPTION = typer.Option(
     False,
     "--json",
@@ -1495,6 +1500,7 @@ def leaderboard_build(
     verify_artifacts: bool = LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION,
     require_trust_level: str | None = LEADERBOARD_REQUIRE_TRUST_OPTION,
     verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
+    maintainer_reruns: Path | None = LEADERBOARD_MAINTAINER_RERUNS_OPTION,
 ) -> None:
     try:
         index = build_leaderboard_index(
@@ -1504,6 +1510,7 @@ def leaderboard_build(
             verify_artifacts=verify_artifacts,
             require_trust_level=require_trust_level,
             verify_github_run=verify_github_run,
+            maintainer_reruns_dir=maintainer_reruns,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)
