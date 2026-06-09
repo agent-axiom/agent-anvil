@@ -4,7 +4,7 @@ requires-python = ">=3.12"
 
 [[package]]
 name = "agent-anvil"
-version = "0.2.64"
+version = "0.2.65"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
