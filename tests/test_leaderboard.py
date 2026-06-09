@@ -1203,6 +1203,90 @@ def test_build_leaderboard_index_rejects_mismatched_maintainer_rerun_attestation
         )
 
 
+def test_build_leaderboard_index_can_verify_maintainer_rerun_github_run(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    maintainer_reruns_dir = tmp_path / "maintainer_reruns"
+    _write_maintainer_rerun_attestation(
+        maintainer_reruns_dir / "support-agent.json",
+        submission=submission,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload(head_sha="abc123")
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    index = build_leaderboard_index(
+        submissions_dir,
+        verify_artifacts=True,
+        verify_github_run=True,
+        maintainer_reruns_dir=maintainer_reruns_dir,
+    )
+
+    assert index.rows[0].trust_level == "maintainer_rerun"
+
+
+def test_build_leaderboard_index_rejects_failed_maintainer_rerun_github_run(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    maintainer_reruns_dir = tmp_path / "maintainer_reruns"
+    _write_maintainer_rerun_attestation(
+        maintainer_reruns_dir / "support-agent.json",
+        submission=submission,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload(head_sha="abc123", conclusion="failure")
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    with pytest.raises(
+        LeaderboardValidationError,
+        match="maintainer rerun GitHub Actions run conclusion",
+    ):
+        build_leaderboard_index(
+            submissions_dir,
+            verify_artifacts=True,
+            verify_github_run=True,
+            maintainer_reruns_dir=maintainer_reruns_dir,
+        )
+
+
 def test_cli_leaderboard_build_writes_index_files(
     scenario_file: Path,
     tmp_path: Path,

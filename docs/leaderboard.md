@@ -185,7 +185,9 @@ uv run anvil leaderboard validate leaderboard_submission.json \
 ```
 
 Public leaderboard or maintainer CI should add `--github-run` after the
-producer run has completed:
+producer run has completed. When `--maintainer-reruns` is also supplied,
+`--github-run` verifies maintainer rerun attestation URLs, status, conclusion,
+repository, and SHA metadata too:
 
 ```bash
 uv run anvil leaderboard validate leaderboard_submission.json \
