@@ -395,6 +395,29 @@ def test_validate_leaderboard_submission_rejects_github_actions_commit_sha_misma
         validate_leaderboard_submission(out_path, verify_artifacts=False)
 
 
+def test_validate_leaderboard_submission_rejects_unattested_maintainer_rerun(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    out_path = tmp_path / "leaderboard_submission.json"
+    export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=out_path,
+        agent_name="Support Agent",
+    )
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    payload["verification"]["trust_level"] = "maintainer_rerun"
+    out_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(LeaderboardValidationError, match="maintainer_rerun trust requires"):
+        validate_leaderboard_submission(out_path, verify_artifacts=False)
+
+
 @pytest.mark.parametrize(
     ("field", "match"),
     [

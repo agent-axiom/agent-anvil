@@ -106,6 +106,10 @@ Public benchmark leaderboards should not pretend to prevent all gaming. The
 benchmark is visible, so leaderboard rows should be explicit about whether they
 are self-reported, CI-verified, or independently re-run by maintainers.
 
+Direct user submissions may only claim `self_reported` or `github_actions`.
+`maintainer_rerun` is reserved for maintainer-side rerun attestations, not for
+edited submission JSON.
+
 ## Recommended Submission Flow
 
 1. The user runs the benchmark in their own repository or CI.

@@ -350,6 +350,11 @@ def _load_leaderboard_submission(path: Path) -> LeaderboardSubmission:
 
 def _validate_trust_metadata(submission: LeaderboardSubmission) -> None:
     verification = submission.verification
+    if verification.trust_level == "maintainer_rerun":
+        raise LeaderboardValidationError(
+            "maintainer_rerun trust requires a maintainer rerun attestation; "
+            "direct leaderboard submissions may only claim self_reported or github_actions"
+        )
     if verification.trust_level != "github_actions":
         return
 
