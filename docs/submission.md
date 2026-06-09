@@ -13,7 +13,7 @@ prompt/tool/guardrail repair plans.
 The demo catches a refund agent calling `issue_refund(order_id="UNKNOWN")`
 before order verification — a workflow bug final-answer evals often miss.
 
-Current `v0.2.61` keeps the core product focused on trace-first CI:
+Current `v0.2.62` keeps the core product focused on trace-first CI:
 
 - YAML scenario suites and multi-trial runs
 - model/tool trace recording
