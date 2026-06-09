@@ -48,6 +48,10 @@ ALL_COLUMNS = [
     "maintainer",
     "maintainer_rerun_repository",
     "maintainer_rerun_sha",
+    "maintainer_rerun_github_repository",
+    "maintainer_rerun_github_sha",
+    "maintainer_rerun_path",
+    "maintainer_rerun_evidence_sha256",
 ]
 
 FRESHNESS_LABELS = {
@@ -97,6 +101,14 @@ def normalize_rows(payload: dict[str, Any], *, now: datetime | None = None) -> l
         row = dict(raw_row) if isinstance(raw_row, dict) else {}
         for column in ALL_COLUMNS:
             row.setdefault(column, "")
+        if not row.get("maintainer_rerun_repository"):
+            row["maintainer_rerun_repository"] = row.get("maintainer_rerun_github_repository", "")
+        if not row.get("maintainer_rerun_sha"):
+            row["maintainer_rerun_sha"] = row.get("maintainer_rerun_github_sha", "")
+        if str(row.get("trust_level") or "") == "maintainer_rerun" and not row.get(
+            "maintainer_rerun_url"
+        ):
+            row["maintainer_rerun_url"] = row.get("github_run_url", "")
         row["rank"] = _int_or_default(row.get("rank"), index)
         row["trust_badge"] = TRUST_BADGES.get(
             str(row.get("trust_level") or ""),

@@ -1156,17 +1156,43 @@ def test_build_leaderboard_index_applies_maintainer_rerun_attestation(
         maintainer_reruns_dir / "support-agent.json",
         submission=submission,
     )
+    csv_path = tmp_path / "leaderboard.csv"
+    json_path = tmp_path / "leaderboard.json"
 
     index = build_leaderboard_index(
         submissions_dir,
         verify_artifacts=True,
         maintainer_reruns_dir=maintainer_reruns_dir,
+        csv_path=csv_path,
+        json_path=json_path,
     )
 
     assert index.rows[0].trust_level == "maintainer_rerun"
+    assert index.rows[0].maintainer_rerun_path.endswith("maintainer_reruns/support-agent.json")
+    assert index.rows[0].maintainer_rerun_evidence_sha256 == submission.verification.evidence_sha256
+    assert (
+        index.rows[0].maintainer_rerun_url
+        == "https://github.com/agent-axiom/agent-anvil/actions/runs/98765"
+    )
     assert (
         index.rows[0].github_run_url
         == "https://github.com/agent-axiom/agent-anvil/actions/runs/98765"
+    )
+    csv_text = csv_path.read_text(encoding="utf-8")
+    json_payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert "maintainer_rerun_path" in csv_text
+    assert "maintainer_rerun_url" in csv_text
+    assert "maintainer_rerun_evidence_sha256" in csv_text
+    assert json_payload["rows"][0]["maintainer_rerun_path"].endswith(
+        "maintainer_reruns/support-agent.json"
+    )
+    assert (
+        json_payload["rows"][0]["maintainer_rerun_url"]
+        == "https://github.com/agent-axiom/agent-anvil/actions/runs/98765"
+    )
+    assert (
+        json_payload["rows"][0]["maintainer_rerun_evidence_sha256"]
+        == submission.verification.evidence_sha256
     )
 
 

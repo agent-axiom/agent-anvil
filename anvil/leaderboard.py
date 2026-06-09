@@ -122,6 +122,13 @@ class LeaderboardRow(BaseModel):
     trust_level: Literal["self_reported", "github_actions", "maintainer_rerun"]
     evidence_sha256: str
     github_run_url: str
+    maintainer_rerun_url: str = ""
+    maintainer_rerun_path: str = ""
+    maintainer_rerun_evidence_sha256: str = ""
+    maintainer_rerun_github_repository: str = ""
+    maintainer_rerun_github_sha: str = ""
+    maintainer_rerun_generated_at: str = ""
+    maintainer_rerun_generated_by: str = ""
     generated_at: str
     total_trials: int
     final_answer_pass_rate: float
@@ -1149,6 +1156,13 @@ def build_leaderboard_index(
                 update={
                     "trust_level": "maintainer_rerun",
                     "github_run_url": attestation.github_run_url,
+                    "maintainer_rerun_url": attestation.github_run_url,
+                    "maintainer_rerun_path": str(_display_path(attestation_path)),
+                    "maintainer_rerun_evidence_sha256": attestation.rerun_evidence_sha256,
+                    "maintainer_rerun_github_repository": attestation.github_repository,
+                    "maintainer_rerun_github_sha": attestation.github_sha,
+                    "maintainer_rerun_generated_at": attestation.generated_at,
+                    "maintainer_rerun_generated_by": attestation.generated_by,
                 }
             )
         rows.append(row)
@@ -1718,6 +1732,13 @@ def _write_leaderboard_csv(index: LeaderboardIndex, csv_path: Path) -> None:
         "commit_sha",
         "github_run_url",
         "evidence_sha256",
+        "maintainer_rerun_url",
+        "maintainer_rerun_path",
+        "maintainer_rerun_evidence_sha256",
+        "maintainer_rerun_github_repository",
+        "maintainer_rerun_github_sha",
+        "maintainer_rerun_generated_at",
+        "maintainer_rerun_generated_by",
         "submission_path",
     ]
     with csv_path.open("w", encoding="utf-8", newline="") as file:
@@ -1746,6 +1767,13 @@ def _write_leaderboard_csv(index: LeaderboardIndex, csv_path: Path) -> None:
                     "commit_sha": row.commit_sha,
                     "github_run_url": row.github_run_url,
                     "evidence_sha256": row.evidence_sha256,
+                    "maintainer_rerun_url": row.maintainer_rerun_url,
+                    "maintainer_rerun_path": row.maintainer_rerun_path,
+                    "maintainer_rerun_evidence_sha256": row.maintainer_rerun_evidence_sha256,
+                    "maintainer_rerun_github_repository": row.maintainer_rerun_github_repository,
+                    "maintainer_rerun_github_sha": row.maintainer_rerun_github_sha,
+                    "maintainer_rerun_generated_at": row.maintainer_rerun_generated_at,
+                    "maintainer_rerun_generated_by": row.maintainer_rerun_generated_by,
                     "submission_path": row.submission_path,
                 }
             )
