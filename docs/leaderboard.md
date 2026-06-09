@@ -175,6 +175,16 @@ uv run anvil leaderboard attest-rerun \
    must match the original row evidence hash and point to a successful public
    GitHub Actions rerun.
 
+Rows upgraded through `--maintainer-reruns` keep the original submission
+`evidence_sha256` and add explicit rerun evidence fields to the generated
+leaderboard index:
+
+- `maintainer_rerun_url`: public maintainer-side GitHub Actions rerun URL
+- `maintainer_rerun_path`: local attestation path used to upgrade the row
+- `maintainer_rerun_evidence_sha256`: evidence hash from the maintainer rerun
+- `maintainer_rerun_github_repository` and `maintainer_rerun_github_sha`:
+  repository/SHA validated for the maintainer rerun
+
 For stricter public rows, generate the submission in GitHub Actions. Producer
 workflows should validate structural trust metadata while the run is still in
 progress:

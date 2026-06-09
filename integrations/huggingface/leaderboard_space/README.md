@@ -58,6 +58,9 @@ Trust labels shown by the Space:
 - `github_actions`: generated in GitHub Actions with a public run URL
 - `maintainer_rerun`: independently reproduced by maintainers
 
+Maintainer rerun rows include the public rerun URL plus repository/SHA evidence
+from the attestation used to upgrade the row.
+
 Verified reference:
 
 - Demo repo: https://github.com/agent-axiom/agent-anvil-demo-agent
