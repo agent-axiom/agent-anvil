@@ -943,6 +943,35 @@ def create_maintainer_rerun_attestation(
     return attestation
 
 
+def validate_maintainer_rerun_attestation(
+    *,
+    original_submission_path: str | Path,
+    attestation_path: str | Path,
+    verify_github_run: bool = False,
+) -> LeaderboardMaintainerRerun:
+    selected_original_path = Path(original_submission_path)
+    selected_attestation_path = Path(attestation_path)
+    original = validate_leaderboard_submission(
+        selected_original_path,
+        verify_artifacts=False,
+    )
+    try:
+        attestation = LeaderboardMaintainerRerun.model_validate_json(
+            selected_attestation_path.read_text(encoding="utf-8")
+        )
+    except (OSError, ValidationError) as error:
+        raise LeaderboardValidationError(
+            f"invalid maintainer rerun attestation at {selected_attestation_path}: {error}"
+        ) from error
+    _validate_maintainer_rerun_attestation(
+        attestation,
+        original,
+        attestation_path=selected_attestation_path,
+        verify_github_run=verify_github_run,
+    )
+    return attestation
+
+
 def _validate_rerun_submission_matches_original(
     *,
     original: LeaderboardSubmission,
