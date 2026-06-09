@@ -1000,6 +1000,7 @@ def _validate_maintainer_rerun_attestation(
     submission: LeaderboardSubmission,
     *,
     attestation_path: Path,
+    verify_github_run: bool = False,
 ) -> None:
     expected_hash = submission.verification.evidence_sha256
     if attestation.original_evidence_sha256 != expected_hash:
@@ -1022,9 +1023,63 @@ def _validate_maintainer_rerun_attestation(
                 f"expected {expected_value!r}, got {actual_value!r}"
             )
     _validate_maintainer_rerun_run_url(attestation.github_run_url, attestation_path)
+    if verify_github_run:
+        _validate_maintainer_rerun_github_run(attestation, attestation_path)
 
 
 def _validate_maintainer_rerun_run_url(run_url: str, attestation_path: Path) -> None:
+    _maintainer_rerun_run_reference(run_url, "", attestation_path)
+
+
+def _validate_maintainer_rerun_github_run(
+    attestation: LeaderboardMaintainerRerun,
+    attestation_path: Path,
+) -> None:
+    repository, run_id, host = _maintainer_rerun_run_reference(
+        attestation.github_run_url,
+        attestation.github_repository,
+        attestation_path,
+    )
+    payload = _fetch_github_actions_run(
+        repository,
+        run_id,
+        token=_github_api_token(),
+        host=host,
+    )
+    run_repository = _github_run_repository(payload)
+    if run_repository != repository:
+        raise LeaderboardValidationError(
+            "maintainer rerun GitHub Actions run repository mismatch: "
+            f"expected {repository}, got {run_repository or 'not provided'}"
+        )
+
+    head_sha = str(payload.get("head_sha") or "")
+    if attestation.github_sha and head_sha != attestation.github_sha:
+        raise LeaderboardValidationError(
+            "maintainer rerun GitHub Actions run head_sha mismatch: "
+            f"expected {attestation.github_sha}, got {head_sha or 'not provided'}"
+        )
+
+    status = str(payload.get("status") or "")
+    if status != "completed":
+        raise LeaderboardValidationError(
+            "maintainer rerun GitHub Actions run status mismatch: expected completed, "
+            f"got {status or 'not provided'}"
+        )
+
+    conclusion = str(payload.get("conclusion") or "")
+    if conclusion != "success":
+        raise LeaderboardValidationError(
+            "maintainer rerun GitHub Actions run conclusion mismatch: expected success, "
+            f"got {conclusion or 'not provided'}"
+        )
+
+
+def _maintainer_rerun_run_reference(
+    run_url: str,
+    expected_repository: str,
+    attestation_path: Path,
+) -> tuple[str, str, str]:
     parsed = urlparse(run_url)
     if parsed.scheme != "https" or not parsed.hostname:
         raise LeaderboardValidationError(
@@ -1037,6 +1092,14 @@ def _validate_maintainer_rerun_run_url(run_url: str, attestation_path: Path) -> 
             "maintainer rerun github_run_url must look like "
             f"https://github.com/OWNER/REPO/actions/runs/RUN_ID at {attestation_path}"
         )
+    repository = f"{path_parts[0]}/{path_parts[1]}"
+    if expected_repository and repository != expected_repository:
+        raise LeaderboardValidationError(
+            "maintainer rerun github_run_url repository mismatch: "
+            f"expected {expected_repository}, got {repository}"
+        )
+    run_id = path_parts[4]
+    return expected_repository or repository, run_id, parsed.hostname
 
 
 def _validate_required_row_trust_level(
@@ -1079,6 +1142,7 @@ def build_leaderboard_index(
                 attestation,
                 submission,
                 attestation_path=attestation_path,
+                verify_github_run=verify_github_run,
             )
             used_maintainer_reruns.add(evidence_hash)
             row = row.model_copy(
