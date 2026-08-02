@@ -1,0 +1,23 @@
+{
+  "schema_version": "agent-anvil.leaderboard.artifact_attestation_verification.v1",
+  "status": "verified",
+  "submission_path": "leaderboard_submission.json",
+  "agent_name": "Contract Demo Agent",
+  "benchmark_name": "contract_benchmark",
+  "trust_level": "github_actions",
+  "github_repository": "acme/contract-demo-agent",
+  "github_sha": "0123456789abcdef0123456789abcdef01234567",
+  "github_run_url": "https://github.com/acme/contract-demo-agent/actions/runs/1",
+  "subject_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "predicate_type": "https://slsa.dev/provenance/v1",
+  "signer_workflow": "acme/contract-demo-agent/.github/workflows/leaderboard.yml",
+  "source_digest": "0123456789abcdef0123456789abcdef01234567",
+  "source_ref": "refs/heads/main",
+  "self_hosted_runners_denied": true,
+  "bundle_path": "",
+  "bundle_sha256": "",
+  "verified_attestations": 1,
+  "verification_output_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "generated_at": "2026-08-03T10:00:00Z",
+  "generated_by": "agent-anvil/0.2.73"
+}

@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from yaml import YAMLError
 
 from anvil.adapter_templates import list_adapter_templates, write_adapter_template
+from anvil.attestations import verify_leaderboard_artifact_attestation
 from anvil.benchmark import format_rate_ci, load_benchmark_manifest, run_benchmark
 from anvil.conformance import (
     parse_env_overrides,
@@ -440,6 +441,42 @@ LEADERBOARD_VERIFY_RUN_OUT_OPTION = typer.Option(
     None,
     "--out",
     help="Write the GitHub run verification report JSON here.",
+)
+LEADERBOARD_VERIFY_ATTESTATION_JSON_OPTION = typer.Option(
+    False,
+    "--json",
+    help="Print the artifact attestation verification report as JSON.",
+)
+LEADERBOARD_VERIFY_ATTESTATION_OUT_OPTION = typer.Option(
+    None,
+    "--out",
+    help="Write the artifact attestation verification report JSON here.",
+)
+LEADERBOARD_ATTESTATION_SIGNER_WORKFLOW_OPTION = typer.Option(
+    "",
+    "--signer-workflow",
+    help="Require the attestation signer workflow path.",
+)
+LEADERBOARD_ATTESTATION_SOURCE_REF_OPTION = typer.Option(
+    "",
+    "--source-ref",
+    help="Require the source Git ref recorded by the attestation.",
+)
+LEADERBOARD_ATTESTATION_BUNDLE_OPTION = typer.Option(
+    None,
+    "--bundle",
+    help="Verify with a local GitHub attestation bundle instead of fetching it.",
+)
+LEADERBOARD_ATTESTATION_SELF_HOSTED_OPTION = typer.Option(
+    True,
+    "--deny-self-hosted-runners/--allow-self-hosted-runners",
+    help="Reject attestations produced on self-hosted runners by default.",
+)
+LEADERBOARD_ATTESTATION_TIMEOUT_OPTION = typer.Option(
+    30.0,
+    "--timeout-seconds",
+    min=0.1,
+    help="Maximum time allowed for GitHub CLI attestation verification.",
 )
 LEADERBOARD_VERIFY_ALL_OUT_OPTION = typer.Option(
     ...,
@@ -1523,6 +1560,46 @@ def leaderboard_verify_all(
         typer.echo(f"Verified leaderboard evidence reports: {len(reports)}")
     if index_out is not None:
         typer.echo(f"Wrote leaderboard evidence index: {_display_path(index_out)}")
+
+
+@leaderboard_app.command("verify-attestation")
+def leaderboard_verify_attestation(
+    submission_file: Path,
+    as_json: bool = LEADERBOARD_VERIFY_ATTESTATION_JSON_OPTION,
+    out: Path | None = LEADERBOARD_VERIFY_ATTESTATION_OUT_OPTION,
+    signer_workflow: str = LEADERBOARD_ATTESTATION_SIGNER_WORKFLOW_OPTION,
+    source_ref: str = LEADERBOARD_ATTESTATION_SOURCE_REF_OPTION,
+    bundle: Path | None = LEADERBOARD_ATTESTATION_BUNDLE_OPTION,
+    deny_self_hosted_runners: bool = LEADERBOARD_ATTESTATION_SELF_HOSTED_OPTION,
+    timeout_seconds: float = LEADERBOARD_ATTESTATION_TIMEOUT_OPTION,
+) -> None:
+    try:
+        report = verify_leaderboard_artifact_attestation(
+            submission_file,
+            signer_workflow=signer_workflow,
+            source_ref=source_ref,
+            bundle_path=bundle,
+            deny_self_hosted_runners=deny_self_hosted_runners,
+            timeout_seconds=timeout_seconds,
+        )
+    except LeaderboardValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    report_json = report.model_dump_json(indent=2)
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(report_json, encoding="utf-8")
+    if as_json:
+        typer.echo(report_json)
+        return
+    if out is not None:
+        typer.echo(f"Wrote artifact attestation verification report: {_display_path(out)}")
+    typer.echo("GitHub artifact attestation is verified")
+    typer.echo(f"Repository: {report.github_repository}")
+    typer.echo(f"Source SHA: {report.github_sha}")
+    typer.echo(f"Subject SHA-256: {report.subject_sha256}")
+    typer.echo(f"Verified attestations: {report.verified_attestations}")
 
 
 @leaderboard_app.command("audit")

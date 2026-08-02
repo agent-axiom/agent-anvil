@@ -8,6 +8,10 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ValidationError
 
+from anvil.attestations import (
+    ARTIFACT_ATTESTATION_VERIFICATION_SCHEMA_VERSION,
+    LeaderboardArtifactAttestationVerification,
+)
 from anvil.doctor import DOCTOR_REPORT_SCHEMA_VERSION, DoctorReportPayload
 from anvil.leaderboard import (
     LEADERBOARD_AUDIT_SCHEMA_VERSION,
@@ -129,6 +133,12 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         filename="agent-anvil.leaderboard.github_run_verification.v1.schema.json",
         model=LeaderboardGithubRunVerification,
         description="Agent Anvil GitHub Actions run verification report schema.",
+    ),
+    SchemaContract(
+        schema_id=ARTIFACT_ATTESTATION_VERIFICATION_SCHEMA_VERSION,
+        filename="agent-anvil.leaderboard.artifact_attestation_verification.v1.schema.json",
+        model=LeaderboardArtifactAttestationVerification,
+        description="Agent Anvil GitHub artifact attestation verification report schema.",
     ),
     SchemaContract(
         schema_id=LEADERBOARD_AUDIT_SCHEMA_VERSION,

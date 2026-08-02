@@ -81,6 +81,14 @@ GitHub Actions run verification reports use:
 }
 ```
 
+GitHub artifact attestation verification reports use:
+
+```json
+{
+  "schema_version": "agent-anvil.leaderboard.artifact_attestation_verification.v1"
+}
+```
+
 Leaderboard maintainer audit reports use:
 
 ```json
