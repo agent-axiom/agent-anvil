@@ -12,6 +12,6 @@
   "github_repository": "owner/repo",
   "github_sha": "abc123",
   "generated_at": "2026-06-09T00:00:00Z",
-  "generated_by": "agent-anvil/0.2.69",
+  "generated_by": "agent-anvil/0.2.70",
   "notes": "Contract fixture for maintainer-side rerun attestations."
 }
