@@ -2151,7 +2151,7 @@ def _write_maintainer_rerun_attestation(
                 "github_repository": "agent-axiom/agent-anvil",
                 "github_sha": "abc123",
                 "generated_at": "2026-06-09T00:00:00Z",
-                "generated_by": "agent-anvil/0.2.71",
+                "generated_by": "agent-anvil/0.2.72",
             }
         ),
         encoding="utf-8",
