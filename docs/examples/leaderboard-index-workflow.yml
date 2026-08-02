@@ -22,7 +22,7 @@ jobs:
           enable-cache: true
       - name: Validate submissions and build index
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.68 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.69 \
             anvil leaderboard build submissions \
             --out leaderboard.csv \
             --json-out leaderboard.json \
@@ -30,14 +30,14 @@ jobs:
             --github-run
       - name: Write GitHub run verification reports
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.68 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.69 \
             anvil leaderboard verify-all submissions \
             --out github-run-verifications \
             --index-out github-run-verifications.json \
             --maintainer-reruns maintainer_reruns
       - name: Audit leaderboard decisions
         run: |
-          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.68 \
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.69 \
             anvil leaderboard audit submissions \
             --json-out leaderboard_audit.json \
             --markdown-out leaderboard_audit.md \
