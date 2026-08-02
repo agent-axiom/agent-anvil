@@ -131,6 +131,11 @@
   "additionalProperties": false,
   "description": "Agent Anvil public leaderboard maintainer audit report schema.",
   "properties": {
+    "evidence_index_path": {
+      "default": "",
+      "title": "Evidence Index Path",
+      "type": "string"
+    },
     "generated_at": {
       "title": "Generated At",
       "type": "string"

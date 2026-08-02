@@ -53,8 +53,8 @@ jobs:
             --json-out leaderboard_audit.json \
             --markdown-out leaderboard_audit.md \
             --maintainer-reruns maintainer_reruns \
-            --fail-on reject \
-            --github-run
+            --evidence-index github-run-verifications.json \
+            --fail-on reject
       - uses: actions/upload-artifact@v7.0.1
         if: always()
         with:
