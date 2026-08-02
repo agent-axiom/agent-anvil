@@ -228,7 +228,9 @@ stdout. The JSON report uses
 repository, SHA, GitHub run URL, evidence hash, benchmark name, and verifier
 version.
 Use `verify-all` in leaderboard maintainer CI when you want one stored
-verification report per submitted row.
+verification report per submitted row. Add `--maintainer-reruns` to validate
+matching maintainer rerun attestations and store those validated attestation
+reports beside submitter-side GitHub-run reports.
 Use `audit` when maintainer CI needs a single decision report across all rows:
 `accept` for rows with passing provenance checks, `review` for self-reported or
 insufficiently verified rows, and `reject` for invalid, tampered, duplicate, or

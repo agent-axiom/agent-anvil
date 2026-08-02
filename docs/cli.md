@@ -236,7 +236,8 @@ uv run anvil leaderboard verify-run leaderboard_submission.json \
   --out github_run_verification.json
 uv run anvil leaderboard verify-run leaderboard_submission.json --json
 uv run anvil leaderboard verify-all submissions \
-  --out github-run-verifications
+  --out github-run-verifications \
+  --maintainer-reruns maintainer_reruns
 uv run anvil leaderboard audit submissions \
   --maintainer-reruns maintainer_reruns \
   --json-out leaderboard_audit.json \
@@ -271,8 +272,9 @@ GitHub Actions trust evidence; it skips local artifact hashes and requires a
 `github_actions` row. Add `--json` for machine-readable stdout or `--out` to
 persist a signed-off verification artifact in CI.
 `leaderboard verify-all` applies the same check to every submitted JSON row in a
-directory and writes one machine-readable GitHub-run verification report per
-submission.
+directory and writes one machine-readable evidence report per submission. Add
+`--maintainer-reruns` when maintainer CI should verify matching rerun
+attestations for self-reported rows before audit/build consume them.
 `leaderboard audit` classifies every row as `accept`, `review`, or `reject` and
 writes a JSON plus Markdown maintainer decision report. By default it exits
 non-zero on review or reject; use `--fail-on reject` when public leaderboard CI

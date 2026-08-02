@@ -650,22 +650,51 @@ def verify_leaderboard_github_runs(
     submissions_dir: str | Path,
     *,
     out_dir: str | Path,
+    maintainer_reruns_dir: str | Path | None = None,
 ) -> list[Path]:
     selected_submissions_dir = Path(submissions_dir)
     selected_out_dir = Path(out_dir)
     submissions = _load_submission_files(
         selected_submissions_dir,
         verify_artifacts=False,
-        require_trust_level="github_actions",
-        verify_github_run=True,
+        require_trust_level=None,
+        verify_github_run=False,
     )
+    maintainer_reruns = _load_maintainer_rerun_attestations(maintainer_reruns_dir)
+    used_maintainer_reruns: set[str] = set()
     selected_out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for submission_path, submission in submissions:
+        evidence_hash = submission.verification.evidence_sha256
+        if evidence_hash in maintainer_reruns:
+            attestation_path, attestation = maintainer_reruns[evidence_hash]
+            _validate_maintainer_rerun_attestation(
+                attestation,
+                submission,
+                attestation_path=attestation_path,
+                verify_github_run=True,
+            )
+            used_maintainer_reruns.add(evidence_hash)
+            report_path = selected_out_dir / f"{submission_path.stem}.maintainer_rerun.json"
+            report_path.write_text(attestation.model_dump_json(indent=2), encoding="utf-8")
+            written.append(report_path)
+            continue
+        if submission.verification.trust_level != "github_actions":
+            raise LeaderboardValidationError(
+                "trust level mismatch: expected github_actions or maintainer rerun "
+                f"attestation, got {submission.verification.trust_level}"
+            )
+        _validate_github_actions_run(submission)
         report = _github_run_verification_report(submission_path, submission)
         report_path = selected_out_dir / f"{submission_path.stem}.github_run_verification.json"
         report_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
         written.append(report_path)
+    unused_reruns = sorted(set(maintainer_reruns) - used_maintainer_reruns)
+    if unused_reruns:
+        raise LeaderboardValidationError(
+            "maintainer rerun original_evidence_sha256 has no matching submission evidence: "
+            + ", ".join(unused_reruns)
+        )
     return written
 
 

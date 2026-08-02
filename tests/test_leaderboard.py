@@ -785,6 +785,65 @@ def test_cli_leaderboard_verify_all_writes_reports_for_submission_directory(
     assert report["github_repository"] == "agent-axiom/agent-anvil"
 
 
+def test_cli_leaderboard_verify_all_applies_maintainer_rerun_attestations(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    maintainer_reruns_dir = tmp_path / "maintainer_reruns"
+    _write_maintainer_rerun_attestation(
+        maintainer_reruns_dir / "support-agent.json",
+        submission=submission,
+    )
+    reports_dir = tmp_path / "github-run-verifications"
+    fetched_run_ids: list[str] = []
+
+    def fake_fetch(
+        _repository: str,
+        run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        fetched_run_ids.append(run_id)
+        return _github_run_payload(head_sha="abc123")
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "verify-all",
+            str(submissions_dir),
+            "--out",
+            str(reports_dir),
+            "--maintainer-reruns",
+            str(maintainer_reruns_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    report_path = reports_dir / "support-agent.maintainer_rerun.json"
+    assert f"Wrote leaderboard verification report: {report_path}" in result.stdout
+    assert "Verified leaderboard evidence reports: 1" in result.stdout
+    assert fetched_run_ids == ["98765"]
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["schema_version"] == "agent-anvil.leaderboard.maintainer_rerun.v1"
+    assert report["original_evidence_sha256"] == submission.verification.evidence_sha256
+    assert report["github_run_url"].endswith("/98765")
+
+
 def test_cli_leaderboard_verify_run_rejects_self_reported_submission(
     scenario_file: Path,
     tmp_path: Path,
