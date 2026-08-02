@@ -1438,6 +1438,7 @@ def leaderboard_audit(
     submissions_dir: Path,
     verify_artifacts: bool = LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION,
     verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
+    maintainer_reruns: Path | None = LEADERBOARD_MAINTAINER_RERUNS_OPTION,
     json_out: Path = LEADERBOARD_AUDIT_JSON_OUT_OPTION,
     markdown_out: Path = LEADERBOARD_AUDIT_MARKDOWN_OUT_OPTION,
     fail_on: Literal["review", "reject", "never"] = LEADERBOARD_AUDIT_FAIL_ON_OPTION,
@@ -1447,6 +1448,7 @@ def leaderboard_audit(
             submissions_dir,
             verify_artifacts=verify_artifacts,
             verify_github_run=verify_github_run,
+            maintainer_reruns_dir=maintainer_reruns,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)

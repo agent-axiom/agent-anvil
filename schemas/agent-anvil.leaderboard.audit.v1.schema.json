@@ -47,6 +47,21 @@
           "title": "Github Run Status",
           "type": "string"
         },
+        "maintainer_rerun_evidence_sha256": {
+          "default": "",
+          "title": "Maintainer Rerun Evidence Sha256",
+          "type": "string"
+        },
+        "maintainer_rerun_path": {
+          "default": "",
+          "title": "Maintainer Rerun Path",
+          "type": "string"
+        },
+        "maintainer_rerun_url": {
+          "default": "",
+          "title": "Maintainer Rerun Url",
+          "type": "string"
+        },
         "reason": {
           "title": "Reason",
           "type": "string"

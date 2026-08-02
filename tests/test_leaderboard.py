@@ -867,6 +867,54 @@ def test_audit_leaderboard_submissions_classifies_accept_review_and_reject(
     assert "tampered-agent.json" in audit.markdown
 
 
+def test_audit_leaderboard_submissions_applies_maintainer_rerun_attestation(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_github_env(monkeypatch)
+    manifest_path = _write_manifest(tmp_path, scenario_file)
+    run_benchmark(manifest_path, offline=True, runs_dir=tmp_path / "runs")
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    submission = export_leaderboard_submission(
+        results_json=tmp_path / "paper" / "results.json",
+        manifest_path=manifest_path,
+        out_path=submissions_dir / "support-agent.json",
+        agent_name="Support Agent",
+    )
+    maintainer_reruns_dir = tmp_path / "maintainer_reruns"
+    _write_maintainer_rerun_attestation(
+        maintainer_reruns_dir / "support-agent.json",
+        submission=submission,
+    )
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        verify_github_run=True,
+        maintainer_reruns_dir=maintainer_reruns_dir,
+    )
+
+    row = audit.rows[0]
+    assert row.decision == "accept"
+    assert row.reason == "maintainer rerun provenance checks passed"
+    assert row.trust_level == "maintainer_rerun"
+    assert row.github_run_status == "verified"
+    assert row.maintainer_rerun_path.endswith("maintainer_reruns/support-agent.json")
+    assert row.maintainer_rerun_url.endswith("/actions/runs/98765")
+    assert row.maintainer_rerun_evidence_sha256 == submission.verification.evidence_sha256
+    assert "maintainer_rerun" in audit.markdown
+
+
 def test_audit_leaderboard_submissions_requires_verified_github_run_for_accept(
     scenario_file: Path,
     tmp_path: Path,

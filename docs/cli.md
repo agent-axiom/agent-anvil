@@ -238,6 +238,7 @@ uv run anvil leaderboard verify-run leaderboard_submission.json --json
 uv run anvil leaderboard verify-all submissions \
   --out github-run-verifications
 uv run anvil leaderboard audit submissions \
+  --maintainer-reruns maintainer_reruns \
   --json-out leaderboard_audit.json \
   --markdown-out leaderboard_audit.md \
   --fail-on reject \
@@ -276,7 +277,8 @@ submission.
 writes a JSON plus Markdown maintainer decision report. By default it exits
 non-zero on review or reject; use `--fail-on reject` when public leaderboard CI
 should allow review rows but fail rejected rows, or `--fail-on never` for
-report-only jobs.
+report-only jobs. Add `--maintainer-reruns` to apply maintainer rerun
+attestations to the audit report before decisions are summarized.
 `leaderboard inspect` renders a reviewable trust report with benchmark hashes,
 artifact status, warnings, and a reproducibility checklist for maintainers or
 community reviewers.
