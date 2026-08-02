@@ -130,7 +130,7 @@ and GitHub Actions rerun URL are valid:
   "github_repository": "OWNER/REPO",
   "github_sha": "...",
   "generated_at": "2026-06-09T00:00:00Z",
-  "generated_by": "agent-anvil/0.2.68"
+  "generated_by": "agent-anvil/0.2.69"
 }
 ```
 
