@@ -441,6 +441,11 @@ LEADERBOARD_VERIFY_ALL_OUT_OPTION = typer.Option(
     "--out",
     help="Write one GitHub run verification report JSON file per submission here.",
 )
+LEADERBOARD_VERIFY_ALL_INDEX_OUT_OPTION = typer.Option(
+    None,
+    "--index-out",
+    help="Write a machine-readable index of verification evidence reports.",
+)
 LEADERBOARD_AUDIT_JSON_OUT_OPTION = typer.Option(
     Path("leaderboard_audit.json"),
     "--json-out",
@@ -1421,6 +1426,7 @@ def leaderboard_verify_run(
 def leaderboard_verify_all(
     submissions_dir: Path,
     out: Path = LEADERBOARD_VERIFY_ALL_OUT_OPTION,
+    index_out: Path | None = LEADERBOARD_VERIFY_ALL_INDEX_OUT_OPTION,
     maintainer_reruns: Path | None = LEADERBOARD_MAINTAINER_RERUNS_OPTION,
 ) -> None:
     try:
@@ -1428,6 +1434,7 @@ def leaderboard_verify_all(
             submissions_dir,
             out_dir=out,
             maintainer_reruns_dir=maintainer_reruns,
+            index_path=index_out,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)
@@ -1442,6 +1449,8 @@ def leaderboard_verify_all(
         typer.echo(f"Verified GitHub Actions runs: {len(reports)}")
     else:
         typer.echo(f"Verified leaderboard evidence reports: {len(reports)}")
+    if index_out is not None:
+        typer.echo(f"Wrote leaderboard evidence index: {_display_path(index_out)}")
 
 
 @leaderboard_app.command("audit")

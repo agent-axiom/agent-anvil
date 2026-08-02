@@ -807,6 +807,7 @@ def test_cli_leaderboard_verify_all_applies_maintainer_rerun_attestations(
         submission=submission,
     )
     reports_dir = tmp_path / "github-run-verifications"
+    index_path = tmp_path / "github-run-verifications.json"
     fetched_run_ids: list[str] = []
 
     def fake_fetch(
@@ -830,18 +831,30 @@ def test_cli_leaderboard_verify_all_applies_maintainer_rerun_attestations(
             str(reports_dir),
             "--maintainer-reruns",
             str(maintainer_reruns_dir),
+            "--index-out",
+            str(index_path),
         ],
     )
 
     assert result.exit_code == 0
     report_path = reports_dir / "support-agent.maintainer_rerun.json"
     assert f"Wrote leaderboard verification report: {report_path}" in result.stdout
+    assert f"Wrote leaderboard evidence index: {index_path}" in result.stdout
     assert "Verified leaderboard evidence reports: 1" in result.stdout
     assert fetched_run_ids == ["98765"]
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["schema_version"] == "agent-anvil.leaderboard.maintainer_rerun.v1"
     assert report["original_evidence_sha256"] == submission.verification.evidence_sha256
     assert report["github_run_url"].endswith("/98765")
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    assert index["schema_version"] == "agent-anvil.leaderboard.evidence_index.v1"
+    assert index["summary"] == {
+        "total_reports": 1,
+        "github_actions": 0,
+        "maintainer_rerun": 1,
+    }
+    assert index["reports"][0]["trust_level"] == "maintainer_rerun"
+    assert index["reports"][0]["report_path"] == str(report_path)
 
 
 def test_cli_leaderboard_verify_run_rejects_self_reported_submission(

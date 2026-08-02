@@ -10,11 +10,13 @@ from pydantic import BaseModel
 from anvil.doctor import DOCTOR_REPORT_SCHEMA_VERSION, DoctorReportPayload
 from anvil.leaderboard import (
     LEADERBOARD_AUDIT_SCHEMA_VERSION,
+    LEADERBOARD_EVIDENCE_INDEX_SCHEMA_VERSION,
     LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION,
     LEADERBOARD_INDEX_SCHEMA_VERSION,
     LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION,
     LEADERBOARD_SCHEMA_VERSION,
     LeaderboardAuditReport,
+    LeaderboardEvidenceVerificationIndex,
     LeaderboardGithubRunVerification,
     LeaderboardIndex,
     LeaderboardMaintainerRerun,
@@ -103,6 +105,12 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         filename="agent-anvil.leaderboard.audit.v1.schema.json",
         model=LeaderboardAuditReport,
         description="Agent Anvil public leaderboard maintainer audit report schema.",
+    ),
+    SchemaContract(
+        schema_id=LEADERBOARD_EVIDENCE_INDEX_SCHEMA_VERSION,
+        filename="agent-anvil.leaderboard.evidence_index.v1.schema.json",
+        model=LeaderboardEvidenceVerificationIndex,
+        description="Agent Anvil public leaderboard evidence verification index schema.",
     ),
     SchemaContract(
         schema_id=LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION,

@@ -25,6 +25,7 @@ The command writes schemas using export metadata version
 - [`schemas/agent-anvil.leaderboard.index.v1.schema.json`](../schemas/agent-anvil.leaderboard.index.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.github_run_verification.v1.schema.json`](../schemas/agent-anvil.leaderboard.github_run_verification.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.audit.v1.schema.json`](../schemas/agent-anvil.leaderboard.audit.v1.schema.json)
+- [`schemas/agent-anvil.leaderboard.evidence_index.v1.schema.json`](../schemas/agent-anvil.leaderboard.evidence_index.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json`](../schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json)
 
 The source of truth remains the Pydantic models in Agent Anvil. Checked-in
@@ -45,6 +46,7 @@ Use the fixture set when writing adapters or compatibility checks:
 - [`fixtures/contracts/leaderboard-index-valid.json`](../fixtures/contracts/leaderboard-index-valid.json)
 - [`fixtures/contracts/leaderboard-github-run-verification-valid.json`](../fixtures/contracts/leaderboard-github-run-verification-valid.json)
 - [`fixtures/contracts/leaderboard-audit-valid.json`](../fixtures/contracts/leaderboard-audit-valid.json)
+- [`fixtures/contracts/leaderboard-evidence-index-valid.json`](../fixtures/contracts/leaderboard-evidence-index-valid.json)
 - [`fixtures/contracts/leaderboard-maintainer-rerun-valid.json`](../fixtures/contracts/leaderboard-maintainer-rerun-valid.json)
 
 These fixtures are intentionally small. They cover the happy path and one

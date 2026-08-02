@@ -1,0 +1,30 @@
+{
+  "schema_version": "agent-anvil.leaderboard.evidence_index.v1",
+  "generated_at": "2026-06-09T00:00:00Z",
+  "generated_by": "agent-anvil/0.2.68",
+  "submissions_dir": "submissions",
+  "reports_dir": "github-run-verifications",
+  "summary": {
+    "total_reports": 2,
+    "github_actions": 1,
+    "maintainer_rerun": 1
+  },
+  "reports": [
+    {
+      "submission_path": "submissions/github-agent.json",
+      "report_path": "github-run-verifications/github-agent.github_run_verification.json",
+      "report_schema_version": "agent-anvil.leaderboard.github_run_verification.v1",
+      "trust_level": "github_actions",
+      "evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "github_run_url": "https://github.com/owner/repo/actions/runs/123456"
+    },
+    {
+      "submission_path": "submissions/self-reported-agent.json",
+      "report_path": "github-run-verifications/self-reported-agent.maintainer_rerun.json",
+      "report_schema_version": "agent-anvil.leaderboard.maintainer_rerun.v1",
+      "trust_level": "maintainer_rerun",
+      "evidence_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "github_run_url": "https://github.com/owner/repo/actions/runs/987654"
+    }
+  ]
+}

@@ -89,6 +89,14 @@ Leaderboard maintainer audit reports use:
 }
 ```
 
+Leaderboard evidence verification indexes use:
+
+```json
+{
+  "schema_version": "agent-anvil.leaderboard.evidence_index.v1"
+}
+```
+
 Leaderboard maintainer rerun attestations use:
 
 ```json

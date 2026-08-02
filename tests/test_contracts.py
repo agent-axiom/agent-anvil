@@ -10,6 +10,7 @@ from anvil.cli import app
 from anvil.doctor import DoctorReportPayload
 from anvil.leaderboard import (
     LeaderboardAuditReport,
+    LeaderboardEvidenceVerificationIndex,
     LeaderboardGithubRunVerification,
     LeaderboardIndex,
     LeaderboardMaintainerRerun,
@@ -33,6 +34,9 @@ CONTRACT_SCHEMAS = {
         "agent-anvil.leaderboard.github_run_verification.v1.schema.json"
     ),
     "agent-anvil.leaderboard.audit.v1": "agent-anvil.leaderboard.audit.v1.schema.json",
+    "agent-anvil.leaderboard.evidence_index.v1": (
+        "agent-anvil.leaderboard.evidence_index.v1.schema.json"
+    ),
     "agent-anvil.leaderboard.maintainer_rerun.v1": (
         "agent-anvil.leaderboard.maintainer_rerun.v1.schema.json"
     ),
@@ -90,6 +94,9 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     audit = LeaderboardAuditReport.model_validate_json(
         Path("fixtures/contracts/leaderboard-audit-valid.json").read_text(encoding="utf-8")
     )
+    evidence_index = LeaderboardEvidenceVerificationIndex.model_validate_json(
+        Path("fixtures/contracts/leaderboard-evidence-index-valid.json").read_text(encoding="utf-8")
+    )
     maintainer_rerun = LeaderboardMaintainerRerun.model_validate_json(
         Path("fixtures/contracts/leaderboard-maintainer-rerun-valid.json").read_text(
             encoding="utf-8"
@@ -126,6 +133,8 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     assert verification.status == "verified"
     assert audit.schema_version == "agent-anvil.leaderboard.audit.v1"
     assert audit.summary.review == 1
+    assert evidence_index.schema_version == "agent-anvil.leaderboard.evidence_index.v1"
+    assert evidence_index.summary.maintainer_rerun == 1
     assert maintainer_rerun.schema_version == "agent-anvil.leaderboard.maintainer_rerun.v1"
     assert maintainer_rerun.status == "verified"
 
@@ -158,6 +167,7 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "fixtures/contracts/compare-result-valid.json" in contracts
     assert "fixtures/contracts/leaderboard-github-run-verification-valid.json" in contracts
     assert "fixtures/contracts/leaderboard-audit-valid.json" in contracts
+    assert "fixtures/contracts/leaderboard-evidence-index-valid.json" in contracts
     assert "fixtures/contracts/leaderboard-maintainer-rerun-valid.json" in contracts
     assert "External Agent Conformance" in contracts
     assert "compatible HTTP endpoint agent" in contracts
