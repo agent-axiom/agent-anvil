@@ -1,0 +1,17 @@
+{
+  "schema_version": "agent-anvil.leaderboard.maintainer_rerun.v1",
+  "status": "verified",
+  "original_evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "rerun_evidence_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "agent_name": "Contract Agent",
+  "benchmark_name": "contract_benchmark",
+  "total_trials": 100,
+  "final_answer_pass_rate": 96.0,
+  "trace_aware_pass_rate": 94.0,
+  "github_run_url": "https://github.com/owner/repo/actions/runs/123456",
+  "github_repository": "owner/repo",
+  "github_sha": "abc123",
+  "generated_at": "2026-06-09T00:00:00Z",
+  "generated_by": "agent-anvil/0.2.66",
+  "notes": "Contract fixture for maintainer-side rerun attestations."
+}

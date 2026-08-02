@@ -12,10 +12,12 @@ from anvil.leaderboard import (
     LEADERBOARD_AUDIT_SCHEMA_VERSION,
     LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION,
     LEADERBOARD_INDEX_SCHEMA_VERSION,
+    LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION,
     LEADERBOARD_SCHEMA_VERSION,
     LeaderboardAuditReport,
     LeaderboardGithubRunVerification,
     LeaderboardIndex,
+    LeaderboardMaintainerRerun,
     LeaderboardSubmission,
 )
 from anvil.runner import COMPARE_RESULT_SCHEMA_VERSION, CompareResultPayload
@@ -101,6 +103,12 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         filename="agent-anvil.leaderboard.audit.v1.schema.json",
         model=LeaderboardAuditReport,
         description="Agent Anvil public leaderboard maintainer audit report schema.",
+    ),
+    SchemaContract(
+        schema_id=LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION,
+        filename="agent-anvil.leaderboard.maintainer_rerun.v1.schema.json",
+        model=LeaderboardMaintainerRerun,
+        description="Agent Anvil public leaderboard maintainer rerun attestation schema.",
     ),
 )
 
