@@ -110,7 +110,7 @@ def test_ci_runs_against_python_312_and_314() -> None:
     assert upload["continue-on-error"] is True
 
 
-MARKETPLACE_ACTION_REF = "agent-axiom/agent-anvil-action@v1.0.46"
+MARKETPLACE_ACTION_REF = "agent-axiom/agent-anvil-action@v1.0.47"
 
 
 def test_agent_anvil_workflow_uses_marketplace_action() -> None:
