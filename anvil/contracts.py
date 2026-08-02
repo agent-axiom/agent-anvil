@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+import yaml
+from pydantic import BaseModel, ValidationError
 
 from anvil.doctor import DOCTOR_REPORT_SCHEMA_VERSION, DoctorReportPayload
 from anvil.leaderboard import (
@@ -119,6 +120,11 @@ SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
         description="Agent Anvil public leaderboard maintainer rerun attestation schema.",
     ),
 )
+SCHEMA_CONTRACTS_BY_ID = {contract.schema_id: contract for contract in SCHEMA_CONTRACTS}
+
+
+class ContractValidationError(ValueError):
+    """Raised when an artifact does not match a stable Agent Anvil contract."""
 
 
 def contract_schema(contract: SchemaContract) -> dict[str, Any]:
@@ -143,3 +149,53 @@ def export_schema_contracts(out_dir: str | Path) -> list[Path]:
         )
         written.append(path)
     return written
+
+
+def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> str:
+    selected_path = Path(path)
+    if schema_id is None:
+        payload = _read_json_payload(selected_path)
+        if not isinstance(payload, dict):
+            raise ContractValidationError(
+                f"schema_version auto-detection requires a JSON object at {selected_path}"
+            )
+        detected_schema_id = payload.get("schema_version")
+        if not isinstance(detected_schema_id, str) or not detected_schema_id:
+            raise ContractValidationError(
+                f"schema_version missing at {selected_path}; pass --schema for YAML contracts"
+            )
+        schema_id = detected_schema_id
+
+    contract = SCHEMA_CONTRACTS_BY_ID.get(schema_id)
+    if contract is None:
+        available = ", ".join(sorted(SCHEMA_CONTRACTS_BY_ID))
+        raise ContractValidationError(
+            f"unknown schema contract {schema_id!r}; available: {available}"
+        )
+
+    try:
+        if schema_id == SCENARIO_SCHEMA_VERSION:
+            contract.model.model_validate(_read_yaml_payload(selected_path))
+        else:
+            contract.model.model_validate(_read_json_payload(selected_path))
+    except (OSError, ValidationError, yaml.YAMLError, json.JSONDecodeError) as error:
+        raise ContractValidationError(
+            f"invalid {schema_id} contract at {selected_path}: {error}"
+        ) from error
+    return schema_id
+
+
+def _read_json_payload(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ContractValidationError(f"cannot read contract at {path}: {error}") from error
+    except json.JSONDecodeError as error:
+        raise ContractValidationError(f"invalid JSON contract at {path}: {error}") from error
+
+
+def _read_yaml_payload(path: Path) -> Any:
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ContractValidationError(f"cannot read contract at {path}: {error}") from error

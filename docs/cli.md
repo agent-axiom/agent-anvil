@@ -199,11 +199,15 @@ uv run anvil fuzz scenarios/refund_agent.yaml \
 
 ```bash
 uv run anvil schema export --out schemas
+uv run anvil schema validate runs/latest/results.json
+uv run anvil schema validate scenarios/refund_agent.yaml --schema anvil.scenario.v1
 ```
 
 This writes JSON Schema files for trace artifacts, scenario suites, run results,
 compare results, leaderboard submissions, and leaderboard indexes. See
-[Stable Contracts](contracts.md).
+[Stable Contracts](contracts.md). `schema validate` auto-detects JSON artifacts
+from `schema_version`; pass `--schema` for YAML scenario suites or legacy JSON
+without a schema field.
 
 ## PR Comments
 
