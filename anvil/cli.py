@@ -23,6 +23,7 @@ from anvil.contracts import (
     ContractValidationError,
     export_schema_contracts,
     validate_schema_contract,
+    validate_schema_contract_dir,
 )
 from anvil.doctor import (
     render_doctor_github_summary,
@@ -513,6 +514,16 @@ SCHEMA_VALIDATE_SCHEMA_OPTION = typer.Option(
     "--schema",
     help="Explicit schema id to use when the artifact cannot be auto-detected.",
 )
+SCHEMA_VALIDATE_PATTERN_OPTION = typer.Option(
+    None,
+    "--pattern",
+    help="File glob pattern to validate. Repeatable. Defaults to *.json.",
+)
+SCHEMA_VALIDATE_RECURSIVE_OPTION = typer.Option(
+    False,
+    "--recursive",
+    help="Validate matching files recursively.",
+)
 ADAPTER_OUT_OPTION = typer.Option(..., "--out", help="Write the adapter template here.")
 ADAPTER_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite an existing adapter file.")
 CONFORMANCE_AGENT_COMMAND_OPTION = typer.Option(
@@ -577,6 +588,39 @@ def schema_validate(
         raise typer.Exit(1) from error
     typer.echo(f"Schema: {schema_id}")
     typer.echo("Contract is valid")
+
+
+@schema_app.command("validate-dir")
+def schema_validate_dir(
+    path: Path,
+    schema: str | None = SCHEMA_VALIDATE_SCHEMA_OPTION,
+    pattern: list[str] | None = SCHEMA_VALIDATE_PATTERN_OPTION,
+    recursive: bool = SCHEMA_VALIDATE_RECURSIVE_OPTION,
+) -> None:
+    patterns = tuple(pattern or ["*.json"])
+    try:
+        result = validate_schema_contract_dir(
+            path,
+            schema_id=schema,
+            patterns=patterns,
+            recursive=recursive,
+        )
+    except ContractValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+
+    typer.echo(f"Valid contracts: {len(result.valid)}")
+    for record in result.valid:
+        typer.echo(f"- {_relative_display_path(result.root, record.path)}: {record.schema_id}")
+
+    if result.invalid:
+        typer.echo(f"Invalid contracts: {len(result.invalid)}", err=True)
+        for record in result.invalid:
+            typer.echo(
+                f"- {_relative_display_path(result.root, record.path)}: {record.error}",
+                err=True,
+            )
+        raise typer.Exit(1)
 
 
 @adapter_app.command("list")
@@ -2087,6 +2131,13 @@ def _display_path(path: Path) -> Path:
         return path.resolve().relative_to(Path.cwd().resolve())
     except ValueError:
         return path
+
+
+def _relative_display_path(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 if __name__ == "__main__":
