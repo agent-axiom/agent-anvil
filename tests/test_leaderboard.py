@@ -22,6 +22,7 @@ from anvil.leaderboard import (
     inspect_leaderboard_submission,
     prepare_leaderboard_pr_submission,
     validate_leaderboard_submission,
+    verify_leaderboard_github_runs,
 )
 
 
@@ -1013,6 +1014,117 @@ def test_audit_leaderboard_submissions_requires_verified_github_run_for_accept(
     assert audit.rows[0].reason == "github_actions rows require --github-run verification"
 
 
+def test_audit_leaderboard_submissions_accepts_github_actions_with_evidence_index(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    verify_leaderboard_github_runs(
+        submissions_dir,
+        out_dir=reports_dir,
+        index_path=evidence_index_path,
+    )
+
+    def unexpected_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        raise AssertionError("audit should use evidence index instead of GitHub API")
+
+    monkeypatch.setattr(
+        leaderboard_module,
+        "_fetch_github_actions_run",
+        unexpected_fetch,
+        raising=False,
+    )
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        verify_artifacts=False,
+        verify_github_run=False,
+        evidence_index_path=evidence_index_path,
+    )
+
+    assert audit.evidence_index_path == str(evidence_index_path)
+    assert audit.summary.accept == 1
+    assert audit.summary.review == 0
+    assert audit.summary.reject == 0
+    assert audit.rows[0].decision == "accept"
+    assert audit.rows[0].github_run_status == "verified"
+    assert audit.rows[0].reason == "submission provenance checks passed with evidence index"
+    assert str(evidence_index_path) in audit.markdown
+
+
+def test_audit_leaderboard_submissions_rejects_evidence_index_hash_mismatch(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    verify_leaderboard_github_runs(
+        submissions_dir,
+        out_dir=reports_dir,
+        index_path=evidence_index_path,
+    )
+    index = json.loads(evidence_index_path.read_text(encoding="utf-8"))
+    report_path = Path(index["reports"][0]["report_path"])
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["evidence_sha256"] = "bad-evidence"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    index["reports"][0]["evidence_sha256"] = "bad-evidence"
+    evidence_index_path.write_text(json.dumps(index), encoding="utf-8")
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        verify_artifacts=False,
+        verify_github_run=False,
+        evidence_index_path=evidence_index_path,
+    )
+
+    assert audit.summary.accept == 0
+    assert audit.summary.reject == 1
+    assert audit.rows[0].decision == "reject"
+    assert "evidence index mismatch" in audit.rows[0].reason
+
+
 def test_cli_leaderboard_audit_writes_json_and_markdown_report(
     scenario_file: Path,
     tmp_path: Path,
@@ -1062,6 +1174,81 @@ def test_cli_leaderboard_audit_writes_json_and_markdown_report(
     }
     assert payload["rows"][0]["decision"] == "review"
     assert "self-reported rows require human review" in markdown_out.read_text(encoding="utf-8")
+
+
+def test_cli_leaderboard_audit_uses_evidence_index_for_verified_rows(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    verify_leaderboard_github_runs(
+        submissions_dir,
+        out_dir=reports_dir,
+        index_path=evidence_index_path,
+    )
+
+    def unexpected_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        raise AssertionError("CLI audit should consume the evidence index")
+
+    monkeypatch.setattr(
+        leaderboard_module,
+        "_fetch_github_actions_run",
+        unexpected_fetch,
+        raising=False,
+    )
+    json_out = tmp_path / "leaderboard_audit.json"
+    markdown_out = tmp_path / "leaderboard_audit.md"
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "audit",
+            str(submissions_dir),
+            "--evidence-index",
+            str(evidence_index_path),
+            "--json-out",
+            str(json_out),
+            "--markdown-out",
+            str(markdown_out),
+            "--fail-on",
+            "reject",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Accept: 1" in result.stdout
+    assert "Review: 0" in result.stdout
+    assert "Reject: 0" in result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["evidence_index_path"] == str(evidence_index_path)
+    assert payload["rows"][0]["decision"] == "accept"
+    assert payload["rows"][0]["github_run_status"] == "verified"
+    assert str(evidence_index_path) in markdown_out.read_text(encoding="utf-8")
 
 
 def test_cli_leaderboard_audit_can_fail_only_on_rejects(

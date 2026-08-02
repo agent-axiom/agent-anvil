@@ -466,6 +466,11 @@ LEADERBOARD_AUDIT_FAIL_ON_OPTION = typer.Option(
     "--fail-on",
     help="Exit non-zero on review, reject, or never. Default fails on review and reject.",
 )
+LEADERBOARD_AUDIT_EVIDENCE_INDEX_OPTION = typer.Option(
+    None,
+    "--evidence-index",
+    help="Evidence index JSON from leaderboard verify-all --index-out.",
+)
 LEADERBOARD_INDEX_OUT_OPTION = typer.Option(
     Path("leaderboard.csv"),
     "--out",
@@ -1526,6 +1531,7 @@ def leaderboard_audit(
     verify_artifacts: bool = LEADERBOARD_BUILD_VERIFY_ARTIFACTS_OPTION,
     verify_github_run: bool = LEADERBOARD_VERIFY_GITHUB_RUN_OPTION,
     maintainer_reruns: Path | None = LEADERBOARD_MAINTAINER_RERUNS_OPTION,
+    evidence_index: Path | None = LEADERBOARD_AUDIT_EVIDENCE_INDEX_OPTION,
     json_out: Path = LEADERBOARD_AUDIT_JSON_OUT_OPTION,
     markdown_out: Path = LEADERBOARD_AUDIT_MARKDOWN_OUT_OPTION,
     fail_on: Literal["review", "reject", "never"] = LEADERBOARD_AUDIT_FAIL_ON_OPTION,
@@ -1536,6 +1542,7 @@ def leaderboard_audit(
             verify_artifacts=verify_artifacts,
             verify_github_run=verify_github_run,
             maintainer_reruns_dir=maintainer_reruns,
+            evidence_index_path=evidence_index,
         )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)

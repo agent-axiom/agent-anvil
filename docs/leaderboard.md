@@ -221,10 +221,10 @@ uv run anvil leaderboard verify-all submissions \
   --maintainer-reruns maintainer_reruns
 uv run anvil leaderboard audit submissions \
   --maintainer-reruns maintainer_reruns \
+  --evidence-index github-run-verifications.json \
   --json-out leaderboard_audit.json \
   --markdown-out leaderboard_audit.md \
-  --fail-on reject \
-  --github-run
+  --fail-on reject
 ```
 
 Use `--json` when another CI step should consume the verification directly from
@@ -249,6 +249,10 @@ allow review rows but must block rejected rows. Add `--maintainer-reruns` to
 apply maintainer rerun attestations before audit decisions are summarized; with
 `--github-run`, attested rows must point to successful public maintainer rerun
 Actions jobs.
+Add `--evidence-index github-run-verifications.json` when `verify-all
+--index-out` has already verified the public GitHub evidence. Audit validates
+the index and referenced reports, then accepts matching `github_actions` and
+`maintainer_rerun` rows without repeating the GitHub API calls.
 
 A copy-paste workflow is available at
 [`docs/examples/leaderboard-submission-workflow.yml`](examples/leaderboard-submission-workflow.yml).

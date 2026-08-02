@@ -219,6 +219,7 @@ class LeaderboardAuditReport(BaseModel):
     generated_at: str
     generated_by: str
     submissions_dir: str
+    evidence_index_path: str = ""
     summary: LeaderboardAuditSummary
     rows: list[LeaderboardAuditRow]
     markdown: str
@@ -793,12 +794,239 @@ def _leaderboard_evidence_index(
     )
 
 
+def _load_verified_evidence_refs(
+    evidence_index_path: str | Path | None,
+) -> dict[str, LeaderboardEvidenceVerificationRef]:
+    if evidence_index_path is None:
+        return {}
+    selected_path = Path(evidence_index_path)
+    try:
+        index = LeaderboardEvidenceVerificationIndex.model_validate_json(
+            selected_path.read_text(encoding="utf-8")
+        )
+    except (OSError, ValidationError) as error:
+        raise LeaderboardValidationError(
+            f"invalid leaderboard evidence index at {selected_path}: {error}"
+        ) from error
+    _validate_evidence_index_summary(index, selected_path)
+
+    refs_by_submission: dict[str, LeaderboardEvidenceVerificationRef] = {}
+    for report_ref in index.reports:
+        if report_ref.submission_path in refs_by_submission:
+            raise LeaderboardValidationError(
+                "duplicate evidence index report for submission "
+                f"{report_ref.submission_path} at {selected_path}"
+            )
+        _validate_evidence_report_ref(report_ref, selected_path)
+        refs_by_submission[report_ref.submission_path] = report_ref
+    return refs_by_submission
+
+
+def _validate_evidence_index_summary(
+    index: LeaderboardEvidenceVerificationIndex,
+    index_path: Path,
+) -> None:
+    github_actions = sum(
+        1 for report_ref in index.reports if report_ref.trust_level == "github_actions"
+    )
+    maintainer_rerun = sum(
+        1 for report_ref in index.reports if report_ref.trust_level == "maintainer_rerun"
+    )
+    if index.summary.total_reports != len(index.reports):
+        raise LeaderboardValidationError(
+            "leaderboard evidence index total_reports mismatch at "
+            f"{index_path}: expected {len(index.reports)}, got {index.summary.total_reports}"
+        )
+    if index.summary.github_actions != github_actions:
+        raise LeaderboardValidationError(
+            "leaderboard evidence index github_actions count mismatch at "
+            f"{index_path}: expected {github_actions}, got {index.summary.github_actions}"
+        )
+    if index.summary.maintainer_rerun != maintainer_rerun:
+        raise LeaderboardValidationError(
+            "leaderboard evidence index maintainer_rerun count mismatch at "
+            f"{index_path}: expected {maintainer_rerun}, got {index.summary.maintainer_rerun}"
+        )
+
+
+def _validate_evidence_report_ref(
+    report_ref: LeaderboardEvidenceVerificationRef,
+    index_path: Path,
+) -> None:
+    report_path = _resolve_evidence_report_path(report_ref.report_path, index_path)
+    if report_ref.report_schema_version == LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION:
+        _validate_github_run_evidence_report(report_ref, report_path)
+        return
+    if report_ref.report_schema_version == LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION:
+        _validate_maintainer_rerun_evidence_report(report_ref, report_path)
+        return
+    raise LeaderboardValidationError(
+        f"unsupported evidence report schema {report_ref.report_schema_version} at {index_path}"
+    )
+
+
+def _resolve_evidence_report_path(raw_path: str, index_path: Path) -> Path:
+    report_path = Path(raw_path)
+    if report_path.is_absolute():
+        return report_path
+    cwd_report_path = Path.cwd() / report_path
+    if cwd_report_path.exists():
+        return cwd_report_path
+    return index_path.parent / report_path
+
+
+def _validate_github_run_evidence_report(
+    report_ref: LeaderboardEvidenceVerificationRef,
+    report_path: Path,
+) -> None:
+    try:
+        report = LeaderboardGithubRunVerification.model_validate_json(
+            report_path.read_text(encoding="utf-8")
+        )
+    except (OSError, ValidationError) as error:
+        raise LeaderboardValidationError(
+            f"invalid GitHub run evidence report at {report_path}: {error}"
+        ) from error
+    expected_fields: dict[str, object] = {
+        "submission_path": report_ref.submission_path,
+        "trust_level": report_ref.trust_level,
+        "evidence_sha256": report_ref.evidence_sha256,
+        "github_run_url": report_ref.github_run_url,
+    }
+    for field_name, expected_value in expected_fields.items():
+        actual_value = getattr(report, field_name)
+        if actual_value != expected_value:
+            raise LeaderboardValidationError(
+                f"GitHub run evidence report {field_name} mismatch at {report_path}: "
+                f"expected {expected_value!r}, got {actual_value!r}"
+            )
+
+
+def _validate_maintainer_rerun_evidence_report(
+    report_ref: LeaderboardEvidenceVerificationRef,
+    report_path: Path,
+) -> None:
+    try:
+        report = LeaderboardMaintainerRerun.model_validate_json(
+            report_path.read_text(encoding="utf-8")
+        )
+    except (OSError, ValidationError) as error:
+        raise LeaderboardValidationError(
+            f"invalid maintainer rerun evidence report at {report_path}: {error}"
+        ) from error
+    expected_fields: dict[str, object] = {
+        "original_evidence_sha256": report_ref.evidence_sha256,
+        "github_run_url": report_ref.github_run_url,
+    }
+    for field_name, expected_value in expected_fields.items():
+        actual_value = getattr(report, field_name)
+        if actual_value != expected_value:
+            raise LeaderboardValidationError(
+                f"maintainer rerun evidence report {field_name} mismatch at {report_path}: "
+                f"expected {expected_value!r}, got {actual_value!r}"
+            )
+
+
+def _audit_rows_with_evidence_index(
+    rows: list[LeaderboardAuditRow],
+    evidence_refs: dict[str, LeaderboardEvidenceVerificationRef],
+) -> list[LeaderboardAuditRow]:
+    seen_submission_paths = {row.submission_path for row in rows}
+    updated_rows: list[LeaderboardAuditRow] = []
+    for row in rows:
+        if row.decision == "reject" or row.trust_level not in {
+            "github_actions",
+            "maintainer_rerun",
+        }:
+            updated_rows.append(row)
+            continue
+        report_ref = evidence_refs.get(row.submission_path)
+        if report_ref is None:
+            updated_rows.append(
+                row.model_copy(
+                    update={
+                        "decision": "reject",
+                        "reason": ("verified trust row is missing from leaderboard evidence index"),
+                        "github_run_status": "failed",
+                    }
+                )
+            )
+            continue
+        mismatch_reason = _audit_evidence_index_mismatch(row, report_ref)
+        if mismatch_reason:
+            updated_rows.append(
+                row.model_copy(
+                    update={
+                        "decision": "reject",
+                        "reason": mismatch_reason,
+                        "github_run_status": "failed",
+                    }
+                )
+            )
+            continue
+        reason = (
+            "maintainer rerun provenance checks passed with evidence index"
+            if row.trust_level == "maintainer_rerun"
+            else "submission provenance checks passed with evidence index"
+        )
+        updated_rows.append(
+            row.model_copy(
+                update={
+                    "decision": "accept",
+                    "reason": reason,
+                    "github_run_status": "verified",
+                }
+            )
+        )
+
+    for submission_path, report_ref in evidence_refs.items():
+        if submission_path not in seen_submission_paths:
+            updated_rows.append(
+                LeaderboardAuditRow(
+                    submission_path=submission_path,
+                    decision="reject",
+                    reason="leaderboard evidence index references a missing submission",
+                    trust_level=report_ref.trust_level,
+                    evidence_sha256=report_ref.evidence_sha256,
+                    artifact_status="not checked",
+                    github_run_status="failed",
+                )
+            )
+    return updated_rows
+
+
+def _audit_evidence_index_mismatch(
+    row: LeaderboardAuditRow,
+    report_ref: LeaderboardEvidenceVerificationRef,
+) -> str:
+    if report_ref.trust_level != row.trust_level:
+        return (
+            "evidence index mismatch: expected trust level "
+            f"{row.trust_level}, got {report_ref.trust_level}"
+        )
+    if report_ref.evidence_sha256 != row.evidence_sha256:
+        return (
+            "evidence index mismatch: expected evidence hash "
+            f"{row.evidence_sha256}, got {report_ref.evidence_sha256}"
+        )
+    if (
+        row.trust_level == "maintainer_rerun"
+        and report_ref.github_run_url != row.maintainer_rerun_url
+    ):
+        return (
+            "evidence index mismatch: expected maintainer rerun URL "
+            f"{row.maintainer_rerun_url}, got {report_ref.github_run_url}"
+        )
+    return ""
+
+
 def audit_leaderboard_submissions(
     submissions_dir: str | Path,
     *,
     verify_artifacts: bool = False,
     verify_github_run: bool = False,
     maintainer_reruns_dir: str | Path | None = None,
+    evidence_index_path: str | Path | None = None,
 ) -> LeaderboardAuditReport:
     selected_submissions_dir = Path(submissions_dir)
     if not selected_submissions_dir.exists():
@@ -818,6 +1046,7 @@ def audit_leaderboard_submissions(
     rows: list[LeaderboardAuditRow] = []
     seen_evidence_hashes: dict[str, Path] = {}
     maintainer_reruns = _load_maintainer_rerun_attestations(maintainer_reruns_dir)
+    evidence_refs = _load_verified_evidence_refs(evidence_index_path)
     used_maintainer_reruns: set[str] = set()
     for path in files:
         row = _audit_submission_file(
@@ -868,6 +1097,9 @@ def audit_leaderboard_submissions(
             )
         )
 
+    if evidence_refs:
+        rows = _audit_rows_with_evidence_index(rows, evidence_refs)
+
     summary = LeaderboardAuditSummary(
         total=len(rows),
         accept=sum(1 for row in rows if row.decision == "accept"),
@@ -876,6 +1108,7 @@ def audit_leaderboard_submissions(
     )
     markdown = _leaderboard_audit_markdown(
         submissions_dir=selected_submissions_dir,
+        evidence_index_path=Path(evidence_index_path) if evidence_index_path is not None else None,
         summary=summary,
         rows=rows,
     )
@@ -884,6 +1117,9 @@ def audit_leaderboard_submissions(
         generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         generated_by=f"agent-anvil/{_anvil_version()}",
         submissions_dir=str(_display_path(selected_submissions_dir)),
+        evidence_index_path=(
+            str(_display_path(Path(evidence_index_path))) if evidence_index_path is not None else ""
+        ),
         summary=summary,
         rows=rows,
         markdown=markdown,
@@ -1046,6 +1282,7 @@ def _audit_row_from_submission(
 def _leaderboard_audit_markdown(
     *,
     submissions_dir: Path,
+    evidence_index_path: Path | None,
     summary: LeaderboardAuditSummary,
     rows: list[LeaderboardAuditRow],
 ) -> str:
@@ -1055,16 +1292,22 @@ def _leaderboard_audit_markdown(
         "## Summary",
         "",
         f"- Submissions: `{_display_path(submissions_dir)}`",
-        f"- Total: {summary.total}",
-        f"- Accept: {summary.accept}",
-        f"- Review: {summary.review}",
-        f"- Reject: {summary.reject}",
-        "",
-        "## Decisions",
-        "",
-        "| Decision | Submission | Agent | Trust | Reason |",
-        "| --- | --- | --- | --- | --- |",
     ]
+    if evidence_index_path is not None:
+        lines.append(f"- Evidence index: `{_display_path(evidence_index_path)}`")
+    lines.extend(
+        [
+            f"- Total: {summary.total}",
+            f"- Accept: {summary.accept}",
+            f"- Review: {summary.review}",
+            f"- Reject: {summary.reject}",
+            "",
+            "## Decisions",
+            "",
+            "| Decision | Submission | Agent | Trust | Reason |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+    )
     lines.extend(
         (
             "| "
