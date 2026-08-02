@@ -4,7 +4,7 @@ Agent Anvil ships as a dedicated GitHub Marketplace action:
 
 ```yaml
 - name: Agent Anvil
-  uses: agent-axiom/agent-anvil-action@v1.0.52
+  uses: agent-axiom/agent-anvil-action@v1.0.53
   with:
     scenario: scenarios/external_jsonl_agent.yaml
     offline: "true"
