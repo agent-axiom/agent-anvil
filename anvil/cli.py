@@ -1421,16 +1421,27 @@ def leaderboard_verify_run(
 def leaderboard_verify_all(
     submissions_dir: Path,
     out: Path = LEADERBOARD_VERIFY_ALL_OUT_OPTION,
+    maintainer_reruns: Path | None = LEADERBOARD_MAINTAINER_RERUNS_OPTION,
 ) -> None:
     try:
-        reports = verify_leaderboard_github_runs(submissions_dir, out_dir=out)
+        reports = verify_leaderboard_github_runs(
+            submissions_dir,
+            out_dir=out,
+            maintainer_reruns_dir=maintainer_reruns,
+        )
     except LeaderboardValidationError as error:
         typer.echo(str(error), err=True)
         raise typer.Exit(1) from error
 
     for report_path in reports:
-        typer.echo(f"Wrote GitHub run verification report: {_display_path(report_path)}")
-    typer.echo(f"Verified GitHub Actions runs: {len(reports)}")
+        if maintainer_reruns is None:
+            typer.echo(f"Wrote GitHub run verification report: {_display_path(report_path)}")
+        else:
+            typer.echo(f"Wrote leaderboard verification report: {_display_path(report_path)}")
+    if maintainer_reruns is None:
+        typer.echo(f"Verified GitHub Actions runs: {len(reports)}")
+    else:
+        typer.echo(f"Verified leaderboard evidence reports: {len(reports)}")
 
 
 @leaderboard_app.command("audit")
