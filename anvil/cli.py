@@ -19,7 +19,11 @@ from anvil.conformance import (
     run_external_agent_conformance,
     write_conformance_report,
 )
-from anvil.contracts import export_schema_contracts
+from anvil.contracts import (
+    ContractValidationError,
+    export_schema_contracts,
+    validate_schema_contract,
+)
 from anvil.doctor import (
     render_doctor_github_summary,
     render_doctor_json,
@@ -504,6 +508,11 @@ LEADERBOARD_PR_BODY_OUT_OPTION = typer.Option(
 )
 LEARN_JSONL_FILE_ARGUMENT = typer.Argument(None)
 SCHEMA_OUT_OPTION = typer.Option(Path("schemas"), "--out", help="Write schema files here.")
+SCHEMA_VALIDATE_SCHEMA_OPTION = typer.Option(
+    None,
+    "--schema",
+    help="Explicit schema id to use when the artifact cannot be auto-detected.",
+)
 ADAPTER_OUT_OPTION = typer.Option(..., "--out", help="Write the adapter template here.")
 ADAPTER_FORCE_OPTION = typer.Option(False, "--force", help="Overwrite an existing adapter file.")
 CONFORMANCE_AGENT_COMMAND_OPTION = typer.Option(
@@ -554,6 +563,20 @@ CONFORMANCE_OUT_OPTION = typer.Option(
 def schema_export(out: Path = SCHEMA_OUT_OPTION) -> None:
     for path in export_schema_contracts(out):
         typer.echo(f"Wrote {_display_path(path)}")
+
+
+@schema_app.command("validate")
+def schema_validate(
+    path: Path,
+    schema: str | None = SCHEMA_VALIDATE_SCHEMA_OPTION,
+) -> None:
+    try:
+        schema_id = validate_schema_contract(path, schema_id=schema)
+    except ContractValidationError as error:
+        typer.echo(str(error), err=True)
+        raise typer.Exit(1) from error
+    typer.echo(f"Schema: {schema_id}")
+    typer.echo("Contract is valid")
 
 
 @adapter_app.command("list")

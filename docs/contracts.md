@@ -10,6 +10,8 @@ Export the current stable JSON Schema bundle:
 
 ```bash
 uv run anvil schema export --out schemas
+uv run anvil schema validate leaderboard_submission.json
+uv run anvil schema validate scenarios/refund_agent.yaml --schema anvil.scenario.v1
 ```
 
 The command writes schemas using export metadata version

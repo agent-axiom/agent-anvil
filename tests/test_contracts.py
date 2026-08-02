@@ -59,6 +59,57 @@ def test_cli_schema_export_writes_stable_contract_schemas(tmp_path: Path) -> Non
         assert filename in result.stdout
 
 
+def test_cli_schema_validate_accepts_auto_detected_json_contract() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "schema",
+            "validate",
+            "fixtures/contracts/leaderboard-evidence-index-valid.json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Schema: agent-anvil.leaderboard.evidence_index.v1" in result.stdout
+    assert "Contract is valid" in result.stdout
+
+
+def test_cli_schema_validate_accepts_explicit_yaml_contract() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "schema",
+            "validate",
+            "fixtures/contracts/scenario-valid.yaml",
+            "--schema",
+            "anvil.scenario.v1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Schema: anvil.scenario.v1" in result.stdout
+    assert "Contract is valid" in result.stdout
+
+
+def test_cli_schema_validate_rejects_invalid_contract(tmp_path: Path) -> None:
+    invalid_path = tmp_path / "bad-evidence-index.json"
+    invalid_path.write_text(
+        '{"schema_version": "agent-anvil.leaderboard.evidence_index.v1"}',
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["schema", "validate", str(invalid_path)])
+
+    assert result.exit_code == 1
+    assert "invalid agent-anvil.leaderboard.evidence_index.v1 contract" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_checked_in_schemas_match_exported_contracts(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["schema", "export", "--out", str(tmp_path)])
