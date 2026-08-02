@@ -89,6 +89,14 @@ Leaderboard maintainer audit reports use:
 }
 ```
 
+Leaderboard maintainer rerun attestations use:
+
+```json
+{
+  "schema_version": "agent-anvil.leaderboard.maintainer_rerun.v1"
+}
+```
+
 These schemas are designed for aggregate public reporting. They should not
 include raw traces, model outputs, tool results, secrets, or private scenario
 content.
