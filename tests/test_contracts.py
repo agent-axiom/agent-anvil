@@ -110,6 +110,68 @@ def test_cli_schema_validate_rejects_invalid_contract(tmp_path: Path) -> None:
     assert "Traceback" not in result.stderr
 
 
+def test_cli_schema_validate_dir_accepts_auto_detected_json_contracts(tmp_path: Path) -> None:
+    contracts_dir = tmp_path / "contracts"
+    contracts_dir.mkdir()
+    (contracts_dir / "submission.json").write_text(
+        Path("fixtures/contracts/leaderboard-submission-valid.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (contracts_dir / "evidence-index.json").write_text(
+        Path("fixtures/contracts/leaderboard-evidence-index-valid.json").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["schema", "validate-dir", str(contracts_dir)])
+
+    assert result.exit_code == 0
+    assert "Valid contracts: 2" in result.stdout
+    assert "submission.json: agent-anvil.leaderboard.v1" in result.stdout
+    assert "evidence-index.json: agent-anvil.leaderboard.evidence_index.v1" in result.stdout
+
+
+def test_cli_schema_validate_dir_rejects_invalid_contracts(tmp_path: Path) -> None:
+    contracts_dir = tmp_path / "contracts"
+    contracts_dir.mkdir()
+    (contracts_dir / "submission.json").write_text(
+        Path("fixtures/contracts/leaderboard-submission-valid.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (contracts_dir / "broken.json").write_text(
+        '{"schema_version": "agent-anvil.leaderboard.v1"}',
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["schema", "validate-dir", str(contracts_dir)])
+
+    assert result.exit_code == 1
+    assert "Valid contracts: 1" in result.stdout
+    assert "Invalid contracts: 1" in result.stderr
+    assert "broken.json: invalid agent-anvil.leaderboard.v1 contract" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_cli_schema_validate_dir_recurses_when_requested(tmp_path: Path) -> None:
+    contracts_dir = tmp_path / "contracts"
+    nested_dir = contracts_dir / "nested"
+    nested_dir.mkdir(parents=True)
+    (nested_dir / "submission.json").write_text(
+        Path("fixtures/contracts/leaderboard-submission-valid.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["schema", "validate-dir", str(contracts_dir), "--recursive"])
+
+    assert result.exit_code == 0
+    assert "Valid contracts: 1" in result.stdout
+    assert "nested/submission.json: agent-anvil.leaderboard.v1" in result.stdout
+
+
 def test_checked_in_schemas_match_exported_contracts(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["schema", "export", "--out", str(tmp_path)])

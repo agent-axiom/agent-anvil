@@ -12,6 +12,9 @@ Export the current stable JSON Schema bundle:
 uv run anvil schema export --out schemas
 uv run anvil schema validate leaderboard_submission.json
 uv run anvil schema validate scenarios/refund_agent.yaml --schema anvil.scenario.v1
+uv run anvil schema validate-dir submissions
+uv run anvil schema validate-dir maintainer_reruns \
+  --schema agent-anvil.leaderboard.maintainer_rerun.v1
 ```
 
 The command writes schemas using export metadata version
@@ -32,6 +35,12 @@ The command writes schemas using export metadata version
 
 The source of truth remains the Pydantic models in Agent Anvil. Checked-in
 schemas are generated from those models and protected by tests.
+
+Use `schema validate-dir` in submission repositories when maintainers need a
+cheap contract gate before slower GitHub API checks, leaderboard rebuilds, or
+manual reruns. The command validates `*.json` files by default, can apply one
+explicit schema to every matched file with `--schema`, and can traverse nested
+evidence folders with `--recursive`.
 
 ## Golden Fixtures
 

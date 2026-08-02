@@ -207,6 +207,9 @@ producer run has completed. When `--maintainer-reruns` is also supplied,
 repository, and SHA metadata too:
 
 ```bash
+uv run anvil schema validate-dir submissions
+uv run anvil schema validate-dir maintainer_reruns \
+  --schema agent-anvil.leaderboard.maintainer_rerun.v1
 uv run anvil leaderboard validate leaderboard_submission.json \
   --require-trust github_actions \
   --github-run
@@ -235,6 +238,9 @@ matching maintainer rerun attestations and store those validated attestation
 reports beside submitter-side GitHub-run reports. Add `--index-out` to publish
 one machine-readable evidence index that links each submission to its checked
 evidence report.
+Use `schema validate-dir` before `verify-all`, `audit`, or `build` when a public
+submissions repository should reject malformed JSON contracts quickly without
+calling external services.
 Use `audit` when maintainer CI needs a single decision report across all rows:
 `accept` for rows with passing provenance checks, `review` for self-reported or
 insufficiently verified rows, and `reject` for invalid, tampered, duplicate, or

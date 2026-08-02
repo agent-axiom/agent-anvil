@@ -46,6 +46,35 @@ class SchemaContract:
     description: str
 
 
+@dataclass(frozen=True)
+class SchemaValidationRecord:
+    path: Path
+    schema_id: str | None
+    error: str | None = None
+
+    @property
+    def passed(self) -> bool:
+        return self.error is None
+
+
+@dataclass(frozen=True)
+class SchemaDirectoryValidationResult:
+    root: Path
+    records: tuple[SchemaValidationRecord, ...]
+
+    @property
+    def valid(self) -> tuple[SchemaValidationRecord, ...]:
+        return tuple(record for record in self.records if record.passed)
+
+    @property
+    def invalid(self) -> tuple[SchemaValidationRecord, ...]:
+        return tuple(record for record in self.records if not record.passed)
+
+    @property
+    def passed(self) -> bool:
+        return not self.invalid
+
+
 SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
     SchemaContract(
         schema_id=TRACE_SCHEMA_VERSION,
@@ -183,6 +212,50 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
             f"invalid {schema_id} contract at {selected_path}: {error}"
         ) from error
     return schema_id
+
+
+def validate_schema_contract_dir(
+    path: str | Path,
+    *,
+    schema_id: str | None = None,
+    patterns: tuple[str, ...] = ("*.json",),
+    recursive: bool = False,
+) -> SchemaDirectoryValidationResult:
+    selected_path = Path(path)
+    if not selected_path.is_dir():
+        raise ContractValidationError(f"schema validate-dir requires a directory: {selected_path}")
+    if not patterns:
+        raise ContractValidationError("schema validate-dir requires at least one --pattern")
+
+    matched_paths = _matched_contract_paths(selected_path, patterns, recursive=recursive)
+    if not matched_paths:
+        rendered_patterns = ", ".join(patterns)
+        raise ContractValidationError(f"no files matched {rendered_patterns} under {selected_path}")
+
+    records: list[SchemaValidationRecord] = []
+    for matched_path in matched_paths:
+        try:
+            validated_schema_id = validate_schema_contract(matched_path, schema_id=schema_id)
+        except ContractValidationError as error:
+            records.append(
+                SchemaValidationRecord(path=matched_path, schema_id=schema_id, error=str(error))
+            )
+        else:
+            records.append(SchemaValidationRecord(path=matched_path, schema_id=validated_schema_id))
+    return SchemaDirectoryValidationResult(root=selected_path, records=tuple(records))
+
+
+def _matched_contract_paths(
+    root: Path,
+    patterns: tuple[str, ...],
+    *,
+    recursive: bool,
+) -> tuple[Path, ...]:
+    paths: set[Path] = set()
+    for pattern in patterns:
+        matches = root.rglob(pattern) if recursive else root.glob(pattern)
+        paths.update(path for path in matches if path.is_file())
+    return tuple(sorted(paths, key=lambda path: path.relative_to(root).as_posix()))
 
 
 def _read_json_payload(path: Path) -> Any:

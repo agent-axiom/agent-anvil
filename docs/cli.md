@@ -201,6 +201,10 @@ uv run anvil fuzz scenarios/refund_agent.yaml \
 uv run anvil schema export --out schemas
 uv run anvil schema validate runs/latest/results.json
 uv run anvil schema validate scenarios/refund_agent.yaml --schema anvil.scenario.v1
+uv run anvil schema validate-dir submissions
+uv run anvil schema validate-dir maintainer_reruns \
+  --schema agent-anvil.leaderboard.maintainer_rerun.v1
+uv run anvil schema validate-dir github-run-verifications --recursive
 ```
 
 This writes JSON Schema files for trace artifacts, scenario suites, run results,
@@ -208,6 +212,9 @@ compare results, leaderboard submissions, and leaderboard indexes. See
 [Stable Contracts](contracts.md). `schema validate` auto-detects JSON artifacts
 from `schema_version`; pass `--schema` for YAML scenario suites or legacy JSON
 without a schema field.
+Use `schema validate-dir` as a fast repository-level preflight for submitted
+artifacts. It validates `*.json` files by default, accepts repeatable
+`--pattern` values, and supports `--recursive` for nested evidence directories.
 
 ## PR Comments
 

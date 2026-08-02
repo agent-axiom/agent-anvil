@@ -20,6 +20,17 @@ jobs:
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
+      - name: Validate stable submission contracts
+        run: |
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.70 \
+            anvil schema validate-dir submissions
+      - name: Validate stable maintainer rerun contracts
+        if: hashFiles('maintainer_reruns/**/*.json') != ''
+        run: |
+          uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.70 \
+            anvil schema validate-dir maintainer_reruns \
+            --schema agent-anvil.leaderboard.maintainer_rerun.v1 \
+            --recursive
       - name: Validate submissions and build index
         run: |
           uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.70 \
