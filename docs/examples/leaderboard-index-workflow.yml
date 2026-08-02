@@ -39,6 +39,7 @@ jobs:
             anvil leaderboard audit submissions \
             --json-out leaderboard_audit.json \
             --markdown-out leaderboard_audit.md \
+            --maintainer-reruns maintainer_reruns \
             --fail-on reject \
             --github-run
       - uses: actions/upload-artifact@v7.0.1

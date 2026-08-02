@@ -206,6 +206,9 @@ class LeaderboardAuditRow(BaseModel):
     evidence_sha256: str = ""
     artifact_status: Literal["verified", "not checked", "failed"] = "not checked"
     github_run_status: Literal["verified", "not checked", "failed"] = "not checked"
+    maintainer_rerun_path: str = ""
+    maintainer_rerun_url: str = ""
+    maintainer_rerun_evidence_sha256: str = ""
 
 
 class LeaderboardAuditReport(BaseModel):
@@ -671,6 +674,7 @@ def audit_leaderboard_submissions(
     *,
     verify_artifacts: bool = False,
     verify_github_run: bool = False,
+    maintainer_reruns_dir: str | Path | None = None,
 ) -> LeaderboardAuditReport:
     selected_submissions_dir = Path(submissions_dir)
     if not selected_submissions_dir.exists():
@@ -689,12 +693,24 @@ def audit_leaderboard_submissions(
 
     rows: list[LeaderboardAuditRow] = []
     seen_evidence_hashes: dict[str, Path] = {}
+    maintainer_reruns = _load_maintainer_rerun_attestations(maintainer_reruns_dir)
+    used_maintainer_reruns: set[str] = set()
     for path in files:
         row = _audit_submission_file(
             path,
             verify_artifacts=verify_artifacts,
             verify_github_run=verify_github_run,
         )
+        if row.decision != "reject" and row.evidence_sha256 in maintainer_reruns:
+            attestation_path, attestation = maintainer_reruns[row.evidence_sha256]
+            used_maintainer_reruns.add(row.evidence_sha256)
+            row = _audit_row_with_maintainer_rerun(
+                path=path,
+                row=row,
+                attestation=attestation,
+                attestation_path=attestation_path,
+                verify_github_run=verify_github_run,
+            )
         if row.decision != "reject" and row.evidence_sha256:
             duplicate_path = seen_evidence_hashes.get(row.evidence_sha256)
             if duplicate_path is not None:
@@ -710,6 +726,23 @@ def audit_leaderboard_submissions(
             else:
                 seen_evidence_hashes[row.evidence_sha256] = path
         rows.append(row)
+    unused_reruns = sorted(set(maintainer_reruns) - used_maintainer_reruns)
+    for evidence_hash in unused_reruns:
+        attestation_path, _ = maintainer_reruns[evidence_hash]
+        rows.append(
+            LeaderboardAuditRow(
+                submission_path=str(_display_path(attestation_path)),
+                decision="reject",
+                reason=(
+                    "maintainer rerun original_evidence_sha256 has no matching submission "
+                    f"evidence: {evidence_hash}"
+                ),
+                evidence_sha256=evidence_hash,
+                artifact_status="not checked",
+                github_run_status="not checked",
+                maintainer_rerun_path=str(_display_path(attestation_path)),
+            )
+        )
 
     summary = LeaderboardAuditSummary(
         total=len(rows),
@@ -806,6 +839,60 @@ def _audit_submission_file(
         reason="submission provenance checks passed",
         artifact_status=artifact_status,
         github_run_status=github_run_status,
+    )
+
+
+def _audit_row_with_maintainer_rerun(
+    *,
+    path: Path,
+    row: LeaderboardAuditRow,
+    attestation: LeaderboardMaintainerRerun,
+    attestation_path: Path,
+    verify_github_run: bool,
+) -> LeaderboardAuditRow:
+    try:
+        submission = validate_leaderboard_submission(
+            path,
+            verify_artifacts=False,
+            verify_github_run=False,
+        )
+        _validate_maintainer_rerun_attestation(
+            attestation,
+            submission,
+            attestation_path=attestation_path,
+            verify_github_run=verify_github_run,
+        )
+    except LeaderboardValidationError as error:
+        return row.model_copy(
+            update={
+                "decision": "reject",
+                "reason": f"maintainer rerun verification failed: {error}",
+                "trust_level": "maintainer_rerun",
+                "github_run_status": "failed" if verify_github_run else row.github_run_status,
+                "maintainer_rerun_path": str(_display_path(attestation_path)),
+                "maintainer_rerun_url": attestation.github_run_url,
+                "maintainer_rerun_evidence_sha256": attestation.rerun_evidence_sha256,
+            }
+        )
+    decision: Literal["accept", "review"] = "accept" if verify_github_run else "review"
+    reason = (
+        "maintainer rerun provenance checks passed"
+        if verify_github_run
+        else "maintainer_rerun rows require --github-run verification"
+    )
+    github_run_status: Literal["verified", "not checked", "failed"] = (
+        "verified" if verify_github_run else "not checked"
+    )
+    return row.model_copy(
+        update={
+            "decision": decision,
+            "reason": reason,
+            "trust_level": "maintainer_rerun",
+            "github_run_status": github_run_status,
+            "maintainer_rerun_path": str(_display_path(attestation_path)),
+            "maintainer_rerun_url": attestation.github_run_url,
+            "maintainer_rerun_evidence_sha256": attestation.rerun_evidence_sha256,
+        }
     )
 
 
