@@ -237,6 +237,7 @@ uv run anvil leaderboard verify-run leaderboard_submission.json \
 uv run anvil leaderboard verify-run leaderboard_submission.json --json
 uv run anvil leaderboard verify-all submissions \
   --out github-run-verifications \
+  --index-out github-run-verifications.json \
   --maintainer-reruns maintainer_reruns
 uv run anvil leaderboard audit submissions \
   --maintainer-reruns maintainer_reruns \
@@ -274,7 +275,9 @@ persist a signed-off verification artifact in CI.
 `leaderboard verify-all` applies the same check to every submitted JSON row in a
 directory and writes one machine-readable evidence report per submission. Add
 `--maintainer-reruns` when maintainer CI should verify matching rerun
-attestations for self-reported rows before audit/build consume them.
+attestations for self-reported rows before audit/build consume them. Add
+`--index-out` to publish a single evidence manifest linking each submission to
+the checked report that supports its trust label.
 `leaderboard audit` classifies every row as `accept`, `review`, or `reject` and
 writes a JSON plus Markdown maintainer decision report. By default it exits
 non-zero on review or reject; use `--fail-on reject` when public leaderboard CI

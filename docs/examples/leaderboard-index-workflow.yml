@@ -33,6 +33,7 @@ jobs:
           uvx --from git+https://github.com/agent-axiom/agent-anvil@v0.2.68 \
             anvil leaderboard verify-all submissions \
             --out github-run-verifications \
+            --index-out github-run-verifications.json \
             --maintainer-reruns maintainer_reruns
       - name: Audit leaderboard decisions
         run: |
@@ -51,5 +52,6 @@ jobs:
             leaderboard.csv
             leaderboard.json
             github-run-verifications
+            github-run-verifications.json
             leaderboard_audit.json
             leaderboard_audit.md

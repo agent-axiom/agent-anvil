@@ -29,6 +29,7 @@ LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION = (
     "agent-anvil.leaderboard.github_run_verification.v1"
 )
 LEADERBOARD_AUDIT_SCHEMA_VERSION = "agent-anvil.leaderboard.audit.v1"
+LEADERBOARD_EVIDENCE_INDEX_SCHEMA_VERSION = "agent-anvil.leaderboard.evidence_index.v1"
 LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION = "agent-anvil.leaderboard.maintainer_rerun.v1"
 
 
@@ -221,6 +222,40 @@ class LeaderboardAuditReport(BaseModel):
     summary: LeaderboardAuditSummary
     rows: list[LeaderboardAuditRow]
     markdown: str
+
+
+class LeaderboardEvidenceVerificationSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_reports: int
+    github_actions: int
+    maintainer_rerun: int
+
+
+class LeaderboardEvidenceVerificationRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    submission_path: str
+    report_path: str
+    report_schema_version: Literal[
+        "agent-anvil.leaderboard.github_run_verification.v1",
+        "agent-anvil.leaderboard.maintainer_rerun.v1",
+    ]
+    trust_level: Literal["github_actions", "maintainer_rerun"]
+    evidence_sha256: str
+    github_run_url: str
+
+
+class LeaderboardEvidenceVerificationIndex(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["agent-anvil.leaderboard.evidence_index.v1"]
+    generated_at: str
+    generated_by: str
+    submissions_dir: str
+    reports_dir: str
+    summary: LeaderboardEvidenceVerificationSummary
+    reports: list[LeaderboardEvidenceVerificationRef]
 
 
 class LeaderboardValidationError(ValueError):
@@ -651,6 +686,7 @@ def verify_leaderboard_github_runs(
     *,
     out_dir: str | Path,
     maintainer_reruns_dir: str | Path | None = None,
+    index_path: str | Path | None = None,
 ) -> list[Path]:
     selected_submissions_dir = Path(submissions_dir)
     selected_out_dir = Path(out_dir)
@@ -664,6 +700,7 @@ def verify_leaderboard_github_runs(
     used_maintainer_reruns: set[str] = set()
     selected_out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
+    report_refs: list[LeaderboardEvidenceVerificationRef] = []
     for submission_path, submission in submissions:
         evidence_hash = submission.verification.evidence_sha256
         if evidence_hash in maintainer_reruns:
@@ -678,6 +715,16 @@ def verify_leaderboard_github_runs(
             report_path = selected_out_dir / f"{submission_path.stem}.maintainer_rerun.json"
             report_path.write_text(attestation.model_dump_json(indent=2), encoding="utf-8")
             written.append(report_path)
+            report_refs.append(
+                LeaderboardEvidenceVerificationRef(
+                    submission_path=str(_display_path(submission_path)),
+                    report_path=str(_display_path(report_path)),
+                    report_schema_version=LEADERBOARD_MAINTAINER_RERUN_SCHEMA_VERSION,
+                    trust_level="maintainer_rerun",
+                    evidence_sha256=attestation.original_evidence_sha256,
+                    github_run_url=attestation.github_run_url,
+                )
+            )
             continue
         if submission.verification.trust_level != "github_actions":
             raise LeaderboardValidationError(
@@ -689,13 +736,61 @@ def verify_leaderboard_github_runs(
         report_path = selected_out_dir / f"{submission_path.stem}.github_run_verification.json"
         report_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
         written.append(report_path)
+        report_refs.append(
+            LeaderboardEvidenceVerificationRef(
+                submission_path=str(_display_path(submission_path)),
+                report_path=str(_display_path(report_path)),
+                report_schema_version=LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION,
+                trust_level="github_actions",
+                evidence_sha256=report.evidence_sha256,
+                github_run_url=report.github_run_url,
+            )
+        )
     unused_reruns = sorted(set(maintainer_reruns) - used_maintainer_reruns)
     if unused_reruns:
         raise LeaderboardValidationError(
             "maintainer rerun original_evidence_sha256 has no matching submission evidence: "
             + ", ".join(unused_reruns)
         )
+    if index_path is not None:
+        selected_index_path = Path(index_path)
+        selected_index_path.parent.mkdir(parents=True, exist_ok=True)
+        selected_index_path.write_text(
+            _leaderboard_evidence_index(
+                submissions_dir=selected_submissions_dir,
+                reports_dir=selected_out_dir,
+                report_refs=report_refs,
+            ).model_dump_json(indent=2),
+            encoding="utf-8",
+        )
     return written
+
+
+def _leaderboard_evidence_index(
+    *,
+    submissions_dir: Path,
+    reports_dir: Path,
+    report_refs: list[LeaderboardEvidenceVerificationRef],
+) -> LeaderboardEvidenceVerificationIndex:
+    github_actions = sum(
+        1 for report_ref in report_refs if report_ref.trust_level == "github_actions"
+    )
+    maintainer_rerun = sum(
+        1 for report_ref in report_refs if report_ref.trust_level == "maintainer_rerun"
+    )
+    return LeaderboardEvidenceVerificationIndex(
+        schema_version=LEADERBOARD_EVIDENCE_INDEX_SCHEMA_VERSION,
+        generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        generated_by=f"agent-anvil/{_anvil_version()}",
+        submissions_dir=str(_display_path(submissions_dir)),
+        reports_dir=str(_display_path(reports_dir)),
+        summary=LeaderboardEvidenceVerificationSummary(
+            total_reports=len(report_refs),
+            github_actions=github_actions,
+            maintainer_rerun=maintainer_rerun,
+        ),
+        reports=report_refs,
+    )
 
 
 def audit_leaderboard_submissions(

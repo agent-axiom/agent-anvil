@@ -213,7 +213,9 @@ uv run anvil leaderboard validate leaderboard_submission.json \
 uv run anvil leaderboard verify-run leaderboard_submission.json \
   --out github_run_verification.json
 uv run anvil leaderboard verify-all submissions \
-  --out github-run-verifications
+  --out github-run-verifications \
+  --index-out github-run-verifications.json \
+  --maintainer-reruns maintainer_reruns
 uv run anvil leaderboard audit submissions \
   --maintainer-reruns maintainer_reruns \
   --json-out leaderboard_audit.json \
@@ -230,7 +232,9 @@ version.
 Use `verify-all` in leaderboard maintainer CI when you want one stored
 verification report per submitted row. Add `--maintainer-reruns` to validate
 matching maintainer rerun attestations and store those validated attestation
-reports beside submitter-side GitHub-run reports.
+reports beside submitter-side GitHub-run reports. Add `--index-out` to publish
+one machine-readable evidence index that links each submission to its checked
+evidence report.
 Use `audit` when maintainer CI needs a single decision report across all rows:
 `accept` for rows with passing provenance checks, `review` for self-reported or
 insufficiently verified rows, and `reject` for invalid, tampered, duplicate, or
