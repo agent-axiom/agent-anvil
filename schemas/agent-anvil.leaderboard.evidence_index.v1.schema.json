@@ -3,6 +3,26 @@
     "LeaderboardEvidenceVerificationRef": {
       "additionalProperties": false,
       "properties": {
+        "artifact_attestation_github_repository": {
+          "default": "",
+          "title": "Artifact Attestation Github Repository",
+          "type": "string"
+        },
+        "artifact_attestation_github_sha": {
+          "default": "",
+          "title": "Artifact Attestation Github Sha",
+          "type": "string"
+        },
+        "artifact_attestation_report_path": {
+          "default": "",
+          "title": "Artifact Attestation Report Path",
+          "type": "string"
+        },
+        "artifact_attestation_subject_sha256": {
+          "default": "",
+          "title": "Artifact Attestation Subject Sha256",
+          "type": "string"
+        },
         "evidence_sha256": {
           "title": "Evidence Sha256",
           "type": "string"
@@ -50,6 +70,11 @@
     "LeaderboardEvidenceVerificationSummary": {
       "additionalProperties": false,
       "properties": {
+        "artifact_attestations": {
+          "default": 0,
+          "title": "Artifact Attestations",
+          "type": "integer"
+        },
         "github_actions": {
           "title": "Github Actions",
           "type": "integer"

@@ -249,10 +249,14 @@ uv run anvil leaderboard verify-run leaderboard_submission.json --json
 uv run anvil leaderboard verify-all submissions \
   --out github-run-verifications \
   --index-out github-run-verifications.json \
+  --artifact-attestations \
   --maintainer-reruns maintainer_reruns
+uv run anvil leaderboard verify-attestation leaderboard_submission.json \
+  --out artifact_attestation_verification.json
 uv run anvil leaderboard audit submissions \
   --maintainer-reruns maintainer_reruns \
   --evidence-index github-run-verifications.json \
+  --require-artifact-attestation \
   --json-out leaderboard_audit.json \
   --markdown-out leaderboard_audit.md \
   --fail-on reject
@@ -283,12 +287,20 @@ repository/SHA.
 GitHub Actions trust evidence; it skips local artifact hashes and requires a
 `github_actions` row. Add `--json` for machine-readable stdout or `--out` to
 persist a signed-off verification artifact in CI.
+`leaderboard verify-attestation` invokes `gh attestation verify` for a
+`github_actions` submission, derives repository and source digest policy from
+the validated submission, denies self-hosted runners by default, and binds the
+verified subject SHA-256 to the local JSON file. Use `--signer-workflow` and
+`--source-ref` to narrow signer identity further. Use `--bundle` for offline
+verification with a previously downloaded GitHub attestation bundle.
 `leaderboard verify-all` applies the same check to every submitted JSON row in a
 directory and writes one machine-readable evidence report per submission. Add
 `--maintainer-reruns` when maintainer CI should verify matching rerun
 attestations for self-reported rows before audit/build consume them. Add
 `--index-out` to publish a single evidence manifest linking each submission to
-the checked report that supports its trust label.
+the checked report that supports its trust label. Add
+`--artifact-attestations` to write compact artifact attestation verification
+reports and link their subject hashes from the same evidence index.
 `leaderboard audit` classifies every row as `accept`, `review`, or `reject` and
 writes a JSON plus Markdown maintainer decision report. By default it exits
 non-zero on review or reject; use `--fail-on reject` when public leaderboard CI
@@ -298,6 +310,8 @@ attestations to the audit report before decisions are summarized.
 Add `--evidence-index` with the JSON written by `verify-all --index-out` when
 audit should reuse already-checked GitHub run and maintainer rerun evidence
 without calling the GitHub API again.
+Add `--require-artifact-attestation` to reject `github_actions` rows whose
+evidence index does not contain a valid report bound to the submitted file.
 `leaderboard inspect` renders a reviewable trust report with benchmark hashes,
 artifact status, warnings, and a reproducibility checklist for maintainers or
 community reviewers.

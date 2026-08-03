@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 from typer.testing import CliRunner
 
+from anvil.attestations import LeaderboardArtifactAttestationVerification
 from anvil.cli import app
 from anvil.doctor import DoctorReportPayload
 from anvil.leaderboard import (
@@ -32,6 +33,9 @@ CONTRACT_SCHEMAS = {
     "agent-anvil.leaderboard.index.v1": "agent-anvil.leaderboard.index.v1.schema.json",
     "agent-anvil.leaderboard.github_run_verification.v1": (
         "agent-anvil.leaderboard.github_run_verification.v1.schema.json"
+    ),
+    "agent-anvil.leaderboard.artifact_attestation_verification.v1": (
+        "agent-anvil.leaderboard.artifact_attestation_verification.v1.schema.json"
     ),
     "agent-anvil.leaderboard.audit.v1": "agent-anvil.leaderboard.audit.v1.schema.json",
     "agent-anvil.leaderboard.evidence_index.v1": (
@@ -204,6 +208,11 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
             encoding="utf-8"
         )
     )
+    artifact_attestation = LeaderboardArtifactAttestationVerification.model_validate_json(
+        Path(
+            "fixtures/contracts/leaderboard-artifact-attestation-verification-valid.json"
+        ).read_text(encoding="utf-8")
+    )
     audit = LeaderboardAuditReport.model_validate_json(
         Path("fixtures/contracts/leaderboard-audit-valid.json").read_text(encoding="utf-8")
     )
@@ -244,6 +253,10 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     assert index.schema_version == "agent-anvil.leaderboard.index.v1"
     assert verification.schema_version == "agent-anvil.leaderboard.github_run_verification.v1"
     assert verification.status == "verified"
+    assert artifact_attestation.schema_version == (
+        "agent-anvil.leaderboard.artifact_attestation_verification.v1"
+    )
+    assert artifact_attestation.subject_sha256 == "1" * 64
     assert audit.schema_version == "agent-anvil.leaderboard.audit.v1"
     assert audit.summary.review == 1
     assert evidence_index.schema_version == "agent-anvil.leaderboard.evidence_index.v1"
@@ -267,6 +280,10 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "schemas/anvil.run_manifest.v1.schema.json" in artifacts
     assert "schemas/anvil.compare.result.v1.schema.json" in artifacts
     assert "schemas/agent-anvil.leaderboard.github_run_verification.v1.schema.json" in artifacts
+    assert (
+        "schemas/agent-anvil.leaderboard.artifact_attestation_verification.v1.schema.json"
+        in artifacts
+    )
     assert "schemas/agent-anvil.leaderboard.audit.v1.schema.json" in artifacts
     assert "schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json" in contracts
 
@@ -279,6 +296,9 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "fixtures/contracts/doctor-report-valid.json" in contracts
     assert "fixtures/contracts/compare-result-valid.json" in contracts
     assert "fixtures/contracts/leaderboard-github-run-verification-valid.json" in contracts
+    assert (
+        "fixtures/contracts/leaderboard-artifact-attestation-verification-valid.json" in contracts
+    )
     assert "fixtures/contracts/leaderboard-audit-valid.json" in contracts
     assert "fixtures/contracts/leaderboard-evidence-index-valid.json" in contracts
     assert "fixtures/contracts/leaderboard-maintainer-rerun-valid.json" in contracts
