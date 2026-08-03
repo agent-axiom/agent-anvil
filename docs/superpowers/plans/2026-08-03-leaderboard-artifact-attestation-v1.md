@@ -91,5 +91,5 @@
 - [x] Run `uv run ruff check`.
 - [x] Run `uv run ty check`.
 - [x] Run `PATH=/Users/if/.nvm/versions/node/v24.14.1/bin:$PATH uv run pytest -q`.
-- [ ] Commit granularly, push, open a pull request, wait for Python 3.12/3.14 and demo CI, then merge.
+- [x] Commit granularly, push, open a pull request, wait for Python 3.12/3.14 and demo CI, then merge.
 - [ ] Release the next core version, update the Marketplace Action core ref, release the wrapper, move `v1`, and synchronize pinned wrapper references in the core repository.
