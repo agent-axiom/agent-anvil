@@ -81,4 +81,3 @@ fixtures. Coverage includes command construction, successful digest binding,
 missing CLI, timeout, non-zero exit, malformed output, subject mismatch,
 contract export, batch evidence-index linkage, and audit rejection on missing
 or tampered attestation evidence.
-
