@@ -311,8 +311,12 @@ uv run anvil leaderboard validate leaderboard_submission.json
 uv run anvil leaderboard inspect leaderboard_submission.json --out leaderboard_inspection.md
 uv run anvil leaderboard verify-run leaderboard_submission.json \
   --out github_run_verification.json
-uv run anvil leaderboard verify-all submissions --out github-run-verifications
-uv run anvil leaderboard audit submissions --json-out leaderboard_audit.json --fail-on reject
+uv run anvil leaderboard verify-attestation leaderboard_submission.json \
+  --out artifact_attestation_verification.json
+uv run anvil leaderboard verify-all submissions --out github-run-verifications \
+  --index-out github-run-verifications.json --artifact-attestations
+uv run anvil leaderboard audit submissions --evidence-index github-run-verifications.json \
+  --require-artifact-attestation --json-out leaderboard_audit.json --fail-on reject
 uv run anvil leaderboard reproduce leaderboard_submission.json --out reproduce_leaderboard_submission.sh
 uv run anvil leaderboard build submissions --out leaderboard.csv --json-out leaderboard.json
 ```
@@ -325,6 +329,9 @@ with the rendered leaderboard on
 The copy-paste GitHub Actions flow can also emit a GitHub artifact attestation
 for `leaderboard_submission.json`, giving reviewers provenance evidence for
 verified `github_actions` rows.
+`anvil leaderboard verify-attestation` verifies that cryptographic evidence,
+binds it to the local submission SHA-256 and claimed source revision, and emits
+a compact stable report for maintainer audit.
 Use the [copy-paste GitHub Actions submission workflow](docs/examples/leaderboard-submission-workflow.yml)
 to generate a verifiable `github_actions` row.
 Use the [auto-PR workflow](docs/examples/leaderboard-auto-pr-workflow.yml)

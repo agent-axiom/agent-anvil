@@ -8,6 +8,26 @@
           "title": "Agent Name",
           "type": "string"
         },
+        "artifact_attestation_report_path": {
+          "default": "",
+          "title": "Artifact Attestation Report Path",
+          "type": "string"
+        },
+        "artifact_attestation_status": {
+          "default": "not checked",
+          "enum": [
+            "verified",
+            "not checked",
+            "failed"
+          ],
+          "title": "Artifact Attestation Status",
+          "type": "string"
+        },
+        "artifact_attestation_subject_sha256": {
+          "default": "",
+          "title": "Artifact Attestation Subject Sha256",
+          "type": "string"
+        },
         "artifact_status": {
           "default": "not checked",
           "enum": [
@@ -147,6 +167,11 @@
     "markdown": {
       "title": "Markdown",
       "type": "string"
+    },
+    "require_artifact_attestation": {
+      "default": false,
+      "title": "Require Artifact Attestation",
+      "type": "boolean"
     },
     "rows": {
       "items": {

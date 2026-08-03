@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import tomllib
@@ -9,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 import anvil.leaderboard as leaderboard_module
+from anvil.attestations import LeaderboardArtifactAttestationVerification
 from anvil.benchmark import run_benchmark
 from anvil.cli import app
 from anvil.leaderboard import (
@@ -853,6 +855,7 @@ def test_cli_leaderboard_verify_all_applies_maintainer_rerun_attestations(
         "total_reports": 1,
         "github_actions": 0,
         "maintainer_rerun": 1,
+        "artifact_attestations": 0,
     }
     assert index["reports"][0]["trust_level"] == "maintainer_rerun"
     assert index["reports"][0]["report_path"] == str(report_path)
@@ -1073,6 +1076,309 @@ def test_audit_leaderboard_submissions_accepts_github_actions_with_evidence_inde
     assert audit.rows[0].github_run_status == "verified"
     assert audit.rows[0].reason == "submission provenance checks passed with evidence index"
     assert str(evidence_index_path) in audit.markdown
+
+
+def test_evidence_index_carries_artifact_attestation_into_required_audit(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    selected_submission_path = submissions_dir / "support-agent.json"
+    shutil.copyfile(submission_path, selected_submission_path)
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    def fake_verify(path: Path) -> LeaderboardArtifactAttestationVerification:
+        return _artifact_attestation_report(path)
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    monkeypatch.setattr(
+        leaderboard_module,
+        "_verify_artifact_attestation",
+        fake_verify,
+        raising=False,
+    )
+
+    verify_leaderboard_github_runs(
+        submissions_dir,
+        out_dir=reports_dir,
+        index_path=evidence_index_path,
+        verify_artifact_attestations=True,
+    )
+
+    index = json.loads(evidence_index_path.read_text(encoding="utf-8"))
+    attestation_path = reports_dir / "support-agent.artifact_attestation_verification.json"
+    assert attestation_path.exists()
+    assert index["summary"]["artifact_attestations"] == 1
+    assert index["reports"][0]["artifact_attestation_report_path"] == str(attestation_path)
+    assert index["reports"][0]["artifact_attestation_subject_sha256"] == _sha256_file(
+        selected_submission_path
+    )
+    assert index["reports"][0]["artifact_attestation_github_repository"] == (
+        "agent-axiom/agent-anvil"
+    )
+    assert index["reports"][0]["artifact_attestation_github_sha"] == "abc123"
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        verify_artifacts=False,
+        verify_github_run=False,
+        evidence_index_path=evidence_index_path,
+        require_artifact_attestation=True,
+    )
+
+    assert audit.require_artifact_attestation is True
+    assert audit.summary.accept == 1
+    assert audit.rows[0].artifact_attestation_status == "verified"
+    assert audit.rows[0].artifact_attestation_report_path == str(attestation_path)
+    assert audit.rows[0].artifact_attestation_subject_sha256 == _sha256_file(
+        selected_submission_path
+    )
+
+
+def test_required_artifact_attestation_rejects_missing_evidence(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    verify_leaderboard_github_runs(
+        submissions_dir,
+        out_dir=reports_dir,
+        index_path=evidence_index_path,
+    )
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        evidence_index_path=evidence_index_path,
+        require_artifact_attestation=True,
+    )
+
+    assert audit.summary.accept == 0
+    assert audit.summary.reject == 1
+    assert audit.rows[0].artifact_attestation_status == "failed"
+    assert audit.rows[0].reason == "required GitHub artifact attestation evidence is missing"
+
+
+def test_required_artifact_attestation_rejects_subject_hash_mismatch(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    monkeypatch.setattr(
+        leaderboard_module,
+        "_verify_artifact_attestation",
+        _artifact_attestation_report,
+        raising=False,
+    )
+    verify_leaderboard_github_runs(
+        submissions_dir,
+        out_dir=reports_dir,
+        index_path=evidence_index_path,
+        verify_artifact_attestations=True,
+    )
+    index = json.loads(evidence_index_path.read_text(encoding="utf-8"))
+    report_path = Path(index["reports"][0]["artifact_attestation_report_path"])
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["subject_sha256"] = "0" * 64
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    index["reports"][0]["artifact_attestation_subject_sha256"] = "0" * 64
+    evidence_index_path.write_text(json.dumps(index), encoding="utf-8")
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        evidence_index_path=evidence_index_path,
+        require_artifact_attestation=True,
+    )
+
+    assert audit.summary.reject == 1
+    assert audit.rows[0].artifact_attestation_status == "failed"
+    assert "artifact attestation subject hash mismatch" in audit.rows[0].reason
+
+
+def test_artifact_attestation_rejects_consistently_tampered_repository(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    monkeypatch.setattr(
+        leaderboard_module,
+        "_verify_artifact_attestation",
+        _artifact_attestation_report,
+        raising=False,
+    )
+    verify_leaderboard_github_runs(
+        submissions_dir,
+        out_dir=reports_dir,
+        index_path=evidence_index_path,
+        verify_artifact_attestations=True,
+    )
+    index = json.loads(evidence_index_path.read_text(encoding="utf-8"))
+    report_path = Path(index["reports"][0]["artifact_attestation_report_path"])
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["github_repository"] = "attacker/repo"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    index["reports"][0]["artifact_attestation_github_repository"] = "attacker/repo"
+    evidence_index_path.write_text(json.dumps(index), encoding="utf-8")
+
+    audit = audit_leaderboard_submissions(
+        submissions_dir,
+        evidence_index_path=evidence_index_path,
+        require_artifact_attestation=True,
+    )
+
+    assert audit.summary.reject == 1
+    assert audit.rows[0].artifact_attestation_status == "failed"
+    assert "artifact attestation repository mismatch" in audit.rows[0].reason
+
+
+def test_cli_verify_all_and_audit_enforce_artifact_attestation(
+    scenario_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    submission_path = _write_github_actions_submission(
+        scenario_file=scenario_file,
+        tmp_path=tmp_path,
+        monkeypatch=monkeypatch,
+    )
+    submissions_dir = tmp_path / "submissions"
+    submissions_dir.mkdir()
+    shutil.copyfile(submission_path, submissions_dir / "support-agent.json")
+    reports_dir = tmp_path / "github-run-verifications"
+    evidence_index_path = tmp_path / "github-run-verifications.json"
+
+    def fake_fetch(
+        _repository: str,
+        _run_id: str,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        return _github_run_payload()
+
+    monkeypatch.setattr(leaderboard_module, "_fetch_github_actions_run", fake_fetch, raising=False)
+    monkeypatch.setattr(
+        leaderboard_module,
+        "_verify_artifact_attestation",
+        _artifact_attestation_report,
+        raising=False,
+    )
+    runner = CliRunner()
+    verify_result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "verify-all",
+            str(submissions_dir),
+            "--out",
+            str(reports_dir),
+            "--index-out",
+            str(evidence_index_path),
+            "--artifact-attestations",
+        ],
+    )
+
+    assert verify_result.exit_code == 0
+    assert "Verified GitHub artifact attestations" in verify_result.stdout
+    attestation_path = reports_dir / "support-agent.artifact_attestation_verification.json"
+    assert f"Wrote artifact attestation verification report: {attestation_path}" in (
+        verify_result.stdout
+    )
+
+    json_out = tmp_path / "audit.json"
+    markdown_out = tmp_path / "audit.md"
+    audit_result = runner.invoke(
+        app,
+        [
+            "leaderboard",
+            "audit",
+            str(submissions_dir),
+            "--evidence-index",
+            str(evidence_index_path),
+            "--require-artifact-attestation",
+            "--json-out",
+            str(json_out),
+            "--markdown-out",
+            str(markdown_out),
+            "--fail-on",
+            "reject",
+        ],
+    )
+
+    assert audit_result.exit_code == 0
+    assert "Accept: 1" in audit_result.stdout
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["require_artifact_attestation"] is True
+    assert payload["rows"][0]["artifact_attestation_status"] == "verified"
 
 
 def test_audit_leaderboard_submissions_rejects_evidence_index_hash_mismatch(
@@ -2175,6 +2481,33 @@ def _github_run_payload(
             "full_name": repository,
         },
     }
+
+
+def _artifact_attestation_report(path: Path) -> LeaderboardArtifactAttestationVerification:
+    subject_sha256 = _sha256_file(path)
+    return LeaderboardArtifactAttestationVerification(
+        schema_version="agent-anvil.leaderboard.artifact_attestation_verification.v1",
+        status="verified",
+        submission_path=str(path),
+        agent_name="Support Agent",
+        benchmark_name="paper_benchmark",
+        trust_level="github_actions",
+        github_repository="agent-axiom/agent-anvil",
+        github_sha="abc123",
+        github_run_url="https://github.com/agent-axiom/agent-anvil/actions/runs/12345",
+        subject_sha256=subject_sha256,
+        predicate_type="https://slsa.dev/provenance/v1",
+        source_digest="abc123",
+        self_hosted_runners_denied=True,
+        verified_attestations=1,
+        verification_output_sha256="f" * 64,
+        generated_at="2026-08-03T10:00:00Z",
+        generated_by="agent-anvil/0.2.73",
+    )
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _write_manifest(tmp_path: Path, scenario_file: Path) -> Path:

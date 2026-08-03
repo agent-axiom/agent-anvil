@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -22,6 +22,9 @@ from anvil.benchmark import (
     BenchmarkResult,
     load_benchmark_manifest,
 )
+
+if TYPE_CHECKING:
+    from anvil.attestations import LeaderboardArtifactAttestationVerification
 
 LEADERBOARD_SCHEMA_VERSION = "agent-anvil.leaderboard.v1"
 LEADERBOARD_INDEX_SCHEMA_VERSION = "agent-anvil.leaderboard.index.v1"
@@ -207,6 +210,9 @@ class LeaderboardAuditRow(BaseModel):
     evidence_sha256: str = ""
     artifact_status: Literal["verified", "not checked", "failed"] = "not checked"
     github_run_status: Literal["verified", "not checked", "failed"] = "not checked"
+    artifact_attestation_status: Literal["verified", "not checked", "failed"] = "not checked"
+    artifact_attestation_report_path: str = ""
+    artifact_attestation_subject_sha256: str = ""
     maintainer_rerun_path: str = ""
     maintainer_rerun_url: str = ""
     maintainer_rerun_evidence_sha256: str = ""
@@ -220,6 +226,7 @@ class LeaderboardAuditReport(BaseModel):
     generated_by: str
     submissions_dir: str
     evidence_index_path: str = ""
+    require_artifact_attestation: bool = False
     summary: LeaderboardAuditSummary
     rows: list[LeaderboardAuditRow]
     markdown: str
@@ -231,6 +238,7 @@ class LeaderboardEvidenceVerificationSummary(BaseModel):
     total_reports: int
     github_actions: int
     maintainer_rerun: int
+    artifact_attestations: int = 0
 
 
 class LeaderboardEvidenceVerificationRef(BaseModel):
@@ -245,6 +253,10 @@ class LeaderboardEvidenceVerificationRef(BaseModel):
     trust_level: Literal["github_actions", "maintainer_rerun"]
     evidence_sha256: str
     github_run_url: str
+    artifact_attestation_report_path: str = ""
+    artifact_attestation_subject_sha256: str = ""
+    artifact_attestation_github_repository: str = ""
+    artifact_attestation_github_sha: str = ""
 
 
 class LeaderboardEvidenceVerificationIndex(BaseModel):
@@ -688,6 +700,7 @@ def verify_leaderboard_github_runs(
     out_dir: str | Path,
     maintainer_reruns_dir: str | Path | None = None,
     index_path: str | Path | None = None,
+    verify_artifact_attestations: bool = False,
 ) -> list[Path]:
     selected_submissions_dir = Path(submissions_dir)
     selected_out_dir = Path(out_dir)
@@ -737,6 +750,23 @@ def verify_leaderboard_github_runs(
         report_path = selected_out_dir / f"{submission_path.stem}.github_run_verification.json"
         report_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
         written.append(report_path)
+        artifact_attestation_report_path = ""
+        artifact_attestation_subject_sha256 = ""
+        artifact_attestation_github_repository = ""
+        artifact_attestation_github_sha = ""
+        if verify_artifact_attestations:
+            artifact_attestation = _verify_artifact_attestation(submission_path)
+            selected_attestation_report_path = (
+                selected_out_dir / f"{submission_path.stem}.artifact_attestation_verification.json"
+            )
+            selected_attestation_report_path.write_text(
+                artifact_attestation.model_dump_json(indent=2),
+                encoding="utf-8",
+            )
+            artifact_attestation_report_path = str(_display_path(selected_attestation_report_path))
+            artifact_attestation_subject_sha256 = artifact_attestation.subject_sha256
+            artifact_attestation_github_repository = artifact_attestation.github_repository
+            artifact_attestation_github_sha = artifact_attestation.github_sha
         report_refs.append(
             LeaderboardEvidenceVerificationRef(
                 submission_path=str(_display_path(submission_path)),
@@ -745,6 +775,10 @@ def verify_leaderboard_github_runs(
                 trust_level="github_actions",
                 evidence_sha256=report.evidence_sha256,
                 github_run_url=report.github_run_url,
+                artifact_attestation_report_path=artifact_attestation_report_path,
+                artifact_attestation_subject_sha256=artifact_attestation_subject_sha256,
+                artifact_attestation_github_repository=(artifact_attestation_github_repository),
+                artifact_attestation_github_sha=artifact_attestation_github_sha,
             )
         )
     unused_reruns = sorted(set(maintainer_reruns) - used_maintainer_reruns)
@@ -779,6 +813,9 @@ def _leaderboard_evidence_index(
     maintainer_rerun = sum(
         1 for report_ref in report_refs if report_ref.trust_level == "maintainer_rerun"
     )
+    artifact_attestations = sum(
+        1 for report_ref in report_refs if report_ref.artifact_attestation_report_path
+    )
     return LeaderboardEvidenceVerificationIndex(
         schema_version=LEADERBOARD_EVIDENCE_INDEX_SCHEMA_VERSION,
         generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
@@ -789,6 +826,7 @@ def _leaderboard_evidence_index(
             total_reports=len(report_refs),
             github_actions=github_actions,
             maintainer_rerun=maintainer_rerun,
+            artifact_attestations=artifact_attestations,
         ),
         reports=report_refs,
     )
@@ -832,6 +870,9 @@ def _validate_evidence_index_summary(
     maintainer_rerun = sum(
         1 for report_ref in index.reports if report_ref.trust_level == "maintainer_rerun"
     )
+    artifact_attestations = sum(
+        1 for report_ref in index.reports if report_ref.artifact_attestation_report_path
+    )
     if index.summary.total_reports != len(index.reports):
         raise LeaderboardValidationError(
             "leaderboard evidence index total_reports mismatch at "
@@ -847,12 +888,19 @@ def _validate_evidence_index_summary(
             "leaderboard evidence index maintainer_rerun count mismatch at "
             f"{index_path}: expected {maintainer_rerun}, got {index.summary.maintainer_rerun}"
         )
+    if index.summary.artifact_attestations != artifact_attestations:
+        raise LeaderboardValidationError(
+            "leaderboard evidence index artifact_attestations count mismatch at "
+            f"{index_path}: expected {artifact_attestations}, "
+            f"got {index.summary.artifact_attestations}"
+        )
 
 
 def _validate_evidence_report_ref(
     report_ref: LeaderboardEvidenceVerificationRef,
     index_path: Path,
 ) -> None:
+    _validate_artifact_attestation_evidence_report(report_ref, index_path)
     report_path = _resolve_evidence_report_path(report_ref.report_path, index_path)
     if report_ref.report_schema_version == LEADERBOARD_GITHUB_RUN_VERIFICATION_SCHEMA_VERSION:
         _validate_github_run_evidence_report(report_ref, report_path)
@@ -863,6 +911,59 @@ def _validate_evidence_report_ref(
     raise LeaderboardValidationError(
         f"unsupported evidence report schema {report_ref.report_schema_version} at {index_path}"
     )
+
+
+def _validate_artifact_attestation_evidence_report(
+    report_ref: LeaderboardEvidenceVerificationRef,
+    index_path: Path,
+) -> None:
+    report_path_text = report_ref.artifact_attestation_report_path
+    subject_sha256 = report_ref.artifact_attestation_subject_sha256
+    repository = report_ref.artifact_attestation_github_repository
+    github_sha = report_ref.artifact_attestation_github_sha
+    if not report_path_text:
+        if subject_sha256 or repository or github_sha:
+            raise LeaderboardValidationError(
+                "artifact attestation evidence metadata exists without a report path at "
+                f"{index_path}"
+            )
+        return
+    if not subject_sha256 or not repository or not github_sha:
+        raise LeaderboardValidationError(
+            "artifact attestation evidence report path requires subject hash, repository, "
+            "and GitHub SHA at "
+            f"{index_path}"
+        )
+
+    from anvil.attestations import (  # noqa: PLC0415
+        LeaderboardArtifactAttestationVerification,
+    )
+
+    report_path = _resolve_evidence_report_path(report_path_text, index_path)
+    try:
+        report = LeaderboardArtifactAttestationVerification.model_validate_json(
+            report_path.read_text(encoding="utf-8")
+        )
+    except (OSError, ValidationError) as error:
+        raise LeaderboardValidationError(
+            f"invalid artifact attestation evidence report at {report_path}: {error}"
+        ) from error
+    expected_fields: dict[str, object] = {
+        "submission_path": report_ref.submission_path,
+        "trust_level": "github_actions",
+        "github_run_url": report_ref.github_run_url,
+        "subject_sha256": subject_sha256,
+        "github_repository": repository,
+        "github_sha": github_sha,
+        "source_digest": github_sha,
+    }
+    for field_name, expected_value in expected_fields.items():
+        actual_value = getattr(report, field_name)
+        if actual_value != expected_value:
+            raise LeaderboardValidationError(
+                f"artifact attestation evidence report {field_name} mismatch at {report_path}: "
+                f"expected {expected_value!r}, got {actual_value!r}"
+            )
 
 
 def _resolve_evidence_report_path(raw_path: str, index_path: Path) -> Path:
@@ -930,6 +1031,8 @@ def _validate_maintainer_rerun_evidence_report(
 def _audit_rows_with_evidence_index(
     rows: list[LeaderboardAuditRow],
     evidence_refs: dict[str, LeaderboardEvidenceVerificationRef],
+    *,
+    require_artifact_attestation: bool,
 ) -> list[LeaderboardAuditRow]:
     seen_submission_paths = {row.submission_path for row in rows}
     updated_rows: list[LeaderboardAuditRow] = []
@@ -964,6 +1067,32 @@ def _audit_rows_with_evidence_index(
                 )
             )
             continue
+        attestation_mismatch_reason = _audit_artifact_attestation_mismatch(
+            row,
+            report_ref,
+            require_artifact_attestation=require_artifact_attestation,
+        )
+        if attestation_mismatch_reason:
+            updated_rows.append(
+                row.model_copy(
+                    update={
+                        "decision": "reject",
+                        "reason": attestation_mismatch_reason,
+                        "github_run_status": "verified",
+                        "artifact_attestation_status": "failed",
+                        "artifact_attestation_report_path": (
+                            report_ref.artifact_attestation_report_path
+                        ),
+                        "artifact_attestation_subject_sha256": (
+                            report_ref.artifact_attestation_subject_sha256
+                        ),
+                    }
+                )
+            )
+            continue
+        artifact_attestation_status = (
+            "verified" if report_ref.artifact_attestation_report_path else "not checked"
+        )
         reason = (
             "maintainer rerun provenance checks passed with evidence index"
             if row.trust_level == "maintainer_rerun"
@@ -975,6 +1104,13 @@ def _audit_rows_with_evidence_index(
                     "decision": "accept",
                     "reason": reason,
                     "github_run_status": "verified",
+                    "artifact_attestation_status": artifact_attestation_status,
+                    "artifact_attestation_report_path": (
+                        report_ref.artifact_attestation_report_path
+                    ),
+                    "artifact_attestation_subject_sha256": (
+                        report_ref.artifact_attestation_subject_sha256
+                    ),
                 }
             )
         )
@@ -990,6 +1126,9 @@ def _audit_rows_with_evidence_index(
                     evidence_sha256=report_ref.evidence_sha256,
                     artifact_status="not checked",
                     github_run_status="failed",
+                    artifact_attestation_status=(
+                        "failed" if require_artifact_attestation else "not checked"
+                    ),
                 )
             )
     return updated_rows
@@ -1020,6 +1159,49 @@ def _audit_evidence_index_mismatch(
     return ""
 
 
+def _audit_artifact_attestation_mismatch(
+    row: LeaderboardAuditRow,
+    report_ref: LeaderboardEvidenceVerificationRef,
+    *,
+    require_artifact_attestation: bool,
+) -> str:
+    report_path = report_ref.artifact_attestation_report_path
+    subject_sha256 = report_ref.artifact_attestation_subject_sha256
+    if not report_path:
+        return (
+            "required GitHub artifact attestation evidence is missing"
+            if require_artifact_attestation and row.trust_level == "github_actions"
+            else ""
+        )
+    submission_path = Path(row.submission_path)
+    if not submission_path.is_file():
+        return f"artifact attestation submission file is missing: {submission_path}"
+    actual_sha256 = _sha256_file(submission_path)
+    if subject_sha256 != actual_sha256:
+        return (
+            "artifact attestation subject hash mismatch: "
+            f"expected {actual_sha256}, got {subject_sha256 or 'not provided'}"
+        )
+    submission = validate_leaderboard_submission(submission_path, verify_artifacts=False)
+    expected_repository = submission.verification.github_repository
+    if report_ref.artifact_attestation_github_repository != expected_repository:
+        return (
+            "artifact attestation repository mismatch: "
+            f"expected {expected_repository}, "
+            f"got {report_ref.artifact_attestation_github_repository or 'not provided'}"
+        )
+    expected_github_sha = submission.verification.github_sha
+    return (
+        (
+            "artifact attestation GitHub SHA mismatch: "
+            f"expected {expected_github_sha}, "
+            f"got {report_ref.artifact_attestation_github_sha or 'not provided'}"
+        )
+        if report_ref.artifact_attestation_github_sha != expected_github_sha
+        else ""
+    )
+
+
 def audit_leaderboard_submissions(
     submissions_dir: str | Path,
     *,
@@ -1027,6 +1209,7 @@ def audit_leaderboard_submissions(
     verify_github_run: bool = False,
     maintainer_reruns_dir: str | Path | None = None,
     evidence_index_path: str | Path | None = None,
+    require_artifact_attestation: bool = False,
 ) -> LeaderboardAuditReport:
     selected_submissions_dir = Path(submissions_dir)
     if not selected_submissions_dir.exists():
@@ -1097,8 +1280,14 @@ def audit_leaderboard_submissions(
             )
         )
 
+    if require_artifact_attestation and evidence_index_path is None:
+        raise LeaderboardValidationError("--require-artifact-attestation requires --evidence-index")
     if evidence_refs:
-        rows = _audit_rows_with_evidence_index(rows, evidence_refs)
+        rows = _audit_rows_with_evidence_index(
+            rows,
+            evidence_refs,
+            require_artifact_attestation=require_artifact_attestation,
+        )
 
     summary = LeaderboardAuditSummary(
         total=len(rows),
@@ -1120,10 +1309,21 @@ def audit_leaderboard_submissions(
         evidence_index_path=(
             str(_display_path(Path(evidence_index_path))) if evidence_index_path is not None else ""
         ),
+        require_artifact_attestation=require_artifact_attestation,
         summary=summary,
         rows=rows,
         markdown=markdown,
     )
+
+
+def _verify_artifact_attestation(
+    submission_path: Path,
+) -> LeaderboardArtifactAttestationVerification:
+    from anvil.attestations import (  # noqa: PLC0415
+        verify_leaderboard_artifact_attestation,
+    )
+
+    return verify_leaderboard_artifact_attestation(submission_path)
 
 
 def _audit_submission_file(

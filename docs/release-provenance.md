@@ -41,6 +41,18 @@ The public leaderboard workflow can create a GitHub artifact attestation for
 `leaderboard_submission.json`. That artifact attestation proves the aggregate
 submission file was produced by the claimed GitHub Actions run.
 
+Verify it through Agent Anvil so repository/source policy and the local subject
+SHA-256 are recorded in a compact stable report:
+
+```bash
+uv run anvil leaderboard verify-attestation leaderboard_submission.json \
+  --out artifact_attestation_verification.json
+```
+
+Use `--signer-workflow` for an allowlisted producer workflow or `--bundle` for
+offline verification. Self-hosted runners are denied unless the reviewer
+explicitly opts in.
+
 Artifact attestations complement, but do not replace:
 
 - Agent Anvil submission validation;

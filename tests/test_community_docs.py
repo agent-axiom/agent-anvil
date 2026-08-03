@@ -279,16 +279,35 @@ def test_leaderboard_index_workflow_exports_verification_reports() -> None:
     assert "anvil leaderboard build submissions" in workflow
     assert "anvil leaderboard verify-all submissions" in workflow
     assert "--out github-run-verifications" in workflow
+    assert "attestations: read" in workflow
+    assert "GH_TOKEN: ${{ github.token }}" in workflow
+    assert "--artifact-attestations" in workflow
     assert "github-run-verifications" in workflow
     assert "anvil leaderboard audit submissions" in workflow
     assert "--json-out leaderboard_audit.json" in workflow
     assert "--markdown-out leaderboard_audit.md" in workflow
     assert "--fail-on reject" in workflow
+    assert "--require-artifact-attestation" in workflow
     assert "leaderboard_audit.json" in workflow
     assert "leaderboard_audit.md" in workflow
     assert "if: always()" in workflow
     assert "Use `verify-all` in leaderboard maintainer CI" in leaderboard_doc
     assert "Use `audit` when maintainer CI needs a single decision report" in leaderboard_doc
+    assert "anvil leaderboard verify-attestation" in leaderboard_doc
+    assert "--signer-workflow" in leaderboard_doc
+    assert "--bundle" in leaderboard_doc
+
+
+def test_artifact_attestation_verification_is_documented_as_distinct_trust_evidence() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    leaderboard = Path("docs/leaderboard.md").read_text(encoding="utf-8")
+    provenance = Path("docs/release-provenance.md").read_text(encoding="utf-8")
+
+    for text in (readme, leaderboard, provenance):
+        assert "anvil leaderboard verify-attestation" in text
+    assert "GitHub run verification" in leaderboard
+    assert "artifact attestation verification" in leaderboard
+    assert "subject SHA-256" in leaderboard
 
 
 def test_leaderboard_uvx_examples_pin_current_release() -> None:

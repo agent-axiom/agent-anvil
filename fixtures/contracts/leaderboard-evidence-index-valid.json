@@ -7,7 +7,8 @@
   "summary": {
     "total_reports": 2,
     "github_actions": 1,
-    "maintainer_rerun": 1
+    "maintainer_rerun": 1,
+    "artifact_attestations": 1
   },
   "reports": [
     {
@@ -16,7 +17,11 @@
       "report_schema_version": "agent-anvil.leaderboard.github_run_verification.v1",
       "trust_level": "github_actions",
       "evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "github_run_url": "https://github.com/owner/repo/actions/runs/123456"
+      "github_run_url": "https://github.com/owner/repo/actions/runs/123456",
+      "artifact_attestation_report_path": "fixtures/contracts/leaderboard-artifact-attestation-verification-valid.json",
+      "artifact_attestation_subject_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "artifact_attestation_github_repository": "owner/repo",
+      "artifact_attestation_github_sha": "0123456789abcdef0123456789abcdef01234567"
     },
     {
       "submission_path": "submissions/self-reported-agent.json",
