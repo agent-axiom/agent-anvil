@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import heapq
 import hmac
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
@@ -188,6 +189,16 @@ class VerifiedEvidence:
     content: VerifiedContent
 
 
+@dataclass(frozen=True)
+class EvidenceRequirementMatch:
+    requirement: EvidenceRequirement
+    evidence_ids: tuple[str, ...]
+
+    @property
+    def satisfied(self) -> bool:
+        return len(self.evidence_ids) >= self.requirement.minimum_count
+
+
 def evidence_identity(value: EvidenceRecord | Mapping[str, Any]) -> str:
     if isinstance(value, EvidenceRecord):
         payload = value.model_dump(mode="json", by_alias=True)
@@ -335,6 +346,88 @@ def verify_evidence_record(
         assigned_trust=trust.assigned_trust,
         content=content,
     )
+
+
+def validate_evidence_graph(records: Sequence[EvidenceRecord]) -> tuple[EvidenceRecord, ...]:
+    records_by_id: dict[str, EvidenceRecord] = {}
+    for record in records:
+        if record.evidence_id in records_by_id:
+            raise AssuranceError(
+                "evidence graph contains duplicate record identifiers",
+                code="evidence_schema_error",
+                path="$.evidenceId",
+            )
+        records_by_id[record.evidence_id] = record
+
+    children = {evidence_id: [] for evidence_id in records_by_id}
+    indegree = dict.fromkeys(records_by_id, 0)
+    for record in records_by_id.values():
+        if len(set(record.parents)) != len(record.parents):
+            raise AssuranceError(
+                "evidence graph contains duplicate parent identifiers",
+                code="evidence_schema_error",
+                path="$.parents",
+            )
+        if record.evidence_id in record.parents:
+            raise AssuranceError(
+                "evidence graph contains a self-parent relationship",
+                code="evidence_schema_error",
+                path="$.parents",
+            )
+        for parent in record.parents:
+            if parent not in records_by_id:
+                raise AssuranceError(
+                    "evidence graph contains a dangling parent",
+                    code="evidence_schema_error",
+                    path="$.parents",
+                )
+            children[parent].append(record.evidence_id)
+            indegree[record.evidence_id] += 1
+
+    ready = [evidence_id for evidence_id, degree in indegree.items() if degree == 0]
+    heapq.heapify(ready)
+    ordered_ids: list[str] = []
+    while ready:
+        evidence_id = heapq.heappop(ready)
+        ordered_ids.append(evidence_id)
+        for child in sorted(children[evidence_id]):
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                heapq.heappush(ready, child)
+
+    if len(ordered_ids) != len(records_by_id):
+        raise AssuranceError(
+            "evidence graph contains a cycle",
+            code="evidence_graph_cycle",
+            path="$.parents",
+        )
+    return tuple(records_by_id[evidence_id] for evidence_id in ordered_ids)
+
+
+def match_evidence_requirement(
+    requirement: EvidenceRequirement,
+    evidence: Sequence[VerifiedEvidence],
+) -> EvidenceRequirementMatch:
+    if any(not isinstance(item, VerifiedEvidence) for item in evidence):
+        raise TypeError("evidence requirements can only be matched against VerifiedEvidence")
+    matching_ids = {
+        item.record.evidence_id
+        for item in evidence
+        if item.record.type == requirement.type
+        and (requirement.subject is None or item.record.subject == requirement.subject)
+        and item.assigned_trust.rank >= requirement.minimum_trust.rank
+    }
+    return EvidenceRequirementMatch(
+        requirement=requirement,
+        evidence_ids=tuple(sorted(matching_ids)),
+    )
+
+
+def match_evidence_requirements(
+    requirements: Sequence[EvidenceRequirement],
+    evidence: Sequence[VerifiedEvidence],
+) -> tuple[EvidenceRequirementMatch, ...]:
+    return tuple(match_evidence_requirement(requirement, evidence) for requirement in requirements)
 
 
 def _is_prefixed_sha256(value: str) -> bool:
