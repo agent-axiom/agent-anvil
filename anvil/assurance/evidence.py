@@ -7,7 +7,7 @@ import hmac
 import os
 import stat
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Any, BinaryIO, Literal
@@ -266,11 +266,31 @@ class VerifiedContent:
     sha256: str
 
 
-@dataclass(frozen=True, init=False)
+_VERIFIED_EVIDENCE_SEAL = object()
+
+
+@dataclass(frozen=True, slots=True, init=False)
 class VerifiedEvidence:
-    record: EvidenceRecord
+    evidence_id: str
+    run_id: str
+    release_id: str
+    contract_id: str
+    type: str
+    subject: str
+    parents: tuple[str, ...]
     assigned_trust: TrustLevel
     content: VerifiedContent
+    _record_json: bytes = field(repr=False)
+    _seal: object = field(repr=False, compare=False)
+
+    def __init__(self) -> None:
+        raise TypeError("VerifiedEvidence can only be created by verify_evidence_record")
+
+    @property
+    def record(self) -> EvidenceRecord:
+        """Return a fresh copy of the metadata snapshot verified at ingestion."""
+
+        return EvidenceRecord.model_validate_json(self._record_json)
 
 
 def _create_verified_evidence(
@@ -280,9 +300,21 @@ def _create_verified_evidence(
     content: VerifiedContent,
 ) -> VerifiedEvidence:
     verified = object.__new__(VerifiedEvidence)
-    object.__setattr__(verified, "record", record)
+    object.__setattr__(verified, "evidence_id", record.evidence_id)
+    object.__setattr__(verified, "run_id", record.run_id)
+    object.__setattr__(verified, "release_id", record.release_id)
+    object.__setattr__(verified, "contract_id", record.contract_id)
+    object.__setattr__(verified, "type", record.type)
+    object.__setattr__(verified, "subject", record.subject)
+    object.__setattr__(verified, "parents", tuple(record.parents))
     object.__setattr__(verified, "assigned_trust", assigned_trust)
     object.__setattr__(verified, "content", content)
+    object.__setattr__(
+        verified,
+        "_record_json",
+        record.model_dump_json(by_alias=True).encode("utf-8"),
+    )
+    object.__setattr__(verified, "_seal", _VERIFIED_EVIDENCE_SEAL)
     return verified
 
 
@@ -526,7 +558,7 @@ def _open_anchored_content(
         return resolved.open("rb")
 
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
-    file_flags = os.O_RDONLY | os.O_NOFOLLOW
+    file_flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
     if hasattr(os, "O_CLOEXEC"):
         directory_flags |= os.O_CLOEXEC
         file_flags |= os.O_CLOEXEC
@@ -553,6 +585,7 @@ def _open_anchored_content(
 def verify_evidence_record(
     record: EvidenceRecord,
     *,
+    expected_run_id: str,
     expected_release_id: str,
     expected_contract_id: str,
     observed_source: ObservedEvidenceSource,
@@ -560,13 +593,19 @@ def verify_evidence_record(
     store_root: Path,
 ) -> VerifiedEvidence:
     verify_evidence_identity(record)
-    if not hmac.compare_digest(record.release_id, expected_release_id):
+    if record.run_id != expected_run_id:
+        raise AssuranceError(
+            "evidence belongs to a different run",
+            code="evidence_schema_error",
+            path="$.runId",
+        )
+    if record.release_id != expected_release_id:
         raise AssuranceError(
             "evidence belongs to a different release",
             code="evidence_schema_error",
             path="$.releaseId",
         )
-    if not hmac.compare_digest(record.contract_id, expected_contract_id):
+    if record.contract_id != expected_contract_id:
         raise AssuranceError(
             "evidence belongs to a different assurance contract",
             code="evidence_schema_error",
@@ -645,13 +684,19 @@ def match_evidence_requirement(
     requirement: EvidenceRequirement,
     evidence: Sequence[VerifiedEvidence],
 ) -> EvidenceRequirementMatch:
-    if any(not isinstance(item, VerifiedEvidence) for item in evidence):
-        raise TypeError("evidence requirements can only be matched against VerifiedEvidence")
+    verified = _prepare_verified_evidence(evidence)
+    return _match_evidence_requirement(requirement, verified)
+
+
+def _match_evidence_requirement(
+    requirement: EvidenceRequirement,
+    evidence: Sequence[VerifiedEvidence],
+) -> EvidenceRequirementMatch:
     matching_ids = {
-        item.record.evidence_id
+        item.evidence_id
         for item in evidence
-        if item.record.type == requirement.type
-        and (requirement.subject is None or item.record.subject == requirement.subject)
+        if item.type == requirement.type
+        and (requirement.subject is None or item.subject == requirement.subject)
         and item.assigned_trust.rank >= requirement.minimum_trust.rank
     }
     return EvidenceRequirementMatch(
@@ -664,7 +709,56 @@ def match_evidence_requirements(
     requirements: Sequence[EvidenceRequirement],
     evidence: Sequence[VerifiedEvidence],
 ) -> tuple[EvidenceRequirementMatch, ...]:
-    return tuple(match_evidence_requirement(requirement, evidence) for requirement in requirements)
+    verified = _prepare_verified_evidence(evidence)
+    return tuple(_match_evidence_requirement(requirement, verified) for requirement in requirements)
+
+
+def _prepare_verified_evidence(
+    evidence: Sequence[VerifiedEvidence],
+) -> tuple[VerifiedEvidence, ...]:
+    unique: dict[str, VerifiedEvidence] = {}
+    for item in evidence:
+        if (
+            not isinstance(item, VerifiedEvidence)
+            or getattr(item, "_seal", None) is not _VERIFIED_EVIDENCE_SEAL
+        ):
+            raise TypeError(
+                "evidence requirements can only be matched against VerifiedEvidence "
+                "instances verified by verify_evidence_record"
+            )
+        existing = unique.get(item.evidence_id)
+        if existing is not None:
+            if (
+                existing._record_json != item._record_json
+                or existing.assigned_trust != item.assigned_trust
+            ):
+                raise AssuranceError(
+                    "verified evidence contains conflicting duplicate identifiers",
+                    code="evidence_schema_error",
+                    path="$.evidenceId",
+                )
+            continue
+        unique[item.evidence_id] = item
+
+    verified = tuple(unique.values())
+    if not verified:
+        return ()
+    context_fields = (
+        ("run_id", "$.runId"),
+        ("release_id", "$.releaseId"),
+        ("contract_id", "$.contractId"),
+    )
+    for field_name, path in context_fields:
+        if len({getattr(item, field_name) for item in verified}) != 1:
+            raise AssuranceError(
+                "verified evidence spans multiple assurance contexts",
+                code="evidence_schema_error",
+                path=path,
+            )
+
+    records_by_id = {item.evidence_id: item.record for item in verified}
+    ordered = validate_evidence_graph(tuple(records_by_id.values()))
+    return tuple(unique[record.evidence_id] for record in ordered)
 
 
 def _is_prefixed_sha256(value: str) -> bool:

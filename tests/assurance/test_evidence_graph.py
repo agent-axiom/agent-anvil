@@ -241,6 +241,60 @@ def test_requirement_matching_rejects_raw_unverified_record(
         match_evidence_requirement(requirement, cast(Any, [record]))
 
 
+def test_requirement_matching_rejects_unsealed_verified_marker(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    record = _record(evidence_record_payload, suffix=1)
+    requirement = EvidenceRequirement(type=record.type, minimumTrust=TrustLevel.L0)
+    forged = object.__new__(VerifiedEvidence)
+
+    with pytest.raises(TypeError, match="verified by verify_evidence_record"):
+        match_evidence_requirement(requirement, cast(Any, [forged]))
+
+
+def test_requirement_matching_rejects_dangling_verified_graph(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    record = _record(
+        evidence_record_payload,
+        suffix=1,
+        parents=[f"sha256:{'f' * 64}"],
+    )
+    requirement = EvidenceRequirement(type=record.type, minimumTrust=TrustLevel.L0)
+
+    with pytest.raises(AssuranceError) as captured:
+        match_evidence_requirement(requirement, [_verified(record, TrustLevel.L2)])
+
+    assert captured.value.code == "evidence_schema_error"
+    assert captured.value.path == "$.parents"
+
+
+@pytest.mark.parametrize(
+    ("field", "path"),
+    [
+        ("run_id", "$.runId"),
+        ("release_id", "$.releaseId"),
+        ("contract_id", "$.contractId"),
+    ],
+)
+def test_requirement_matching_rejects_mixed_verified_contexts(
+    evidence_record_payload: dict[str, Any], field: str, path: str
+) -> None:
+    first = _record(evidence_record_payload, suffix=1)
+    second = _record(evidence_record_payload, suffix=2)
+    changed = second.model_copy(update={field: f"different-{field}"})
+    requirement = EvidenceRequirement(type=first.type, minimumTrust=TrustLevel.L0)
+
+    with pytest.raises(AssuranceError) as captured:
+        match_evidence_requirement(
+            requirement,
+            [_verified(first, TrustLevel.L2), _verified(changed, TrustLevel.L2)],
+        )
+
+    assert captured.value.code == "evidence_schema_error"
+    assert captured.value.path == path
+
+
 def test_match_evidence_requirements_preserves_requirement_order(
     evidence_record_payload: dict[str, Any],
 ) -> None:

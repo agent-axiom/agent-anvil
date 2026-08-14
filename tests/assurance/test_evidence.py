@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from pathlib import Path
 from typing import Any, cast
 
@@ -625,6 +626,7 @@ def test_verify_evidence_record_composes_identity_release_trust_and_content(
 
     verified = verify_evidence_record(
         record,
+        expected_run_id=record.run_id,
         expected_release_id=record.release_id,
         expected_contract_id=record.contract_id,
         observed_source=observed_source(),
@@ -632,7 +634,10 @@ def test_verify_evidence_record_composes_identity_release_trust_and_content(
         store_root=tmp_path,
     )
 
-    assert verified.record is record
+    assert verified.record == record
+    assert verified.record is not record
+    assert verified.evidence_id == record.evidence_id
+    assert verified.run_id == record.run_id
     assert verified.assigned_trust is TrustLevel.L2
     assert verified.content.path == (tmp_path / "evidence.json").resolve()
 
@@ -652,6 +657,36 @@ def test_verified_evidence_cannot_be_constructed_without_verifier(
                 sha256="0" * 64,
             ),
         )
+    with pytest.raises(TypeError):
+        cast(Any, VerifiedEvidence)()
+
+
+def test_verified_evidence_is_immutable_after_original_record_mutation(
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
+) -> None:
+    content = b"verified"
+    (tmp_path / "evidence.json").write_bytes(content)
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="evidence.json",
+        content=content,
+    )
+    verified = verify_evidence_record(
+        record,
+        expected_run_id=record.run_id,
+        expected_release_id=record.release_id,
+        expected_contract_id=record.contract_id,
+        observed_source=observed_source(),
+        trust_policy=trust_policy(),
+        store_root=tmp_path,
+    )
+
+    record.type = "agent.trace.v1"
+    record.parents.append(f"sha256:{'f' * 64}")
+
+    assert verified.type == "postgres.state_snapshot.v1"
+    assert verified.parents == ()
+    assert verified.record.type == "postgres.state_snapshot.v1"
 
 
 def test_verify_evidence_record_rejects_wrong_release_before_content_read(
@@ -666,6 +701,7 @@ def test_verify_evidence_record_rejects_wrong_release_before_content_read(
     with pytest.raises(AssuranceError) as captured:
         verify_evidence_record(
             record,
+            expected_run_id=record.run_id,
             expected_release_id=f"sha256:{'0' * 64}",
             expected_contract_id=record.contract_id,
             observed_source=observed_source(),
@@ -689,6 +725,7 @@ def test_verify_evidence_record_rejects_cross_contract_replay_before_content_rea
     with pytest.raises(AssuranceError) as captured:
         verify_evidence_record(
             record,
+            expected_run_id=record.run_id,
             expected_release_id=record.release_id,
             expected_contract_id="different-contract",
             observed_source=observed_source(),
@@ -698,3 +735,90 @@ def test_verify_evidence_record_rejects_cross_contract_replay_before_content_rea
 
     assert captured.value.code == "evidence_schema_error"
     assert captured.value.path == "$.contractId"
+
+
+def test_verify_evidence_record_rejects_cross_run_replay_before_content_read(
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
+) -> None:
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="missing.json",
+        content=b"missing",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_record(
+            record,
+            expected_run_id="different-run",
+            expected_release_id=record.release_id,
+            expected_contract_id=record.contract_id,
+            observed_source=observed_source(),
+            trust_policy=trust_policy(),
+            store_root=tmp_path,
+        )
+
+    assert captured.value.code == "evidence_schema_error"
+    assert captured.value.path == "$.runId"
+
+
+def test_verify_evidence_record_normalizes_unicode_contract_mismatch(
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    payload["contractId"] = "контракт"
+    record = _content_record(
+        payload,
+        relative_path="missing.json",
+        content=b"missing",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_record(
+            record,
+            expected_run_id=record.run_id,
+            expected_release_id=record.release_id,
+            expected_contract_id="different-contract",
+            observed_source=observed_source(),
+            trust_policy=trust_policy(),
+            store_root=tmp_path,
+        )
+
+    assert captured.value.code == "evidence_schema_error"
+    assert captured.value.path == "$.contractId"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="descriptor flags are POSIX-specific")
+def test_verify_evidence_content_opens_final_component_nonblocking(
+    tmp_path: Path,
+    evidence_record_payload: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    content = b"verified"
+    (tmp_path / "evidence.json").write_bytes(content)
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="evidence.json",
+        content=content,
+    )
+    original_open = os.open
+    inspected = False
+
+    def inspect_open(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal inspected
+        if path == "evidence.json":
+            inspected = True
+            assert flags & os.O_NONBLOCK
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", inspect_open)
+    monkeypatch.setattr(os, "supports_dir_fd", {*os.supports_dir_fd, inspect_open})
+
+    verify_evidence_content(record, tmp_path)
+
+    assert inspected is True
