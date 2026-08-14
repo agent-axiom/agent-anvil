@@ -49,3 +49,49 @@ def release_components() -> list[ReleaseComponent]:
             digest=component_digest(6),
         ),
     ]
+
+
+@pytest.fixture
+def valid_release_contract_payload(
+    release_components: list[ReleaseComponent],
+) -> dict[str, object]:
+    return {
+        "apiVersion": "assurance.anvil.dev/release-contract/v1alpha1",
+        "kind": "ReleaseContract",
+        "metadata": {
+            "name": "refund-agent-postgres",
+            "severity": "critical",
+            "labels": {"owner": "payments-platform"},
+        },
+        "release": {
+            "components": [component.model_dump(mode="json") for component in release_components]
+        },
+        "actor": {
+            "identity": "refund-agent",
+            "permissions": ["orders.read", "payments.refund"],
+        },
+        "task": {"inputRef": "fixtures/refund-order-42.json"},
+        "packs": [{"name": "anvil-pack-postgres", "version": ">=0.1,<0.2"}],
+        "checks": [
+            {
+                "id": "order-refunded-once",
+                "type": "postgres.row_count.v1",
+                "config": {
+                    "table": "public.refunds",
+                    "where": {"order_id": 42},
+                    "equals": 1,
+                },
+            }
+        ],
+        "evidence": {
+            "require": [
+                {
+                    "type": "postgres.state_snapshot.v1",
+                    "minimumTrust": "L2",
+                    "subject": "postgres://payments/public",
+                },
+                {"type": "agent.trace.v1", "minimumTrust": "L1"},
+            ]
+        },
+        "reliability": {"trials": 20, "minimumPassRate": 0.95},
+    }

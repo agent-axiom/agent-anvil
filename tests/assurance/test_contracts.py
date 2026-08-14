@@ -1,0 +1,260 @@
+from __future__ import annotations
+
+import copy
+from pathlib import Path
+
+import pytest
+import yaml
+from pydantic import ValidationError
+
+from anvil.assurance.contracts import (
+    RELEASE_CONTRACT_SCHEMA_VERSION,
+    ReleaseContract,
+    load_release_contract,
+)
+from anvil.assurance.errors import AssuranceError
+from anvil.assurance.identity import release_identity
+
+
+def test_release_contract_round_trips_public_aliases(
+    valid_release_contract_payload: dict[str, object],
+) -> None:
+    contract = ReleaseContract.model_validate(valid_release_contract_payload)
+
+    assert contract.api_version == RELEASE_CONTRACT_SCHEMA_VERSION
+    assert contract.kind == "ReleaseContract"
+    assert contract.release_id == release_identity(contract.release.components)
+    assert contract.task.input_ref == "fixtures/refund-order-42.json"
+    assert contract.evidence.require[0].minimum_trust == "L2"
+    assert contract.reliability.minimum_pass_rate == 0.95
+    dumped = contract.model_dump(mode="json", by_alias=True, exclude_none=True)
+    assert dumped["apiVersion"] == RELEASE_CONTRACT_SCHEMA_VERSION
+    assert dumped["task"] == {"inputRef": "fixtures/refund-order-42.json"}
+    assert dumped["evidence"]["require"][0]["minimumTrust"] == "L2"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("apiVersion", "assurance.anvil.dev/release-contract/v1"),
+        ("kind", "ScenarioSuite"),
+    ],
+)
+def test_release_contract_rejects_wrong_discriminators(
+    valid_release_contract_payload: dict[str, object], field: str, value: str
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    payload[field] = value
+
+    with pytest.raises(ValidationError):
+        ReleaseContract.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["apiVersion", "kind", "metadata", "release", "actor", "task"],
+)
+def test_release_contract_rejects_missing_required_envelope_fields(
+    valid_release_contract_payload: dict[str, object], field: str
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    del payload[field]
+
+    with pytest.raises(ValidationError, match="Field required"):
+        ReleaseContract.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("section", "extra_field"),
+    [
+        (None, "unexpected"),
+        ("metadata", "repository"),
+        ("release", "commit"),
+        ("actor", "role"),
+        ("task", "timeout"),
+        ("evidence", "optional"),
+        ("reliability", "confidence"),
+    ],
+)
+def test_release_contract_rejects_unknown_fields_at_every_level(
+    valid_release_contract_payload: dict[str, object],
+    section: str | None,
+    extra_field: str,
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    target = payload if section is None else payload[section]
+    assert isinstance(target, dict)
+    target[extra_field] = "not-allowed"
+
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        ReleaseContract.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        {},
+        {"input": {"order_id": 42}, "inputRef": "fixtures/order.json"},
+    ],
+)
+def test_release_contract_requires_exactly_one_task_input(
+    valid_release_contract_payload: dict[str, object], task: dict[str, object]
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    payload["task"] = task
+
+    with pytest.raises(ValidationError, match="exactly one of input or inputRef"):
+        ReleaseContract.model_validate(payload)
+
+
+def test_release_contract_rejects_blank_task_reference(
+    valid_release_contract_payload: dict[str, object],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    payload["task"] = {"inputRef": "  "}
+
+    with pytest.raises(ValidationError, match="must not be blank"):
+        ReleaseContract.model_validate(payload)
+
+
+def test_release_contract_accepts_inline_null_input(
+    valid_release_contract_payload: dict[str, object],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    payload["task"] = {"input": None}
+
+    contract = ReleaseContract.model_validate(payload)
+
+    assert "input" in contract.task.model_fields_set
+    assert contract.task.input is None
+
+
+@pytest.mark.parametrize("collection", ["packs", "checks"])
+def test_release_contract_rejects_duplicate_named_entries(
+    valid_release_contract_payload: dict[str, object], collection: str
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    entries = payload[collection]
+    assert isinstance(entries, list)
+    entries.append(copy.deepcopy(entries[0]))
+
+    with pytest.raises(ValidationError, match=f"duplicate {collection}"):
+        ReleaseContract.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "invalid_type",
+    ["row_count", "postgres.row_count", "postgres.row-count.v0", "Postgres.row_count.v1"],
+)
+def test_release_contract_rejects_unversioned_or_unnamespaced_types(
+    valid_release_contract_payload: dict[str, object], invalid_type: str
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    checks = payload["checks"]
+    assert isinstance(checks, list)
+    assert isinstance(checks[0], dict)
+    checks[0]["type"] = invalid_type
+
+    with pytest.raises(ValidationError):
+        ReleaseContract.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("trials", 0),
+        ("minimumPassRate", -0.01),
+        ("minimumPassRate", 1.01),
+    ],
+)
+def test_release_contract_rejects_invalid_reliability_bounds(
+    valid_release_contract_payload: dict[str, object], field: str, value: object
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    reliability = payload["reliability"]
+    assert isinstance(reliability, dict)
+    reliability[field] = value
+
+    with pytest.raises(ValidationError):
+        ReleaseContract.model_validate(payload)
+
+
+def test_release_contract_rejects_duplicate_mandatory_component_kind(
+    valid_release_contract_payload: dict[str, object],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    release = payload["release"]
+    assert isinstance(release, dict)
+    components = release["components"]
+    assert isinstance(components, list)
+    duplicate = copy.deepcopy(components[0])
+    assert isinstance(duplicate, dict)
+    duplicate["name"] = "another-agent"
+    components.append(duplicate)
+
+    with pytest.raises(ValidationError, match="multiple components for a mandatory kind"):
+        ReleaseContract.model_validate(payload)
+
+
+def test_load_release_contract_reads_safe_yaml(
+    tmp_path: Path, valid_release_contract_payload: dict[str, object]
+) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text(yaml.safe_dump(valid_release_contract_payload), encoding="utf-8")
+
+    contract = load_release_contract(path)
+
+    assert contract.metadata.name == "refund-agent-postgres"
+
+
+def test_load_release_contract_rejects_python_yaml_tags(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text("!!python/object/apply:os.system ['echo unsafe']", encoding="utf-8")
+
+    with pytest.raises(AssuranceError) as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
+    assert "unsafe" not in str(captured.value)
+    assert "os.system" not in str(captured.value)
+
+
+def test_load_release_contract_reports_schema_path_without_raw_input(
+    tmp_path: Path, valid_release_contract_payload: dict[str, object]
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    metadata = payload["metadata"]
+    assert isinstance(metadata, dict)
+    metadata["name"] = "  "
+    metadata["token"] = "sk-must-not-leak"
+    path = tmp_path / "contract.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+
+    with pytest.raises(AssuranceError) as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_schema_error"
+    assert captured.value.path == "$.metadata.name"
+    assert "sk-must-not-leak" not in str(captured.value)
+
+
+def test_load_release_contract_reports_missing_file_without_traceback(tmp_path: Path) -> None:
+    path = tmp_path / "missing.yaml"
+
+    with pytest.raises(AssuranceError) as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
+
+
+def test_load_release_contract_rejects_non_mapping_yaml(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text("- not\n- a\n- contract\n", encoding="utf-8")
+
+    with pytest.raises(AssuranceError) as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
