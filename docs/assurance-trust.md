@@ -78,7 +78,8 @@ The foundation verifies:
 `content.sha256` identifies referenced bytes. `evidenceId` identifies the full
 record metadata except the ID itself and includes `observedAt`, so two separate
 observations of identical bytes remain distinct. Parent order is canonicalized
-for identity; duplicate parent IDs are invalid and cannot inflate evidence
+for identity, and equivalent `observedAt` timezone offsets are normalized to the
+same UTC instant. Duplicate parent IDs are invalid and cannot inflate evidence
 requirements.
 
 Successful ingestion returns a frozen metadata snapshot rather than retaining

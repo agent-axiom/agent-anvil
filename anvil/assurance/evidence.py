@@ -8,6 +8,7 @@ import os
 import stat
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Any, BinaryIO, Literal
@@ -338,6 +339,9 @@ def evidence_identity(value: EvidenceRecord | Mapping[str, Any]) -> str:
     payload.pop("evidence_id", None)
     normalized = _EvidenceIdentityPayload.model_validate(payload)
     payload = normalized.model_dump(mode="json", by_alias=True)
+    payload["observedAt"] = (
+        normalized.observed_at.astimezone(UTC).isoformat().replace("+00:00", "Z")
+    )
     parents = payload.get("parents")
     if isinstance(parents, list) and all(isinstance(parent, str) for parent in parents):
         payload["parents"] = sorted(parents)

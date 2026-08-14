@@ -129,6 +129,17 @@ def test_evidence_identity_normalizes_mapping_and_model_timestamps_identically(
     assert evidence_identity(payload) == evidence_identity(record)
 
 
+def test_evidence_identity_normalizes_equivalent_timezone_offsets(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    utc_payload = copy.deepcopy(evidence_record_payload)
+    offset_payload = copy.deepcopy(evidence_record_payload)
+    utc_payload["observedAt"] = "2026-08-14T12:00:00Z"
+    offset_payload["observedAt"] = "2026-08-14T13:00:00+01:00"
+
+    assert evidence_identity(utc_payload) == evidence_identity(offset_payload)
+
+
 def test_evidence_identity_canonicalizes_parent_edge_order(
     evidence_record_payload: dict[str, Any],
 ) -> None:
