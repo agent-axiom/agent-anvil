@@ -100,10 +100,12 @@ integrity require the verification APIs in `anvil.assurance`. Parsing a record
 that claims `L3` does not verify that claim. See
 [Assurance Evidence Trust](assurance-trust.md).
 
-Release-contract YAML is decoded as UTF-8 with a 1 MiB default input limit.
-The parser rejects duplicate YAML keys and YAML aliases before model
-validation, preventing last-key-wins ambiguity and alias expansion. These
-limits apply to both the direct Assurance loader and `anvil schema validate`.
+Release-contract YAML is decoded as UTF-8 with default limits of 1 MiB, 50,000
+nodes, and 100 levels of nesting. The parser accepts only string mapping keys
+and rejects duplicate YAML keys, tagged-key ambiguity, and YAML aliases before model
+validation, preventing last-key-wins ambiguity and alias expansion. Registered
+JSON contracts have the same byte, node, and depth defaults. These limits apply
+to both the direct Assurance loader and `anvil schema validate`.
 
 Check definitions are data, not import instructions. Loading a contract without
 a `CheckTypeRegistry` performs inspection-only envelope validation. Any future

@@ -375,6 +375,8 @@ Illustrative JSON:
   `evidenceId` field itself. It includes `observedAt`, so two independently
   observed events can remain distinct even when they reference identical bytes.
 - `releaseId` equals the canonical release identity for the run.
+- `runId`, `releaseId`, and `contractId` must exactly match the verifier-selected
+  execution context before source trust or content verification.
 - Evidence type names are namespaced and versioned.
 - The source includes collector identity, version, and boundary description.
 - L2 and L3 records require a non-empty independent boundary declaration.
@@ -382,6 +384,8 @@ Illustrative JSON:
 - Content size and digest must match the referenced bytes when verified.
 - Parent IDs cannot contain duplicates or refer to the record itself.
 - A validated graph cannot contain cycles.
+- Requirement matching accepts only factory-issued immutable verified
+  snapshots and validates the complete parent graph before matching.
 - Correlation values are identifiers, not evidence of causality by themselves.
 - Raw secrets are forbidden in metadata and correlation fields.
 - `observedAt` does not affect `content.sha256`; that digest identifies only the
@@ -430,10 +434,13 @@ release-contract YAML
 
 evidence-record JSON
   -> strict envelope parsing
-  -> trust assignment check
+  -> evidence identity verification
+  -> run/release/contract context binding
+  -> observed-source and trust assignment check
   -> content path/digest verification
-  -> release identity binding
-  -> parent/correlation graph validation
+  -> immutable verified snapshot
+  -> complete parent graph validation
+  -> evidence requirement matching
 ```
 
 Future execution builds on these boundaries:

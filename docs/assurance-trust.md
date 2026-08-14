@@ -66,18 +66,27 @@ and minimum count must also match.
 The foundation verifies:
 
 - canonical `evidenceId` metadata hashing;
-- exact `releaseId` and `contractId` binding to verifier-selected expectations;
+- exact `runId`, `releaseId`, and `contractId` binding to verifier-selected
+  expectations before trust or content checks;
 - verifier-controlled source trust assignment;
 - normalized relative content paths and store containment;
 - missing content, byte size, and SHA-256;
 - duplicate, self, dangling, and cyclic parent relationships;
-- monotonic evidence requirements over `VerifiedEvidence` only.
+- complete parent-graph validation before requirement matching;
+- monotonic evidence requirements over factory-issued `VerifiedEvidence` only.
 
 `content.sha256` identifies referenced bytes. `evidenceId` identifies the full
 record metadata except the ID itself and includes `observedAt`, so two separate
 observations of identical bytes remain distinct. Parent order is canonicalized
 for identity; duplicate parent IDs are invalid and cannot inflate evidence
 requirements.
+
+Successful ingestion returns a frozen metadata snapshot rather than retaining
+the caller's mutable `EvidenceRecord`. Reading `VerifiedEvidence.record`
+reconstructs a fresh copy of that verified snapshot. Requirement matching
+rejects raw records, unsealed marker objects, mixed run/release/contract
+contexts, conflicting duplicate IDs, and invalid parent graphs before it
+evaluates type, subject, count, or trust thresholds.
 
 ## Security Boundary
 
@@ -98,6 +107,17 @@ and stable identifiers, not raw prompts, policies, tool definitions, machine
 paths, or credentials. Trust assignments and `ObservedEvidenceSource` values
 must come from verifier-controlled configuration, never fields copied from the
 producer payload.
+
+On supported POSIX systems the verifier walks content paths relative to the
+trusted store descriptor with symlink following disabled and opens the final
+component nonblocking. It then requires a regular file and enforces the byte
+budget before hashing. This prevents pipes and device-like paths from turning
+verification into an unbounded blocking read.
+
+The factory marker protects API boundaries from accidental or ordinary plugin
+misuse; it is not a cryptographic capability against arbitrary code already
+executing inside the trusted Anvil process. Untrusted collectors and adapters
+must remain outside that process boundary.
 
 ## Current Scope
 

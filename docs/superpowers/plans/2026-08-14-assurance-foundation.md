@@ -8,6 +8,21 @@
 
 **Tech Stack:** Python 3.12+, Pydantic v2, PyYAML safe loading, `packaging` version/specifier semantics, pytest parametrization and fixtures, Ruff, ty, generated JSON Schema draft 2020-12.
 
+## Implemented Security Amendments
+
+The reviewed implementation tightens the original task text in four places:
+
+- public JSON/YAML parsing is bounded by encoded size, node count, and depth;
+- evidence ingestion binds `runId`, `releaseId`, and `contractId` before trust
+  or content checks;
+- `VerifiedEvidence` is a factory-issued immutable snapshot, not a wrapper over
+  caller-owned mutable metadata;
+- requirement matching rejects unsealed or mixed-context evidence and validates
+  the complete parent graph before calculating matches.
+
+These amendments supersede illustrative snippets later in this historical plan
+where they differ from the final public API.
+
 ---
 
 ## File Map

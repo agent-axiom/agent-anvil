@@ -98,16 +98,19 @@ time, source, release binding, parents, correlations, and redaction metadata.
 Content references use normalized relative POSIX paths. Verification resolves
 the path inside the configured store, then opens each component relative to the
 trusted store descriptor with symlink following disabled on supported POSIX
-systems. It checks the declared and opened-file size, performs a bounded
-streaming SHA-256 read, and rejects traversal, symlink races, and content larger
-than the configurable 64 MiB default. Parent IDs derive an inspectable directed
+systems. The final component is opened nonblocking and must be a regular file.
+It checks the declared and opened-file size, performs a bounded streaming
+SHA-256 read, and rejects traversal, symlink races, pipes, device-like paths,
+and content larger than the configurable 64 MiB default. Parent IDs derive an inspectable directed
 graph; duplicate, dangling, self-referential, and cyclic relationships are
 rejected. Correlations are identifiers for joining evidence, not proof of
 causality.
 
-Verification order is record identity, expected release and contract binding,
+Verification order is record identity, expected run/release/contract binding,
 trusted ingestion-source comparison, trust assignment, content containment and
-digest, then graph and requirement checks. `VerifiedContent.path` is
+digest, then complete graph validation and requirement checks. Successful
+ingestion returns an immutable metadata snapshot; later mutation of the input
+record cannot alter requirement matching. `VerifiedContent.path` is
 informational: consumers must not reopen that path and treat later bytes as the
 already verified object. A future runner must parse from the verified descriptor
 or first copy bytes into an immutable content-addressed object. Raw evidence
