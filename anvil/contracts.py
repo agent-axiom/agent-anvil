@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 
 from anvil.assurance.contracts import RELEASE_CONTRACT_SCHEMA_VERSION, ReleaseContract
 from anvil.assurance.evidence import EVIDENCE_RECORD_SCHEMA_VERSION, EvidenceRecord
+from anvil.assurance.yaml import ContractYamlError, load_bounded_yaml
 from anvil.attestations import (
     ARTIFACT_ATTESTATION_VERIFICATION_SCHEMA_VERSION,
     LeaderboardArtifactAttestationVerification,
@@ -297,6 +298,8 @@ def _read_json_payload(path: Path) -> Any:
 
 def _read_yaml_payload(path: Path) -> Any:
     try:
-        return yaml.safe_load(path.read_text(encoding="utf-8"))
+        return load_bounded_yaml(path)
     except OSError as error:
         raise ContractValidationError(f"cannot read contract at {path}: {error}") from error
+    except ContractYamlError as error:
+        raise ContractValidationError(f"invalid YAML contract at {path}: {error}") from error

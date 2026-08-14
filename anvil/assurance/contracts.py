@@ -31,8 +31,10 @@ from anvil.assurance.identity import (
     release_identity,
     validate_release_components,
 )
+from anvil.assurance.yaml import DEFAULT_MAX_YAML_BYTES, ContractYamlError, load_bounded_yaml
 
 RELEASE_CONTRACT_SCHEMA_VERSION = "assurance.anvil.dev/release-contract/v1alpha1"
+MAX_RELEASE_CONTRACT_BYTES = DEFAULT_MAX_YAML_BYTES
 
 
 def _non_blank(value: str) -> str:
@@ -283,10 +285,16 @@ def load_release_contract(
 ) -> ReleaseContract:
     selected_path = Path(path)
     try:
-        payload = yaml.safe_load(selected_path.read_text(encoding="utf-8"))
+        payload = load_bounded_yaml(selected_path, max_bytes=MAX_RELEASE_CONTRACT_BYTES)
     except OSError as error:
         raise AssuranceError(
             "cannot read release contract",
+            code="contract_parse_error",
+            path="$",
+        ) from error
+    except ContractYamlError as error:
+        raise AssuranceError(
+            f"cannot parse release contract YAML: {error}",
             code="contract_parse_error",
             path="$",
         ) from error

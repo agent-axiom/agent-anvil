@@ -126,6 +126,33 @@ def test_cli_schema_validate_accepts_explicit_assurance_yaml_contract() -> None:
     assert "Contract is valid" in result.stdout
 
 
+def test_cli_schema_validate_rejects_duplicate_assurance_yaml_keys(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text(
+        "kind: AttackerSelected\n"
+        + Path("fixtures/contracts/assurance-release-contract-valid.yaml").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "schema",
+            "validate",
+            str(path),
+            "--schema",
+            "assurance.anvil.dev/release-contract/v1alpha1",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "duplicate YAML key" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_cli_schema_validate_auto_detects_assurance_evidence_contract() -> None:
     runner = CliRunner()
 

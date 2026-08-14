@@ -9,6 +9,7 @@ import yaml
 from pydantic import ValidationError
 
 from anvil.assurance.contracts import (
+    MAX_RELEASE_CONTRACT_BYTES,
     RELEASE_CONTRACT_SCHEMA_VERSION,
     ReleaseContract,
     load_release_contract,
@@ -255,6 +256,44 @@ def test_load_release_contract_rejects_non_mapping_yaml(tmp_path: Path) -> None:
     path.write_text("- not\n- a\n- contract\n", encoding="utf-8")
 
     with pytest.raises(AssuranceError) as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
+
+
+def test_load_release_contract_rejects_duplicate_yaml_keys(
+    tmp_path: Path, valid_release_contract_payload: dict[str, Any]
+) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text(
+        "kind: AttackerSelected\n" + yaml.safe_dump(valid_release_contract_payload),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AssuranceError, match="duplicate YAML key") as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
+
+
+def test_load_release_contract_rejects_yaml_aliases(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text("first: &shared [one]\nsecond: *shared\n", encoding="utf-8")
+
+    with pytest.raises(AssuranceError, match="YAML aliases") as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
+
+
+def test_load_release_contract_rejects_oversized_input_before_parsing(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_bytes(b"x" * (MAX_RELEASE_CONTRACT_BYTES + 1))
+
+    with pytest.raises(AssuranceError, match="exceeds the maximum encoded size") as captured:
         load_release_contract(path)
 
     assert captured.value.code == "contract_parse_error"
