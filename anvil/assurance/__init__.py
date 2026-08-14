@@ -10,6 +10,7 @@ from anvil.assurance.contracts import (
 from anvil.assurance.errors import AssuranceError
 from anvil.assurance.evidence import (
     EVIDENCE_RECORD_SCHEMA_VERSION,
+    MAX_EVIDENCE_CONTENT_BYTES,
     EvidenceRecord,
     EvidenceRequirement,
     EvidenceRequirementMatch,
@@ -40,6 +41,7 @@ from anvil.assurance.identity import (
 __all__ = [
     "EVIDENCE_RECORD_SCHEMA_VERSION",
     "MANDATORY_COMPONENT_KINDS",
+    "MAX_EVIDENCE_CONTENT_BYTES",
     "RELEASE_CONTRACT_SCHEMA_VERSION",
     "AssuranceError",
     "CheckTypeRegistry",

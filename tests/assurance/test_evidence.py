@@ -11,6 +11,7 @@ from anvil.assurance.canonical import sha256_bytes
 from anvil.assurance.errors import AssuranceError
 from anvil.assurance.evidence import (
     EVIDENCE_RECORD_SCHEMA_VERSION,
+    MAX_EVIDENCE_CONTENT_BYTES,
     EvidenceRecord,
     EvidenceTrustPolicy,
     ObservedEvidenceSource,
@@ -477,6 +478,44 @@ def test_verify_evidence_content_rejects_symlink_escape(
     assert "outside secret" not in str(captured.value)
 
 
+def test_verify_evidence_content_rejects_final_component_symlink_swap(
+    tmp_path: Path,
+    evidence_record_payload: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = tmp_path / "store"
+    store.mkdir()
+    target = store / "snapshot.json"
+    target.write_bytes(b"original")
+    outside = tmp_path / "outside.json"
+    outside.write_bytes(b"outside secret")
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="snapshot.json",
+        content=outside.read_bytes(),
+    )
+    original_is_file = Path.is_file
+    swapped = False
+
+    def swap_after_containment_check(path: Path) -> bool:
+        nonlocal swapped
+        if path == target.resolve() and not swapped:
+            swapped = True
+            target.unlink()
+            target.symlink_to(outside)
+            return True
+        return original_is_file(path)
+
+    monkeypatch.setattr(Path, "is_file", swap_after_containment_check)
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, store)
+
+    assert swapped is True
+    assert captured.value.code == "evidence_path_escape"
+    assert "outside secret" not in str(captured.value)
+
+
 def test_verify_evidence_content_rejects_directory_target(
     tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
@@ -510,6 +549,23 @@ def test_verify_evidence_content_rejects_wrong_size(
         verify_evidence_content(record, tmp_path)
 
     assert captured.value.code == "evidence_digest_mismatch"
+    assert captured.value.path == "$.content.sizeBytes"
+
+
+def test_verify_evidence_content_rejects_oversized_declaration_before_path_access(
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    content = payload["content"]
+    assert isinstance(content, dict)
+    content["path"] = "missing.json"
+    content["sizeBytes"] = MAX_EVIDENCE_CONTENT_BYTES + 1
+    record = _record(_reidentify(payload))
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, tmp_path)
+
+    assert captured.value.code == "evidence_content_too_large"
     assert captured.value.path == "$.content.sizeBytes"
 
 

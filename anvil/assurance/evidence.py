@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import heapq
 import hmac
+import os
+import stat
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, BinaryIO, Literal
 
 from pydantic import (
     AfterValidator,
@@ -28,6 +31,8 @@ EVIDENCE_RECORD_SCHEMA_VERSION = "assurance.anvil.dev/evidence-record/v1alpha1"
 NAMESPACED_TYPE_PATTERN = r"^(?:[a-z][a-z0-9_-]*\.)+[a-z][a-z0-9_-]*\.v[1-9][0-9]*$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 PREFIXED_SHA256_LENGTH = len("sha256:") + 64
+MAX_EVIDENCE_CONTENT_BYTES = 64 * 1024 * 1024
+EVIDENCE_READ_CHUNK_BYTES = 1024 * 1024
 
 
 def _non_blank(value: str) -> str:
@@ -288,7 +293,46 @@ def verify_evidence_trust(
     return VerifiedTrust(record=record, assigned_trust=record.trust_level)
 
 
-def verify_evidence_content(record: EvidenceRecord, store_root: Path) -> VerifiedContent:
+def verify_evidence_content(
+    record: EvidenceRecord,
+    store_root: Path,
+    *,
+    max_content_bytes: int = MAX_EVIDENCE_CONTENT_BYTES,
+) -> VerifiedContent:
+    root, relative, resolved = _resolve_evidence_content(
+        record,
+        store_root,
+        max_content_bytes=max_content_bytes,
+    )
+    size_bytes, selected_digest = _hash_evidence_content(
+        record,
+        root=root,
+        relative=relative,
+        resolved=resolved,
+    )
+    if not hmac.compare_digest(selected_digest, record.content.sha256):
+        raise AssuranceError(
+            "evidence content digest does not match its record",
+            code="evidence_digest_mismatch",
+            path="$.content.sha256",
+        )
+    return VerifiedContent(path=resolved, size_bytes=size_bytes, sha256=selected_digest)
+
+
+def _resolve_evidence_content(
+    record: EvidenceRecord,
+    store_root: Path,
+    *,
+    max_content_bytes: int,
+) -> tuple[Path, PurePosixPath, Path]:
+    if max_content_bytes < 1:
+        raise ValueError("max_content_bytes must be positive")
+    if record.content.size_bytes > max_content_bytes:
+        raise AssuranceError(
+            "evidence content exceeds the configured verification budget",
+            code="evidence_content_too_large",
+            path="$.content.sizeBytes",
+        )
     try:
         root = store_root.resolve(strict=True)
     except OSError as error:
@@ -337,14 +381,56 @@ def verify_evidence_content(record: EvidenceRecord, store_root: Path) -> Verifie
             path="$.content.path",
         )
 
+    return root, relative, resolved
+
+
+def _hash_evidence_content(
+    record: EvidenceRecord,
+    *,
+    root: Path,
+    relative: PurePosixPath,
+    resolved: Path,
+) -> tuple[int, str]:
     digest = hashlib.sha256()
     size_bytes = 0
     try:
-        with resolved.open("rb") as content_file:
-            while chunk := content_file.read(1024 * 1024):
+        with _open_anchored_content(root, relative, resolved) as content_file:
+            if os.fstat(content_file.fileno()).st_size != record.content.size_bytes:
+                raise AssuranceError(
+                    "evidence content size does not match its record",
+                    code="evidence_digest_mismatch",
+                    path="$.content.sizeBytes",
+                )
+            while chunk := content_file.read(
+                min(EVIDENCE_READ_CHUNK_BYTES, record.content.size_bytes - size_bytes + 1)
+            ):
                 size_bytes += len(chunk)
+                if size_bytes > record.content.size_bytes:
+                    raise AssuranceError(
+                        "evidence content size does not match its record",
+                        code="evidence_digest_mismatch",
+                        path="$.content.sizeBytes",
+                    )
                 digest.update(chunk)
+    except FileNotFoundError as error:
+        raise AssuranceError(
+            "evidence content is missing",
+            code="evidence_content_missing",
+            path="$.content.path",
+        ) from error
+    except IsADirectoryError as error:
+        raise AssuranceError(
+            "evidence content is not a regular file",
+            code="evidence_content_missing",
+            path="$.content.path",
+        ) from error
     except OSError as error:
+        if error.errno in {errno.ELOOP, errno.ENOTDIR}:
+            raise AssuranceError(
+                "evidence content path changed or contains a symlink",
+                code="evidence_path_escape",
+                path="$.content.path",
+            ) from error
         raise AssuranceError(
             "evidence content cannot be read",
             code="evidence_content_missing",
@@ -357,14 +443,40 @@ def verify_evidence_content(record: EvidenceRecord, store_root: Path) -> Verifie
             code="evidence_digest_mismatch",
             path="$.content.sizeBytes",
         )
-    selected_digest = digest.hexdigest()
-    if not hmac.compare_digest(selected_digest, record.content.sha256):
-        raise AssuranceError(
-            "evidence content digest does not match its record",
-            code="evidence_digest_mismatch",
-            path="$.content.sha256",
-        )
-    return VerifiedContent(path=resolved, size_bytes=size_bytes, sha256=selected_digest)
+    return size_bytes, digest.hexdigest()
+
+
+def _open_anchored_content(
+    root: Path,
+    relative: PurePosixPath,
+    resolved: Path,
+) -> BinaryIO:
+    if os.name != "posix" or os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
+        return resolved.open("rb")
+
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    file_flags = os.O_RDONLY | os.O_NOFOLLOW
+    if hasattr(os, "O_CLOEXEC"):
+        directory_flags |= os.O_CLOEXEC
+        file_flags |= os.O_CLOEXEC
+
+    directory_fd = os.open(root, directory_flags)
+    file_fd: int | None = None
+    try:
+        for part in relative.parts[:-1]:
+            next_fd = os.open(part, directory_flags, dir_fd=directory_fd)
+            os.close(directory_fd)
+            directory_fd = next_fd
+        file_fd = os.open(relative.parts[-1], file_flags, dir_fd=directory_fd)
+        if not stat.S_ISREG(os.fstat(file_fd).st_mode):
+            raise IsADirectoryError(relative.as_posix())
+        content_file = os.fdopen(file_fd, "rb")
+        file_fd = None
+        return content_file
+    finally:
+        os.close(directory_fd)
+        if file_fd is not None:
+            os.close(file_fd)
 
 
 def verify_evidence_record(
