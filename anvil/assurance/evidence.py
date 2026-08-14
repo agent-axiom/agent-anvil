@@ -23,7 +23,7 @@ from pydantic import (
     model_validator,
 )
 
-from anvil.assurance.canonical import sha256_json
+from anvil.assurance.canonical import canonical_json_bytes, sha256_json
 from anvil.assurance.errors import AssuranceError, is_secret_like_key
 from anvil.assurance.identity import SHA256_PREFIXED_PATTERN
 
@@ -593,6 +593,8 @@ def verify_evidence_record(
     )
     content = verify_evidence_content(record, store_root)
     verified = object.__new__(VerifiedEvidence)
+    record_payload = record.model_dump(mode="json", by_alias=True)
+    record_payload["parents"] = sorted(record.parents)
     snapshot = {
         "evidence_id": record.evidence_id,
         "run_id": record.run_id,
@@ -600,10 +602,10 @@ def verify_evidence_record(
         "contract_id": record.contract_id,
         "type": record.type,
         "subject": record.subject,
-        "parents": tuple(record.parents),
+        "parents": tuple(sorted(record.parents)),
         "assigned_trust": trust.assigned_trust,
         "content": content,
-        "_record_json": record.model_dump_json(by_alias=True).encode("utf-8"),
+        "_record_json": canonical_json_bytes(record_payload),
         "_seal": _VERIFIED_EVIDENCE_SEAL,
     }
     for field_name, value in snapshot.items():

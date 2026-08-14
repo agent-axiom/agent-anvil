@@ -270,6 +270,46 @@ def test_requirement_matching_enforces_minimum_count_and_deduplicates_ids(
     assert two_unique.evidence_ids == tuple(sorted([first.evidence_id, second.evidence_id]))
 
 
+def test_requirement_matching_deduplicates_canonically_equivalent_records(
+    tmp_path: Path,
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    first_parent = _record(evidence_record_payload, suffix=1)
+    second_parent = _record(evidence_record_payload, suffix=2)
+    child = _record(
+        evidence_record_payload,
+        suffix=3,
+        parents=[first_parent.evidence_id, second_parent.evidence_id],
+        evidence_type="agent.trace.v1",
+        subject="agent://refund-agent",
+    )
+    payload = child.model_dump(mode="json", by_alias=True)
+    payload["parents"] = list(reversed(payload["parents"]))
+    correlations = payload["correlations"]
+    assert isinstance(correlations, dict)
+    payload["correlations"] = dict(reversed(list(correlations.items())))
+    reordered = EvidenceRecord.model_validate(payload)
+    requirement = EvidenceRequirement(
+        type=child.type,
+        minimumTrust=TrustLevel.L1,
+        subject=child.subject,
+    )
+
+    match = match_evidence_requirement(
+        requirement,
+        [
+            _verified(child, tmp_path),
+            _verified(first_parent, tmp_path),
+            _verified(reordered, tmp_path),
+            _verified(second_parent, tmp_path),
+        ],
+    )
+
+    assert reordered.evidence_id == child.evidence_id
+    assert match.satisfied is True
+    assert match.evidence_ids == (child.evidence_id,)
+
+
 def test_requirement_matching_rejects_raw_unverified_record(
     evidence_record_payload: dict[str, Any],
 ) -> None:
