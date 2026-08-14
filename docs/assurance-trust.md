@@ -108,11 +108,11 @@ paths, or credentials. Trust assignments and `ObservedEvidenceSource` values
 must come from verifier-controlled configuration, never fields copied from the
 producer payload.
 
-On supported POSIX systems the verifier walks content paths relative to the
-trusted store descriptor with symlink following disabled and opens the final
-component nonblocking. It then requires a regular file and enforces the byte
-budget before hashing. This prevents pipes and device-like paths from turning
-verification into an unbounded blocking read.
+The verifier requires POSIX descriptor-relative path traversal with symlink
+following disabled and opens the final component nonblocking. It fails closed
+when the platform cannot provide those primitives. It then requires a regular
+file and enforces the byte budget before hashing. This prevents path replacement,
+pipes, and device-like paths from escaping or blocking verification.
 
 The factory marker protects API boundaries from accidental or ordinary plugin
 misuse; it is not a cryptographic capability against arbitrary code already

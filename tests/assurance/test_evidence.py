@@ -8,6 +8,7 @@ from typing import Any, cast
 import pytest
 from pydantic import ValidationError
 
+from anvil.assurance import evidence as evidence_module
 from anvil.assurance.canonical import sha256_bytes
 from anvil.assurance.errors import AssuranceError
 from anvil.assurance.evidence import (
@@ -450,6 +451,28 @@ def test_verify_evidence_content_accepts_contained_regular_file(
     assert verified.path == content_path.resolve()
     assert verified.size_bytes == len(content)
     assert verified.sha256 == sha256_bytes(content, prefix=False)
+
+
+def test_verify_evidence_content_fails_closed_without_anchored_open_support(
+    tmp_path: Path,
+    evidence_record_payload: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    content = b'{"status":"verified"}'
+    content_path = tmp_path / "snapshot.json"
+    content_path.write_bytes(content)
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="snapshot.json",
+        content=content,
+    )
+    monkeypatch.setattr(evidence_module.os, "supports_dir_fd", set())
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, tmp_path)
+
+    assert captured.value.code == "evidence_path_escape"
+    assert captured.value.path == "$.content.path"
 
 
 def test_verify_evidence_content_rejects_missing_file(

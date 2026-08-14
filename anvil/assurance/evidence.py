@@ -392,7 +392,6 @@ def verify_evidence_content(
         record,
         root=root,
         relative=relative,
-        resolved=resolved,
     )
     if not hmac.compare_digest(selected_digest, record.content.sha256):
         raise AssuranceError(
@@ -473,12 +472,11 @@ def _hash_evidence_content(
     *,
     root: Path,
     relative: PurePosixPath,
-    resolved: Path,
 ) -> tuple[int, str]:
     digest = hashlib.sha256()
     size_bytes = 0
     try:
-        with _open_anchored_content(root, relative, resolved) as content_file:
+        with _open_anchored_content(root, relative) as content_file:
             if os.fstat(content_file.fileno()).st_size != record.content.size_bytes:
                 raise AssuranceError(
                     "evidence content size does not match its record",
@@ -533,10 +531,13 @@ def _hash_evidence_content(
 def _open_anchored_content(
     root: Path,
     relative: PurePosixPath,
-    resolved: Path,
 ) -> BinaryIO:
     if os.name != "posix" or os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
-        return resolved.open("rb")
+        raise AssuranceError(
+            "platform cannot safely verify the evidence content path",
+            code="evidence_path_escape",
+            path="$.content.path",
+        )
 
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     file_flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
