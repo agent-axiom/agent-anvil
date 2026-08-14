@@ -184,6 +184,10 @@ class ContractValidationError(ValueError):
     """Raised when an artifact does not match a stable Agent Anvil contract."""
 
 
+class _DuplicateJsonKeyError(ValueError):
+    """Raised without echoing an attacker-controlled duplicate key."""
+
+
 def contract_schema(contract: SchemaContract) -> dict[str, Any]:
     schema = contract.model.model_json_schema(mode="validation", by_alias=True)
     schema["$schema"] = JSON_SCHEMA_DRAFT
@@ -307,14 +311,30 @@ def _read_json_payload(path: Path) -> Any:
     if len(encoded) > MAX_CONTRACT_JSON_BYTES:
         raise ContractValidationError(f"JSON contract at {path} exceeds the maximum encoded size")
     try:
-        payload = json.loads(encoded.decode("utf-8"))
+        payload = json.loads(
+            encoded.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_json_keys,
+        )
     except UnicodeDecodeError:
         raise ContractValidationError(f"JSON contract at {path} must be UTF-8") from None
-    except json.JSONDecodeError:
+    except _DuplicateJsonKeyError:
+        raise ContractValidationError(
+            f"JSON contract at {path} contains a duplicate JSON key"
+        ) from None
+    except (json.JSONDecodeError, ValueError):
         raise ContractValidationError(f"invalid JSON contract at {path}") from None
     except RecursionError:
         raise ContractValidationError(f"JSON contract at {path} nesting is too deep") from None
     _validate_json_structure(payload, path)
+    return payload
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in payload:
+            raise _DuplicateJsonKeyError
+        payload[key] = value
     return payload
 
 

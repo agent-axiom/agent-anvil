@@ -223,6 +223,18 @@ def test_load_release_contract_rejects_python_yaml_tags(tmp_path: Path) -> None:
     assert "os.system" not in str(captured.value)
 
 
+def test_load_release_contract_normalizes_oversized_yaml_integer(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text("value: " + "9" * 5_000 + "\n", encoding="utf-8")
+
+    with pytest.raises(AssuranceError) as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
+    assert captured.value.__cause__ is None
+
+
 def test_load_release_contract_reports_schema_path_without_raw_input(
     tmp_path: Path, valid_release_contract_payload: dict[str, Any]
 ) -> None:

@@ -84,5 +84,7 @@ def load_bounded_yaml(
         return loader.get_single_data()
     except RecursionError:
         raise ContractYamlError("YAML nesting is too deep") from None
+    except ValueError:
+        raise ContractYamlError("YAML contains an invalid scalar value") from None
     finally:
         loader.dispose()

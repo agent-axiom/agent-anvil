@@ -232,6 +232,36 @@ def test_schema_validate_normalizes_deep_json_parser_failure(tmp_path: Path) -> 
     assert captured.value.__cause__ is None
 
 
+def test_schema_validate_rejects_duplicate_json_keys(tmp_path: Path) -> None:
+    source = Path("fixtures/contracts/assurance-evidence-record-valid.json").read_text(
+        encoding="utf-8"
+    )
+    path = tmp_path / "evidence.json"
+    path.write_text(
+        source.replace(
+            '"trustLevel": "L2"',
+            '"trustLevel": "L3",\n  "trustLevel": "L2"',
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ContractValidationError, match="duplicate JSON key") as captured:
+        validate_schema_contract(path)
+
+    assert captured.value.__cause__ is None
+
+
+def test_schema_validate_normalizes_oversized_integer_failure(tmp_path: Path) -> None:
+    path = tmp_path / "contract.json"
+    path.write_text('{"schema_version":"anvil.trace.v1","value":' + "9" * 5_000 + "}")
+
+    with pytest.raises(ContractValidationError, match="invalid JSON contract") as captured:
+        validate_schema_contract(path, schema_id="anvil.trace.v1")
+
+    assert captured.value.__cause__ is None
+
+
 def test_schema_validate_does_not_echo_invalid_values_or_chain_validation_error(
     tmp_path: Path,
 ) -> None:
