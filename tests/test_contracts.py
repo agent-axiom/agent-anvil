@@ -386,3 +386,41 @@ def test_assurance_schema_exports_use_public_wire_aliases(tmp_path: Path) -> Non
     assert "api_version" not in release_schema["properties"]
     assert "schemaVersion" in evidence_schema["properties"]
     assert "schema_version" not in evidence_schema["properties"]
+
+
+def test_assurance_contract_docs_define_trust_and_compatibility_boundaries() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    contracts = Path("docs/contracts.md").read_text(encoding="utf-8")
+    schema_versioning = Path("docs/schema-versioning.md").read_text(encoding="utf-8")
+    artifacts = Path("docs/artifacts.md").read_text(encoding="utf-8")
+    trust = Path("docs/assurance-trust.md").read_text(encoding="utf-8")
+
+    assert "docs/assurance-trust.md" in readme
+    assert "Experimental Assurance foundation" in readme
+    for filename in (
+        "assurance-release-contract-valid.yaml",
+        "assurance-evidence-record-valid.json",
+        "assurance.anvil.dev.release-contract.v1alpha1.schema.json",
+        "assurance.anvil.dev.evidence-record.v1alpha1.schema.json",
+    ):
+        assert filename in contracts
+    assert "assurance.anvil.dev/release-contract/v1alpha1" in contracts
+    assert "assurance.anvil.dev/evidence-record/v1alpha1" in contracts
+    assert "v1alpha2" in schema_versioning
+    assert "unknown fields are rejected" in schema_versioning
+    assert "evidenceId" in artifacts
+    assert "content.sha256" in artifacts
+    assert "normalized relative" in artifacts
+    assert "Trust describes observation provenance, not whether the agent is safe." in trust
+    for level in ("L0", "L1", "L2", "L3"):
+        assert level in trust
+    for limitation in (
+        "host root",
+        "collector implementation",
+        "trust root",
+        "model provider",
+        "environment integrity",
+    ):
+        assert limitation in trust
+    assert "no Assurance runner" in trust
+    assert "no verdict engine" in trust

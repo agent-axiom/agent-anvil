@@ -369,6 +369,13 @@ uv run anvil schema export --out schemas
 Start with [`schemas/anvil.trace.v1.schema.json`](schemas/anvil.trace.v1.schema.json)
 and the [stable contracts guide](docs/contracts.md).
 
+### Experimental Assurance foundation
+
+The additive Assurance alpha defines reproducible release identities and
+evidence records whose claimed trust is checked against verifier-controlled
+policy. It does not yet execute environments or issue release verdicts. See the
+[Assurance trust model and limits](docs/assurance-trust.md).
+
 ## More
 
 - [Engineering details](docs/engineering.md)
@@ -376,6 +383,7 @@ and the [stable contracts guide](docs/contracts.md).
 - [Security policy](SECURITY.md)
 - [Data privacy](docs/privacy.md)
 - [Stable contracts and schemas](docs/contracts.md)
+- [Assurance trust model](docs/assurance-trust.md)
 - [Stability and compatibility](docs/stability.md)
 - [Schema versioning](docs/schema-versioning.md)
 - [Release provenance](docs/release-provenance.md)

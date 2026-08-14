@@ -74,6 +74,9 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Leaderboard submission workflow](examples/leaderboard-submission-workflow.yml)
 - [Leaderboard index workflow](examples/leaderboard-index-workflow.yml)
 - [Hugging Face leaderboard Space scaffold](../integrations/huggingface/leaderboard_space/README.md)
+- [Assurance evidence trust](assurance-trust.md)
+- [Assurance release contract schema](../schemas/assurance.anvil.dev.release-contract.v1alpha1.schema.json)
+- [Assurance evidence record schema](../schemas/assurance.anvil.dev.evidence-record.v1alpha1.schema.json)
 - [Trace JSON Schema](../schemas/anvil.trace.v1.schema.json)
 - [Scenario JSON Schema](../schemas/anvil.scenario.v1.schema.json)
 - [Results JSON Schema](../schemas/anvil.results.v1.schema.json)
@@ -84,3 +87,21 @@ These files show what Agent Anvil produces without requiring a hosted dashboard.
 - [Leaderboard GitHub run verification JSON Schema](../schemas/agent-anvil.leaderboard.github_run_verification.v1.schema.json)
 - [Leaderboard artifact attestation verification JSON Schema](../schemas/agent-anvil.leaderboard.artifact_attestation_verification.v1.schema.json)
 - [Leaderboard audit JSON Schema](../schemas/agent-anvil.leaderboard.audit.v1.schema.json)
+
+## Assurance Evidence Artifacts
+
+An Assurance evidence record is metadata around bytes kept in a local
+content-addressed run store. `content.sha256` identifies those bytes.
+`evidenceId` identifies the canonical record metadata, including observation
+time, source, release binding, parents, correlations, and redaction metadata.
+
+Content references use normalized relative POSIX paths. Verification resolves
+the path inside the configured store before reading, rejects traversal and
+symlink escape, then checks size and SHA-256. Parent IDs derive an inspectable
+directed graph; duplicate, dangling, self-referential, and cyclic relationships
+are rejected. Correlations are identifiers for joining evidence, not proof of
+causality.
+
+Verification order is record identity, expected release binding, source trust
+assignment, content containment and digest, then graph and requirement checks.
+Raw evidence remains local unless a user intentionally publishes it.

@@ -33,6 +33,8 @@ The command writes schemas using export metadata version
 - [`schemas/agent-anvil.leaderboard.audit.v1.schema.json`](../schemas/agent-anvil.leaderboard.audit.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.evidence_index.v1.schema.json`](../schemas/agent-anvil.leaderboard.evidence_index.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json`](../schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json)
+- [`schemas/assurance.anvil.dev.release-contract.v1alpha1.schema.json`](../schemas/assurance.anvil.dev.release-contract.v1alpha1.schema.json)
+- [`schemas/assurance.anvil.dev.evidence-record.v1alpha1.schema.json`](../schemas/assurance.anvil.dev.evidence-record.v1alpha1.schema.json)
 
 The source of truth remains the Pydantic models in Agent Anvil. Checked-in
 schemas are generated from those models and protected by tests.
@@ -61,9 +63,41 @@ Use the fixture set when writing adapters or compatibility checks:
 - [`fixtures/contracts/leaderboard-audit-valid.json`](../fixtures/contracts/leaderboard-audit-valid.json)
 - [`fixtures/contracts/leaderboard-evidence-index-valid.json`](../fixtures/contracts/leaderboard-evidence-index-valid.json)
 - [`fixtures/contracts/leaderboard-maintainer-rerun-valid.json`](../fixtures/contracts/leaderboard-maintainer-rerun-valid.json)
+- [`fixtures/contracts/assurance-release-contract-valid.yaml`](../fixtures/contracts/assurance-release-contract-valid.yaml)
+- [`fixtures/contracts/assurance-evidence-record-valid.json`](../fixtures/contracts/assurance-evidence-record-valid.json)
 
 These fixtures are intentionally small. They cover the happy path and one
 controlled external-agent protocol failure.
+
+## Assurance Alpha Contracts
+
+The Assurance foundation is additive and experimental. It does not change
+`anvil.scenario.v1`, current trace artifacts, or `anvil run` behavior.
+
+The release envelope uses
+`assurance.anvil.dev/release-contract/v1alpha1`. Validate its YAML fixture with
+an explicit schema ID:
+
+```bash
+uv run anvil schema validate \
+  fixtures/contracts/assurance-release-contract-valid.yaml \
+  --schema assurance.anvil.dev/release-contract/v1alpha1
+```
+
+The evidence envelope uses
+`assurance.anvil.dev/evidence-record/v1alpha1`. Its `schemaVersion` is
+auto-detected from JSON:
+
+```bash
+uv run anvil schema validate \
+  fixtures/contracts/assurance-evidence-record-valid.json
+```
+
+Schema validation checks document shape. Evidence identity, content digest,
+store containment, source trust assignment, release binding, and parent graph
+integrity require the verification APIs in `anvil.assurance`. Parsing a record
+that claims `L3` does not verify that claim. See
+[Assurance Evidence Trust](assurance-trust.md).
 
 ## External Agent Conformance
 
