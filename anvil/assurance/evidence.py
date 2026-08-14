@@ -112,7 +112,12 @@ class ObservedEvidenceSource(BaseModel):
 
 
 class EvidenceContent(BaseModel):
-    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
+    model_config = ConfigDict(
+        validate_by_alias=True,
+        validate_by_name=False,
+        serialize_by_alias=True,
+        extra="forbid",
+    )
 
     media_type: NonBlankStr = Field(alias="mediaType")
     sha256: str = Field(pattern=SHA256_PATTERN)
@@ -124,6 +129,7 @@ class EvidenceRedaction(BaseModel):
     model_config = ConfigDict(
         validate_by_alias=True,
         validate_by_name=False,
+        serialize_by_alias=True,
         extra="forbid",
         json_schema_extra=_REDACTION_POLICY_SCHEMA,
     )
@@ -143,7 +149,12 @@ class EvidenceRedaction(BaseModel):
 
 
 class EvidenceRequirement(BaseModel):
-    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
+    model_config = ConfigDict(
+        validate_by_alias=True,
+        validate_by_name=False,
+        serialize_by_alias=True,
+        extra="forbid",
+    )
 
     type: str = Field(pattern=NAMESPACED_TYPE_PATTERN)
     minimum_trust: TrustLevel = Field(alias="minimumTrust")
@@ -155,6 +166,7 @@ class EvidenceRecord(BaseModel):
     model_config = ConfigDict(
         validate_by_alias=True,
         validate_by_name=False,
+        serialize_by_alias=True,
         extra="forbid",
         hide_input_in_errors=True,
         json_schema_extra=_INDEPENDENT_EVIDENCE_BOUNDARY_SCHEMA,
@@ -213,6 +225,7 @@ class _EvidenceIdentityPayload(BaseModel):
     model_config = ConfigDict(
         validate_by_alias=True,
         validate_by_name=False,
+        serialize_by_alias=True,
         extra="forbid",
         hide_input_in_errors=True,
     )

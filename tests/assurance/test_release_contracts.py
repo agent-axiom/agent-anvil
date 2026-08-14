@@ -38,6 +38,20 @@ def test_release_contract_round_trips_public_aliases(
     assert dumped["evidence"]["require"][0]["minimumTrust"] == "L2"
 
 
+@pytest.mark.parametrize("method", ["python", "json"])
+def test_release_contract_default_serialization_round_trips_public_wire_format(
+    valid_release_contract_payload: dict[str, Any], method: str
+) -> None:
+    contract = ReleaseContract.model_validate(valid_release_contract_payload)
+
+    if method == "python":
+        restored = ReleaseContract.model_validate(contract.model_dump())
+    else:
+        restored = ReleaseContract.model_validate_json(contract.model_dump_json())
+
+    assert restored == contract
+
+
 @pytest.mark.parametrize("exclude_none", [False, True])
 def test_task_definition_round_trips_input_ref(exclude_none: bool) -> None:
     task = TaskDefinition.model_validate({"inputRef": "fixtures/order.json"})

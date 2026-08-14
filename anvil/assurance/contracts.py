@@ -135,6 +135,7 @@ class TaskDefinition(BaseModel):
     model_config = ConfigDict(
         validate_by_alias=True,
         validate_by_name=False,
+        serialize_by_alias=True,
         extra="forbid",
         json_schema_extra=_TASK_INPUT_CARDINALITY_SCHEMA,
     )
@@ -202,7 +203,12 @@ class EvidencePolicy(BaseModel):
 
 
 class ReliabilityPolicy(BaseModel):
-    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
+    model_config = ConfigDict(
+        validate_by_alias=True,
+        validate_by_name=False,
+        serialize_by_alias=True,
+        extra="forbid",
+    )
 
     trials: int = Field(default=1, ge=1, strict=True)
     minimum_pass_rate: float = Field(
@@ -218,6 +224,7 @@ class ReleaseContract(BaseModel):
     model_config = ConfigDict(
         validate_by_alias=True,
         validate_by_name=False,
+        serialize_by_alias=True,
         extra="forbid",
         hide_input_in_errors=True,
     )

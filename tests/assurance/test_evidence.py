@@ -96,6 +96,20 @@ def test_evidence_record_round_trips_aliases_and_identity(
     assert dumped["content"]["sizeBytes"] == 4096
 
 
+@pytest.mark.parametrize("method", ["python", "json"])
+def test_evidence_record_default_serialization_round_trips_public_wire_format(
+    evidence_record_payload: dict[str, Any], method: str
+) -> None:
+    record = EvidenceRecord.model_validate(evidence_record_payload)
+
+    if method == "python":
+        restored = EvidenceRecord.model_validate(record.model_dump())
+    else:
+        restored = EvidenceRecord.model_validate_json(record.model_dump_json())
+
+    assert restored == record
+
+
 def test_evidence_identity_is_independent_of_mapping_order(
     evidence_record_payload: dict[str, Any],
 ) -> None:
