@@ -108,6 +108,39 @@
   "$id": "assurance.anvil.dev/evidence-record/v1alpha1",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "trustLevel": {
+            "enum": [
+              "L2",
+              "L3"
+            ]
+          }
+        },
+        "required": [
+          "trustLevel"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "properties": {
+              "boundary": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              }
+            },
+            "required": [
+              "boundary"
+            ]
+          }
+        }
+      }
+    }
+  ],
   "description": "Agent Anvil Assurance evidence record schema.",
   "properties": {
     "content": {

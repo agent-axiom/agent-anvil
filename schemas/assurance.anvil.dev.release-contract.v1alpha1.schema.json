@@ -215,6 +215,116 @@
     },
     "ReleaseDefinition": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "agent_code"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "environment"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "model_config"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "policy"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "prompt_bundle"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "tool_schema"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        }
+      ],
       "properties": {
         "components": {
           "items": {
@@ -253,6 +363,34 @@
     },
     "TaskDefinition": {
       "additionalProperties": false,
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "inputRef"
+            ]
+          },
+          "required": [
+            "input"
+          ]
+        },
+        {
+          "not": {
+            "required": [
+              "input"
+            ]
+          },
+          "properties": {
+            "inputRef": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "inputRef"
+          ]
+        }
+      ],
       "properties": {
         "input": {
           "anyOf": [

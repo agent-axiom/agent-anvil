@@ -33,6 +33,30 @@ SHA256_PATTERN = r"^[0-9a-f]{64}$"
 PREFIXED_SHA256_LENGTH = len("sha256:") + 64
 MAX_EVIDENCE_CONTENT_BYTES = 64 * 1024 * 1024
 EVIDENCE_READ_CHUNK_BYTES = 1024 * 1024
+_INDEPENDENT_EVIDENCE_BOUNDARY_SCHEMA: dict[str, Any] = {
+    "allOf": [
+        {
+            "if": {
+                "properties": {"trustLevel": {"enum": ["L2", "L3"]}},
+                "required": ["trustLevel"],
+            },
+            "then": {
+                "properties": {
+                    "source": {
+                        "properties": {
+                            "boundary": {
+                                "type": "string",
+                                "minLength": 1,
+                                "pattern": r"\S",
+                            }
+                        },
+                        "required": ["boundary"],
+                    }
+                }
+            },
+        }
+    ]
+}
 
 
 def _non_blank(value: str) -> str:
@@ -109,7 +133,11 @@ class EvidenceRequirement(BaseModel):
 
 
 class EvidenceRecord(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+        json_schema_extra=_INDEPENDENT_EVIDENCE_BOUNDARY_SCHEMA,
+    )
 
     schema_version: Literal["assurance.anvil.dev/evidence-record/v1alpha1"] = Field(
         alias="schemaVersion"

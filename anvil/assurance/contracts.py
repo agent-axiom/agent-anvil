@@ -27,6 +27,7 @@ from anvil.assurance.evidence import (
     EvidenceRequirement,
 )
 from anvil.assurance.identity import (
+    MANDATORY_COMPONENT_KINDS,
     ReleaseComponent,
     release_identity,
     validate_release_components,
@@ -35,6 +36,36 @@ from anvil.assurance.yaml import DEFAULT_MAX_YAML_BYTES, ContractYamlError, load
 
 RELEASE_CONTRACT_SCHEMA_VERSION = "assurance.anvil.dev/release-contract/v1alpha1"
 MAX_RELEASE_CONTRACT_BYTES = DEFAULT_MAX_YAML_BYTES
+_RELEASE_COMPONENT_CARDINALITY_SCHEMA: dict[str, Any] = {
+    "allOf": [
+        {
+            "properties": {
+                "components": {
+                    "contains": {
+                        "properties": {"kind": {"const": kind.value}},
+                        "required": ["kind"],
+                    },
+                    "minContains": 1,
+                    "maxContains": 1,
+                }
+            }
+        }
+        for kind in sorted(MANDATORY_COMPONENT_KINDS, key=lambda selected: selected.value)
+    ]
+}
+_TASK_INPUT_CARDINALITY_SCHEMA: dict[str, Any] = {
+    "oneOf": [
+        {
+            "required": ["input"],
+            "not": {"required": ["inputRef"]},
+        },
+        {
+            "required": ["inputRef"],
+            "not": {"required": ["input"]},
+            "properties": {"inputRef": {"type": "string", "minLength": 1}},
+        },
+    ]
+}
 
 
 def _non_blank(value: str) -> str:
@@ -69,7 +100,10 @@ class ContractMetadata(BaseModel):
 
 
 class ReleaseDefinition(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra=_RELEASE_COMPONENT_CARDINALITY_SCHEMA,
+    )
 
     components: list[ReleaseComponent] = Field(min_length=1)
 
@@ -94,7 +128,11 @@ class ActorDefinition(BaseModel):
 
 
 class TaskDefinition(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="forbid",
+        json_schema_extra=_TASK_INPUT_CARDINALITY_SCHEMA,
+    )
 
     input: JsonValue | None = None
     input_ref: NonBlankStr | None = Field(default=None, alias="inputRef")
