@@ -16,6 +16,7 @@ from anvil.assurance.contracts import (
 )
 from anvil.assurance.errors import AssuranceError
 from anvil.assurance.identity import release_identity
+from anvil.assurance.yaml import ContractYamlError, load_bounded_yaml
 
 
 def test_release_contract_round_trips_public_aliases(
@@ -241,6 +242,22 @@ def test_load_release_contract_reports_schema_path_without_raw_input(
     assert "sk-must-not-leak" not in str(captured.value)
 
 
+def test_load_release_contract_escapes_untrusted_validation_path_and_drops_cause(
+    tmp_path: Path, valid_release_contract_payload: dict[str, Any]
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    payload["evil\nline"] = "sk-must-not-leak"
+    path = tmp_path / "contract.yaml"
+    path.write_text(yaml.safe_dump(payload), encoding="utf-8")
+
+    with pytest.raises(AssuranceError) as captured:
+        load_release_contract(path)
+
+    assert captured.value.path == '$["evil\\nline"]'
+    assert captured.value.__cause__ is None
+    assert "sk-must-not-leak" not in str(captured.value)
+
+
 def test_load_release_contract_reports_missing_file_without_traceback(tmp_path: Path) -> None:
     path = tmp_path / "missing.yaml"
 
@@ -287,6 +304,37 @@ def test_load_release_contract_rejects_yaml_aliases(tmp_path: Path) -> None:
 
     assert captured.value.code == "contract_parse_error"
     assert captured.value.path == "$"
+
+
+def test_load_release_contract_rejects_tagged_non_string_mapping_keys(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text("foo: first\n!!binary Zm9v: second\n", encoding="utf-8")
+
+    with pytest.raises(AssuranceError, match="mapping keys must be strings") as captured:
+        load_release_contract(path)
+
+    assert captured.value.code == "contract_parse_error"
+    assert captured.value.path == "$"
+
+
+@pytest.mark.parametrize(
+    ("payload", "options", "message"),
+    [
+        ("items: [one, two, three]\n", {"max_nodes": 3}, "too many nodes"),
+        ("items:\n  - nested:\n      - value\n", {"max_depth": 3}, "nesting is too deep"),
+    ],
+)
+def test_bounded_yaml_enforces_structural_budgets(
+    tmp_path: Path,
+    payload: str,
+    options: dict[str, int],
+    message: str,
+) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text(payload, encoding="utf-8")
+
+    with pytest.raises(ContractYamlError, match=message):
+        load_bounded_yaml(path, **options)
 
 
 def test_load_release_contract_rejects_oversized_input_before_parsing(tmp_path: Path) -> None:

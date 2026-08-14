@@ -15,9 +15,9 @@ def canonical_json_bytes(value: Any) -> bytes:
             separators=(",", ":"),
             sort_keys=True,
         )
-    except (TypeError, ValueError) as error:
-        raise ValueError(f"value is not canonical JSON: {error}") from error
-    return rendered.encode("utf-8")
+        return rendered.encode("utf-8")
+    except (TypeError, ValueError, UnicodeError):
+        raise ValueError("value is not canonical JSON") from None
 
 
 def sha256_bytes(content: bytes, *, prefix: bool = True) -> str:

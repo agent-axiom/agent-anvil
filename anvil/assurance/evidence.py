@@ -24,7 +24,7 @@ from pydantic import (
 )
 
 from anvil.assurance.canonical import sha256_json
-from anvil.assurance.errors import SECRET_DETAIL_KEYS, AssuranceError
+from anvil.assurance.errors import AssuranceError, is_secret_like_key
 from anvil.assurance.identity import SHA256_PREFIXED_PATTERN
 
 EVIDENCE_RECORD_SCHEMA_VERSION = "assurance.anvil.dev/evidence-record/v1alpha1"
@@ -171,8 +171,7 @@ class EvidenceRecord(BaseModel):
         cls, correlations: dict[str, str], info: ValidationInfo
     ) -> dict[str, str]:
         del info
-        keys = {key.casefold() for key in correlations}
-        if SECRET_DETAIL_KEYS.intersection(keys):
+        if any(is_secret_like_key(key) for key in correlations):
             raise ValueError("secret-like correlation keys are not allowed")
         if any(not key.strip() for key in correlations):
             raise ValueError("correlation keys must not be blank")

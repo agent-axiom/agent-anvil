@@ -23,6 +23,11 @@ def test_canonical_json_rejects_non_json_values(value: object) -> None:
         canonical_json_bytes(value)
 
 
+def test_canonical_json_normalizes_lone_surrogate_failure() -> None:
+    with pytest.raises(ValueError, match="value is not canonical JSON"):
+        canonical_json_bytes({"value": "\ud800"})
+
+
 def test_sha256_bytes_supports_prefixed_and_raw_digests() -> None:
     expected = "015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862"
 

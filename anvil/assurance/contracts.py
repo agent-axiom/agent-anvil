@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -315,7 +316,7 @@ class CheckTypeRegistry:
                     code="check_config_error",
                     path=f"$.checks[{index}].config{suffix}",
                     details={"check_type": check.type},
-                ) from error
+                ) from None
 
 
 def load_release_contract(
@@ -324,24 +325,24 @@ def load_release_contract(
     selected_path = Path(path)
     try:
         payload = load_bounded_yaml(selected_path, max_bytes=MAX_RELEASE_CONTRACT_BYTES)
-    except OSError as error:
+    except OSError:
         raise AssuranceError(
             "cannot read release contract",
             code="contract_parse_error",
             path="$",
-        ) from error
+        ) from None
     except ContractYamlError as error:
         raise AssuranceError(
             f"cannot parse release contract YAML: {error}",
             code="contract_parse_error",
             path="$",
-        ) from error
-    except yaml.YAMLError as error:
+        ) from None
+    except yaml.YAMLError:
         raise AssuranceError(
             "cannot parse release contract YAML",
             code="contract_parse_error",
             path="$",
-        ) from error
+        ) from None
 
     if not isinstance(payload, dict):
         raise AssuranceError(
@@ -359,7 +360,7 @@ def load_release_contract(
             code="contract_schema_error",
             path=_validation_path(first_error.get("loc", ())),
             details={"validation_type": str(first_error.get("type", "unknown"))},
-        ) from error
+        ) from None
     if registry is not None:
         registry.validate(contract)
     return contract
@@ -368,5 +369,10 @@ def load_release_contract(
 def _validation_path(location: Any) -> str:
     path = "$"
     for part in location:
-        path += f"[{part}]" if isinstance(part, int) else f".{part}"
+        if isinstance(part, int):
+            path += f"[{part}]"
+        elif isinstance(part, str) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", part):
+            path += f".{part}"
+        else:
+            path += f"[{json.dumps(str(part), ensure_ascii=True)}]"
     return path

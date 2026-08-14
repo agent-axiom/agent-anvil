@@ -43,6 +43,9 @@ from anvil.trace import TRACE_SCHEMA_VERSION, TraceRun
 SCENARIO_SCHEMA_VERSION = "anvil.scenario.v1"
 SCHEMA_EXPORT_SCHEMA_VERSION = "anvil.schema.export.v1"
 JSON_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema"
+MAX_CONTRACT_JSON_BYTES = 1024 * 1024
+MAX_CONTRACT_JSON_NODES = 50_000
+MAX_CONTRACT_JSON_DEPTH = 100
 
 
 @dataclass(frozen=True)
@@ -207,6 +210,7 @@ def export_schema_contracts(out_dir: str | Path) -> list[Path]:
 
 def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> str:
     selected_path = Path(path)
+    payload: Any | None = None
     if schema_id is None:
         payload = _read_json_payload(selected_path)
         if not isinstance(payload, dict):
@@ -232,14 +236,21 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
         )
 
     try:
-        if schema_id in {SCENARIO_SCHEMA_VERSION, RELEASE_CONTRACT_SCHEMA_VERSION}:
-            contract.model.model_validate(_read_yaml_payload(selected_path))
-        else:
-            contract.model.model_validate(_read_json_payload(selected_path))
-    except (OSError, ValidationError, yaml.YAMLError, json.JSONDecodeError) as error:
+        if schema_id == SCENARIO_SCHEMA_VERSION:
+            payload = _read_legacy_yaml_payload(selected_path)
+        elif schema_id == RELEASE_CONTRACT_SCHEMA_VERSION:
+            payload = _read_assurance_yaml_payload(selected_path)
+        elif payload is None:
+            payload = _read_json_payload(selected_path)
+        contract.model.model_validate(payload)
+    except ValidationError as error:
+        first_error = error.errors(include_input=False, include_url=False)[0]
+        location = _validation_location(first_error.get("loc", ()))
+        validation_type = str(first_error.get("type", "unknown"))
         raise ContractValidationError(
-            f"invalid {schema_id} contract at {selected_path}: {error}"
-        ) from error
+            f"invalid {schema_id} contract at {selected_path}: "
+            f"validation failed at {location} ({validation_type})"
+        ) from None
     return schema_id
 
 
@@ -289,17 +300,67 @@ def _matched_contract_paths(
 
 def _read_json_payload(path: Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except OSError as error:
-        raise ContractValidationError(f"cannot read contract at {path}: {error}") from error
-    except json.JSONDecodeError as error:
-        raise ContractValidationError(f"invalid JSON contract at {path}: {error}") from error
+        with path.open("rb") as source:
+            encoded = source.read(MAX_CONTRACT_JSON_BYTES + 1)
+    except OSError:
+        raise ContractValidationError(f"cannot read contract at {path}") from None
+    if len(encoded) > MAX_CONTRACT_JSON_BYTES:
+        raise ContractValidationError(f"JSON contract at {path} exceeds the maximum encoded size")
+    try:
+        payload = json.loads(encoded.decode("utf-8"))
+    except UnicodeDecodeError:
+        raise ContractValidationError(f"JSON contract at {path} must be UTF-8") from None
+    except json.JSONDecodeError:
+        raise ContractValidationError(f"invalid JSON contract at {path}") from None
+    except RecursionError:
+        raise ContractValidationError(f"JSON contract at {path} nesting is too deep") from None
+    _validate_json_structure(payload, path)
+    return payload
 
 
-def _read_yaml_payload(path: Path) -> Any:
+def _read_assurance_yaml_payload(path: Path) -> Any:
     try:
         return load_bounded_yaml(path)
-    except OSError as error:
-        raise ContractValidationError(f"cannot read contract at {path}: {error}") from error
+    except OSError:
+        raise ContractValidationError(f"cannot read contract at {path}") from None
     except ContractYamlError as error:
-        raise ContractValidationError(f"invalid YAML contract at {path}: {error}") from error
+        raise ContractValidationError(f"invalid YAML contract at {path}: {error}") from None
+    except yaml.YAMLError:
+        raise ContractValidationError(f"invalid YAML contract at {path}") from None
+
+
+def _read_legacy_yaml_payload(path: Path) -> Any:
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+    except OSError:
+        raise ContractValidationError(f"cannot read contract at {path}") from None
+    except (UnicodeDecodeError, yaml.YAMLError, RecursionError):
+        raise ContractValidationError(f"invalid YAML contract at {path}") from None
+
+
+def _validate_json_structure(payload: Any, path: Path) -> None:
+    pending: list[tuple[Any, int]] = [(payload, 1)]
+    nodes = 0
+    while pending:
+        value, depth = pending.pop()
+        nodes += 1
+        if nodes > MAX_CONTRACT_JSON_NODES:
+            raise ContractValidationError(f"JSON contract at {path} contains too many nodes")
+        if depth > MAX_CONTRACT_JSON_DEPTH:
+            raise ContractValidationError(f"JSON contract at {path} nesting is too deep")
+        if isinstance(value, dict):
+            pending.extend((nested, depth + 1) for nested in value.values())
+        elif isinstance(value, list):
+            pending.extend((nested, depth + 1) for nested in value)
+
+
+def _validation_location(location: Any) -> str:
+    rendered = "$"
+    for part in location:
+        if isinstance(part, int):
+            rendered += f"[{part}]"
+        elif isinstance(part, str) and part.isidentifier():
+            rendered += f".{part}"
+        else:
+            rendered += f"[{json.dumps(str(part), ensure_ascii=True)}]"
+    return rendered

@@ -237,7 +237,21 @@ def test_evidence_record_rejects_duplicate_or_self_parents(
         _record(self_payload)
 
 
-@pytest.mark.parametrize("key", ["api_key", "authorization", "password", "secret", "token"])
+@pytest.mark.parametrize(
+    "key",
+    [
+        "api_key",
+        "x-api-key",
+        "authorization",
+        "password",
+        "client_secret",
+        "secret",
+        "token",
+        "accessToken",
+        "jwt",
+        "private-key",
+    ],
+)
 def test_evidence_record_rejects_secret_like_correlation_keys(
     evidence_record_payload: dict[str, Any], key: str
 ) -> None:

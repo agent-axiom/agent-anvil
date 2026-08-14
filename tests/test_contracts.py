@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 from typer.testing import CliRunner
 
@@ -10,6 +11,10 @@ from anvil.assurance.contracts import ReleaseContract
 from anvil.assurance.evidence import EvidenceRecord, verify_evidence_identity
 from anvil.attestations import LeaderboardArtifactAttestationVerification
 from anvil.cli import app
+from anvil.contracts import (
+    ContractValidationError,
+    validate_schema_contract,
+)
 from anvil.doctor import DoctorReportPayload
 from anvil.leaderboard import (
     LeaderboardAuditReport,
@@ -107,6 +112,17 @@ def test_cli_schema_validate_accepts_explicit_yaml_contract() -> None:
     assert "Contract is valid" in result.stdout
 
 
+def test_schema_validate_preserves_legacy_scenario_yaml_alias_support(tmp_path: Path) -> None:
+    scenario = Path("fixtures/contracts/scenario-valid.yaml").read_text(encoding="utf-8")
+    scenario = scenario.replace(
+        "trials: 1\n  max_steps: 6", "trials: &count 1\n  max_steps: *count"
+    )
+    path = tmp_path / "scenario.yaml"
+    path.write_text(scenario, encoding="utf-8")
+
+    assert validate_schema_contract(path, schema_id="anvil.scenario.v1") == "anvil.scenario.v1"
+
+
 def test_cli_schema_validate_accepts_explicit_assurance_yaml_contract() -> None:
     runner = CliRunner()
 
@@ -153,6 +169,19 @@ def test_cli_schema_validate_rejects_duplicate_assurance_yaml_keys(tmp_path: Pat
     assert "Traceback" not in result.stderr
 
 
+def test_schema_validate_normalizes_malformed_assurance_yaml(tmp_path: Path) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text("metadata: [unterminated\n", encoding="utf-8")
+
+    with pytest.raises(ContractValidationError, match="invalid YAML contract") as captured:
+        validate_schema_contract(
+            path,
+            schema_id="assurance.anvil.dev/release-contract/v1alpha1",
+        )
+
+    assert captured.value.__cause__ is None
+
+
 def test_cli_schema_validate_auto_detects_assurance_evidence_contract() -> None:
     runner = CliRunner()
 
@@ -183,6 +212,45 @@ def test_cli_schema_validate_rejects_invalid_contract(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "invalid agent-anvil.leaderboard.evidence_index.v1 contract" in result.stderr
     assert "Traceback" not in result.stderr
+
+
+def test_schema_validate_rejects_oversized_json_before_parsing(tmp_path: Path) -> None:
+    path = tmp_path / "contract.json"
+    path.write_bytes(b'"' + b"x" * (1024 * 1024) + b'"')
+
+    with pytest.raises(ContractValidationError, match="maximum encoded size"):
+        validate_schema_contract(path, schema_id="anvil.trace.v1")
+
+
+def test_schema_validate_normalizes_deep_json_parser_failure(tmp_path: Path) -> None:
+    path = tmp_path / "contract.json"
+    path.write_text("[" * 2_000 + "]" * 2_000, encoding="utf-8")
+
+    with pytest.raises(ContractValidationError, match="nesting is too deep") as captured:
+        validate_schema_contract(path, schema_id="anvil.trace.v1")
+
+    assert captured.value.__cause__ is None
+
+
+def test_schema_validate_does_not_echo_invalid_values_or_chain_validation_error(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "contract.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "anvil.trace.v1",
+                "run_id": "sk-must-not-leak",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ContractValidationError) as captured:
+        validate_schema_contract(path)
+
+    assert "sk-must-not-leak" not in str(captured.value)
+    assert captured.value.__cause__ is None
 
 
 def test_cli_schema_validate_dir_accepts_auto_detected_json_contracts(tmp_path: Path) -> None:

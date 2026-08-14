@@ -23,7 +23,20 @@ def test_assurance_error_exposes_stable_code_path_and_details() -> None:
 
 @pytest.mark.parametrize(
     "secret_key",
-    ["api_key", "API_KEY", "authorization", "password", "secret", "token"],
+    [
+        "api_key",
+        "API_KEY",
+        "x-api-key",
+        "authorization",
+        "password",
+        "secret",
+        "client-secret",
+        "token",
+        "access_token",
+        "refreshToken",
+        "jwt",
+        "private-key",
+    ],
 )
 def test_assurance_error_rejects_secret_details(secret_key: str) -> None:
     with pytest.raises(ValueError, match="details must not contain secret-like keys"):
@@ -32,4 +45,14 @@ def test_assurance_error_rejects_secret_details(secret_key: str) -> None:
             code="evidence_trust_error",
             path="$.source",
             details={secret_key: "must-not-leak"},
+        )
+
+
+def test_assurance_error_rejects_nested_secret_details() -> None:
+    with pytest.raises(ValueError, match="details must not contain secret-like keys"):
+        AssuranceError(
+            "invalid source",
+            code="evidence_trust_error",
+            path="$.source",
+            details={"context": [{"client_secret": "must-not-leak"}]},
         )
