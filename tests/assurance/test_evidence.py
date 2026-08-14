@@ -13,6 +13,7 @@ from anvil.assurance.evidence import (
     EVIDENCE_RECORD_SCHEMA_VERSION,
     EvidenceRecord,
     EvidenceTrustPolicy,
+    ObservedEvidenceSource,
     TrustAssignment,
     TrustLevel,
     evidence_identity,
@@ -64,6 +65,14 @@ def trust_policy(maximum_trust: TrustLevel = TrustLevel.L2) -> EvidenceTrustPoli
     )
 
 
+def observed_source() -> ObservedEvidenceSource:
+    return ObservedEvidenceSource(
+        collector="postgres-observer",
+        version="0.1.0",
+        boundary="separate-read-only-credentials",
+    )
+
+
 def test_evidence_record_round_trips_aliases_and_identity(
     evidence_record_payload: dict[str, Any],
 ) -> None:
@@ -88,6 +97,17 @@ def test_evidence_identity_is_independent_of_mapping_order(
     reversed_payload = dict(reversed(list(evidence_record_payload.items())))
 
     assert evidence_identity(reversed_payload) == evidence_record_payload["evidenceId"]
+
+
+def test_evidence_identity_canonicalizes_parent_edge_order(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    first = copy.deepcopy(evidence_record_payload)
+    second = copy.deepcopy(evidence_record_payload)
+    first["parents"] = [f"sha256:{'1' * 64}", f"sha256:{'2' * 64}"]
+    second["parents"] = list(reversed(first["parents"]))
+
+    assert evidence_identity(first) == evidence_identity(second)
 
 
 @pytest.mark.parametrize(
@@ -259,7 +279,11 @@ def test_trust_policy_verifies_exact_source_assignment(
 ) -> None:
     record = _record(evidence_record_payload)
 
-    verified = verify_evidence_trust(record, trust_policy())
+    verified = verify_evidence_trust(
+        record,
+        trust_policy(),
+        observed_source=observed_source(),
+    )
 
     assert verified.record is record
     assert verified.assigned_trust is TrustLevel.L2
@@ -274,7 +298,11 @@ def test_trust_policy_accepts_claim_at_or_below_assignment(
     _reidentify(payload)
     record = _record(payload)
 
-    verified = verify_evidence_trust(record, trust_policy(TrustLevel.L2))
+    verified = verify_evidence_trust(
+        record,
+        trust_policy(TrustLevel.L2),
+        observed_source=observed_source(),
+    )
 
     assert verified.assigned_trust is claimed
 
@@ -288,7 +316,11 @@ def test_record_cannot_self_elevate_claimed_trust(
     record = _record(payload)
 
     with pytest.raises(AssuranceError) as captured:
-        verify_evidence_trust(record, trust_policy(TrustLevel.L2))
+        verify_evidence_trust(
+            record,
+            trust_policy(TrustLevel.L2),
+            observed_source=observed_source(),
+        )
 
     assert captured.value.code == "evidence_trust_error"
     assert captured.value.path == "$.trustLevel"
@@ -313,7 +345,32 @@ def test_trust_policy_rejects_unassigned_source(
     record = _record(payload)
 
     with pytest.raises(AssuranceError) as captured:
-        verify_evidence_trust(record, trust_policy())
+        verify_evidence_trust(
+            record,
+            trust_policy(),
+            observed_source=observed_source(),
+        )
+
+    assert captured.value.code == "evidence_trust_error"
+    assert captured.value.path == "$.source"
+
+
+def test_trust_policy_rejects_producer_source_not_observed_by_ingestion(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    record = _record(evidence_record_payload)
+    untrusted_observation = ObservedEvidenceSource(
+        collector="untrusted-upload",
+        version="1.0.0",
+        boundary=None,
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_trust(
+            record,
+            trust_policy(),
+            observed_source=untrusted_observation,
+        )
 
     assert captured.value.code == "evidence_trust_error"
     assert captured.value.path == "$.source"
@@ -486,6 +543,8 @@ def test_verify_evidence_record_composes_identity_release_trust_and_content(
     verified = verify_evidence_record(
         record,
         expected_release_id=record.release_id,
+        expected_contract_id=record.contract_id,
+        observed_source=observed_source(),
         trust_policy=trust_policy(),
         store_root=tmp_path,
     )
@@ -508,9 +567,34 @@ def test_verify_evidence_record_rejects_wrong_release_before_content_read(
         verify_evidence_record(
             record,
             expected_release_id=f"sha256:{'0' * 64}",
+            expected_contract_id=record.contract_id,
+            observed_source=observed_source(),
             trust_policy=trust_policy(),
             store_root=tmp_path,
         )
 
     assert captured.value.code == "evidence_schema_error"
     assert captured.value.path == "$.releaseId"
+
+
+def test_verify_evidence_record_rejects_cross_contract_replay_before_content_read(
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
+) -> None:
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="missing.json",
+        content=b"missing",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_record(
+            record,
+            expected_release_id=record.release_id,
+            expected_contract_id="different-contract",
+            observed_source=observed_source(),
+            trust_policy=trust_policy(),
+            store_root=tmp_path,
+        )
+
+    assert captured.value.code == "evidence_schema_error"
+    assert captured.value.path == "$.contractId"

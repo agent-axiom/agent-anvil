@@ -58,6 +58,16 @@ class EvidenceSource(BaseModel):
     boundary: NonBlankStr | None = None
 
 
+class ObservedEvidenceSource(BaseModel):
+    """Source identity supplied by the trusted ingestion boundary."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    collector: NonBlankStr
+    version: NonBlankStr
+    boundary: NonBlankStr | None = None
+
+
 class EvidenceContent(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
@@ -206,6 +216,9 @@ def evidence_identity(value: EvidenceRecord | Mapping[str, Any]) -> str:
         payload = dict(value)
     payload.pop("evidenceId", None)
     payload.pop("evidence_id", None)
+    parents = payload.get("parents")
+    if isinstance(parents, list) and all(isinstance(parent, str) for parent in parents):
+        payload["parents"] = sorted(parents)
     return sha256_json(payload)
 
 
@@ -219,8 +232,24 @@ def verify_evidence_identity(record: EvidenceRecord) -> None:
         )
 
 
-def verify_evidence_trust(record: EvidenceRecord, policy: EvidenceTrustPolicy) -> VerifiedTrust:
-    source_key = (record.source.collector, record.source.version, record.source.boundary)
+def verify_evidence_trust(
+    record: EvidenceRecord,
+    policy: EvidenceTrustPolicy,
+    *,
+    observed_source: ObservedEvidenceSource,
+) -> VerifiedTrust:
+    record_source_key = (record.source.collector, record.source.version, record.source.boundary)
+    source_key = (
+        observed_source.collector,
+        observed_source.version,
+        observed_source.boundary,
+    )
+    if record_source_key != source_key:
+        raise AssuranceError(
+            "evidence source does not match the trusted ingestion observation",
+            code="evidence_trust_error",
+            path="$.source",
+        )
     assignment = next(
         (
             candidate
@@ -329,6 +358,8 @@ def verify_evidence_record(
     record: EvidenceRecord,
     *,
     expected_release_id: str,
+    expected_contract_id: str,
+    observed_source: ObservedEvidenceSource,
     trust_policy: EvidenceTrustPolicy,
     store_root: Path,
 ) -> VerifiedEvidence:
@@ -339,7 +370,17 @@ def verify_evidence_record(
             code="evidence_schema_error",
             path="$.releaseId",
         )
-    trust = verify_evidence_trust(record, trust_policy)
+    if not hmac.compare_digest(record.contract_id, expected_contract_id):
+        raise AssuranceError(
+            "evidence belongs to a different assurance contract",
+            code="evidence_schema_error",
+            path="$.contractId",
+        )
+    trust = verify_evidence_trust(
+        record,
+        trust_policy,
+        observed_source=observed_source,
+    )
     content = verify_evidence_content(record, store_root)
     return VerifiedEvidence(
         record=record,
