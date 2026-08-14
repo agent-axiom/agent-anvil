@@ -58,6 +58,54 @@ def test_task_definition_round_trips_explicit_null_input(exclude_none: bool) -> 
     assert TaskDefinition.model_validate(dumped) == task
 
 
+def test_release_contract_rejects_nonfinite_task_input(
+    valid_release_contract_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    payload["task"] = {"input": {"confidence": float("nan")}}
+
+    with pytest.raises(ValidationError, match="finite JSON number"):
+        ReleaseContract.model_validate(payload)
+
+
+def test_release_contract_rejects_nonfinite_check_config(
+    valid_release_contract_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    checks = payload["checks"]
+    assert isinstance(checks, list)
+    checks[0]["config"] = {"threshold": float("inf")}
+
+    with pytest.raises(ValidationError, match="finite JSON number"):
+        ReleaseContract.model_validate(payload)
+
+
+def test_release_contract_rejects_nonfinite_component_metadata(
+    valid_release_contract_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    components = payload["release"]["components"]
+    assert isinstance(components, list)
+    components[0]["metadata"] = {"confidence": float("-inf")}
+
+    with pytest.raises(ValidationError, match="finite JSON number"):
+        ReleaseContract.model_validate(payload)
+
+
+def test_release_contract_rejects_secret_like_component_metadata(
+    valid_release_contract_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    components = payload["release"]["components"]
+    assert isinstance(components, list)
+    components[0]["metadata"] = {"context": {"api_key": "must-not-persist"}}
+
+    with pytest.raises(ValidationError, match="secret-like keys") as captured:
+        ReleaseContract.model_validate(payload)
+
+    assert "must-not-persist" not in str(captured.value)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

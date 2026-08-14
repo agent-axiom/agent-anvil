@@ -24,6 +24,7 @@ from pydantic import (
     model_validator,
 )
 
+from anvil.assurance.canonical import validate_finite_json
 from anvil.assurance.errors import AssuranceError
 from anvil.assurance.evidence import (
     NAMESPACED_TYPE_PATTERN,
@@ -141,6 +142,11 @@ class TaskDefinition(BaseModel):
     input: JsonValue | None = None
     input_ref: NonBlankStr | None = Field(default=None, alias="inputRef")
 
+    @field_validator("input")
+    @classmethod
+    def reject_nonfinite_input(cls, value: JsonValue | None) -> JsonValue | None:
+        return validate_finite_json(value)
+
     @model_serializer(mode="wrap")
     def serialize_selected_input(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         payload = handler(self)
@@ -183,6 +189,11 @@ class CheckDefinition(BaseModel):
     type: str = Field(pattern=NAMESPACED_TYPE_PATTERN)
     config: dict[str, JsonValue] = Field(default_factory=dict)
 
+    @field_validator("config")
+    @classmethod
+    def reject_nonfinite_config(cls, value: dict[str, JsonValue]) -> dict[str, JsonValue]:
+        return validate_finite_json(value)
+
 
 class EvidencePolicy(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -204,7 +215,12 @@ class ReliabilityPolicy(BaseModel):
 
 
 class ReleaseContract(BaseModel):
-    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
+    model_config = ConfigDict(
+        validate_by_alias=True,
+        validate_by_name=False,
+        extra="forbid",
+        hide_input_in_errors=True,
+    )
 
     api_version: Literal["assurance.anvil.dev/release-contract/v1alpha1"] = Field(
         alias="apiVersion"

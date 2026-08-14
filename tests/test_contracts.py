@@ -307,6 +307,20 @@ def test_schema_validate_normalizes_oversized_integer_failure(tmp_path: Path) ->
     assert captured.value.__cause__ is None
 
 
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_schema_validate_rejects_nonfinite_json_numbers(tmp_path: Path, constant: str) -> None:
+    source = Path("fixtures/contracts/trace-valid.json").read_text(encoding="utf-8")
+    path = tmp_path / "trace.json"
+    path.write_text(
+        source.replace('"estimated_cost_usd": 0.0', f'"estimated_cost_usd": {constant}')
+    )
+
+    with pytest.raises(ContractValidationError, match="non-finite JSON number") as captured:
+        validate_schema_contract(path, schema_id="anvil.trace.v1")
+
+    assert captured.value.__cause__ is None
+
+
 def test_schema_validate_does_not_echo_invalid_values_or_chain_validation_error(
     tmp_path: Path,
 ) -> None:
@@ -579,6 +593,8 @@ def test_assurance_contract_docs_define_trust_and_compatibility_boundaries() -> 
     assert "duplicate YAML keys" in contracts
     assert "YAML aliases" in contracts
     assert "1 MiB" in contracts
+    assert "canonical finite JSON values" in contracts
+    assert "secret-like keys" in contracts
     assert "inspection-only" in contracts
     assert "CheckTypeRegistry" in contracts
     assert "v1alpha2" in schema_versioning

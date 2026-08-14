@@ -110,6 +110,9 @@ selected legacy JSON schemas retain their existing unbounded byte compatibility,
 use auto-detection or an external artifact-size gate for untrusted unknown inputs.
 Contract readers open paths nonblocking and reject anything that does not resolve to
 a regular file; FIFOs, sockets, devices, and directories cannot stall validation.
+Assurance task inputs, check configuration, and component metadata accept only
+canonical finite JSON values. Component metadata also rejects secret-like keys;
+credentials belong in the execution environment, never in release contracts.
 
 Check definitions are data, not import instructions. Loading a contract without
 a `CheckTypeRegistry` performs inspection-only envelope validation. Any future

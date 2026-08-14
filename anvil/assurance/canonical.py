@@ -2,7 +2,22 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from typing import Any
+
+
+def validate_finite_json(value: Any) -> Any:
+    """Return a JSON value after rejecting non-finite numeric leaves."""
+    pending = [value]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, float) and not math.isfinite(current):
+            raise ValueError("value must contain only finite JSON numbers")
+        if isinstance(current, dict):
+            pending.extend(current.values())
+        elif isinstance(current, list):
+            pending.extend(current)
+    return value
 
 
 def canonical_json_bytes(value: Any) -> bytes:

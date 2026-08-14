@@ -6,8 +6,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
-from anvil.assurance.canonical import sha256_json
-from anvil.assurance.errors import AssuranceError
+from anvil.assurance.canonical import sha256_json, validate_finite_json
+from anvil.assurance.errors import AssuranceError, contains_secret_like_key
 
 SHA256_PREFIXED_PATTERN = r"^sha256:[0-9a-f]{64}$"
 
@@ -36,7 +36,7 @@ MANDATORY_COMPONENT_KINDS = frozenset(
 
 
 class ReleaseComponent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
 
     kind: ComponentKind
     name: str = Field(min_length=1)
@@ -49,6 +49,14 @@ class ReleaseComponent(BaseModel):
     def reject_blank_identifier(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("must not be blank")
+        return value
+
+    @field_validator("metadata")
+    @classmethod
+    def reject_unsafe_metadata(cls, value: dict[str, JsonValue]) -> dict[str, JsonValue]:
+        validate_finite_json(value)
+        if contains_secret_like_key(value):
+            raise ValueError("component metadata must not contain secret-like keys")
         return value
 
 

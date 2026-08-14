@@ -189,6 +189,10 @@ class _DuplicateJsonKeyError(ValueError):
     """Raised without echoing an attacker-controlled duplicate key."""
 
 
+class _NonFiniteJsonNumberError(ValueError):
+    """Raised without echoing an attacker-controlled numeric token."""
+
+
 def contract_schema(contract: SchemaContract) -> dict[str, Any]:
     schema = contract.model.model_json_schema(mode="validation", by_alias=True)
     schema["$schema"] = JSON_SCHEMA_DRAFT
@@ -323,12 +327,17 @@ def _read_json_payload(path: Path, *, max_bytes: int | None) -> Any:
         payload = json.loads(
             encoded.decode("utf-8"),
             object_pairs_hook=_reject_duplicate_json_keys,
+            parse_constant=_reject_nonfinite_json_number,
         )
     except UnicodeDecodeError:
         raise ContractValidationError(f"JSON contract at {path} must be UTF-8") from None
     except _DuplicateJsonKeyError:
         raise ContractValidationError(
             f"JSON contract at {path} contains a duplicate JSON key"
+        ) from None
+    except _NonFiniteJsonNumberError:
+        raise ContractValidationError(
+            f"JSON contract at {path} contains a non-finite JSON number"
         ) from None
     except (json.JSONDecodeError, ValueError):
         raise ContractValidationError(f"invalid JSON contract at {path}") from None
@@ -345,6 +354,10 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise _DuplicateJsonKeyError
         payload[key] = value
     return payload
+
+
+def _reject_nonfinite_json_number(_value: str) -> Any:
+    raise _NonFiniteJsonNumberError
 
 
 def _read_assurance_yaml_payload(path: Path) -> Any:
