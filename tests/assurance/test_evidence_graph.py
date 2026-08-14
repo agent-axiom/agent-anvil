@@ -7,18 +7,21 @@ from typing import Any, cast
 
 import pytest
 
+from anvil.assurance.canonical import sha256_bytes
 from anvil.assurance.errors import AssuranceError
 from anvil.assurance.evidence import (
     EvidenceRecord,
     EvidenceRequirement,
+    EvidenceTrustPolicy,
+    ObservedEvidenceSource,
+    TrustAssignment,
     TrustLevel,
-    VerifiedContent,
     VerifiedEvidence,
-    _create_verified_evidence,
     evidence_identity,
     match_evidence_requirement,
     match_evidence_requirements,
     validate_evidence_graph,
+    verify_evidence_record,
 )
 
 
@@ -29,26 +32,59 @@ def _record(
     parents: list[str] | None = None,
     evidence_type: str = "postgres.state_snapshot.v1",
     subject: str = "postgres://payments/public",
+    trust_level: TrustLevel = TrustLevel.L2,
+    run_id: str | None = None,
+    release_id: str | None = None,
+    contract_id: str | None = None,
 ) -> EvidenceRecord:
     payload = copy.deepcopy(base_payload)
     observed_at = datetime(2026, 8, 14, 12, tzinfo=UTC) + timedelta(seconds=suffix)
+    content = f"evidence-{suffix}".encode()
     payload["observedAt"] = observed_at.isoformat().replace("+00:00", "Z")
     payload["type"] = evidence_type
     payload["subject"] = subject
+    payload["trustLevel"] = trust_level.value
+    payload["runId"] = run_id or payload["runId"]
+    payload["releaseId"] = release_id or payload["releaseId"]
+    payload["contractId"] = contract_id or payload["contractId"]
+    payload["content"] = {
+        "mediaType": "application/json",
+        "sha256": sha256_bytes(content, prefix=False),
+        "sizeBytes": len(content),
+        "path": f"evidence-{suffix}.json",
+    }
     payload["parents"] = list(parents or [])
     payload["evidenceId"] = evidence_identity(payload)
     return EvidenceRecord.model_validate(payload)
 
 
-def _verified(record: EvidenceRecord, trust: TrustLevel) -> VerifiedEvidence:
-    return _create_verified_evidence(
-        record=record,
-        assigned_trust=trust,
-        content=VerifiedContent(
-            path=Path("/verified/content"),
-            size_bytes=record.content.size_bytes,
-            sha256=record.content.sha256,
-        ),
+def _verified(record: EvidenceRecord, store_root: Path) -> VerifiedEvidence:
+    content_path = store_root / record.content.path
+    content_path.parent.mkdir(parents=True, exist_ok=True)
+    content_path.write_bytes(content_path.stem.encode())
+    observed_source = ObservedEvidenceSource(
+        collector=record.source.collector,
+        version=record.source.version,
+        boundary=record.source.boundary,
+    )
+    trust_policy = EvidenceTrustPolicy(
+        assignments=[
+            TrustAssignment(
+                collector=record.source.collector,
+                version=record.source.version,
+                boundary=record.source.boundary,
+                maximum_trust=TrustLevel.L3,
+            )
+        ]
+    )
+    return verify_evidence_record(
+        record,
+        expected_run_id=record.run_id,
+        expected_release_id=record.release_id,
+        expected_contract_id=record.contract_id,
+        observed_source=observed_source,
+        trust_policy=trust_policy,
+        store_root=store_root,
     )
 
 
@@ -169,29 +205,31 @@ def test_validate_evidence_graph_rejects_cycle_without_recursion(
     ],
 )
 def test_requirement_matching_uses_monotonic_trust(
+    tmp_path: Path,
     evidence_record_payload: dict[str, Any],
     assigned: TrustLevel,
     required: TrustLevel,
     satisfied: bool,
 ) -> None:
-    record = _record(evidence_record_payload, suffix=1)
+    record = _record(evidence_record_payload, suffix=1, trust_level=assigned)
     requirement = EvidenceRequirement(
         type=record.type,
         minimumTrust=required,
         subject=record.subject,
     )
 
-    match = match_evidence_requirement(requirement, [_verified(record, assigned)])
+    match = match_evidence_requirement(requirement, [_verified(record, tmp_path)])
 
     assert match.satisfied is satisfied
     assert match.evidence_ids == ((record.evidence_id,) if satisfied else ())
 
 
 def test_requirement_matching_requires_exact_type_and_optional_subject(
+    tmp_path: Path,
     evidence_record_payload: dict[str, Any],
 ) -> None:
-    record = _record(evidence_record_payload, suffix=1)
-    verified = _verified(record, TrustLevel.L3)
+    record = _record(evidence_record_payload, suffix=1, trust_level=TrustLevel.L3)
+    verified = _verified(record, tmp_path)
     matching = EvidenceRequirement(
         type="postgres.state_snapshot.v1",
         minimumTrust=TrustLevel.L2,
@@ -205,10 +243,11 @@ def test_requirement_matching_requires_exact_type_and_optional_subject(
 
 
 def test_requirement_matching_enforces_minimum_count_and_deduplicates_ids(
+    tmp_path: Path,
     evidence_record_payload: dict[str, Any],
 ) -> None:
     first = _record(evidence_record_payload, suffix=1)
-    second = _record(evidence_record_payload, suffix=2)
+    second = _record(evidence_record_payload, suffix=2, trust_level=TrustLevel.L3)
     requirement = EvidenceRequirement(
         type=first.type,
         minimumTrust=TrustLevel.L2,
@@ -218,11 +257,11 @@ def test_requirement_matching_enforces_minimum_count_and_deduplicates_ids(
 
     one_unique = match_evidence_requirement(
         requirement,
-        [_verified(first, TrustLevel.L2), _verified(first, TrustLevel.L2)],
+        [_verified(first, tmp_path), _verified(first, tmp_path)],
     )
     two_unique = match_evidence_requirement(
         requirement,
-        [_verified(second, TrustLevel.L3), _verified(first, TrustLevel.L2)],
+        [_verified(second, tmp_path), _verified(first, tmp_path)],
     )
 
     assert one_unique.satisfied is False
@@ -253,6 +292,7 @@ def test_requirement_matching_rejects_unsealed_verified_marker(
 
 
 def test_requirement_matching_rejects_dangling_verified_graph(
+    tmp_path: Path,
     evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(
@@ -263,32 +303,47 @@ def test_requirement_matching_rejects_dangling_verified_graph(
     requirement = EvidenceRequirement(type=record.type, minimumTrust=TrustLevel.L0)
 
     with pytest.raises(AssuranceError) as captured:
-        match_evidence_requirement(requirement, [_verified(record, TrustLevel.L2)])
+        match_evidence_requirement(requirement, [_verified(record, tmp_path)])
 
     assert captured.value.code == "evidence_schema_error"
     assert captured.value.path == "$.parents"
 
 
 @pytest.mark.parametrize(
-    ("field", "path"),
+    ("field", "value", "path"),
     [
-        ("run_id", "$.runId"),
-        ("release_id", "$.releaseId"),
-        ("contract_id", "$.contractId"),
+        ("run_id", "different-run", "$.runId"),
+        ("release_id", f"sha256:{'6' * 64}", "$.releaseId"),
+        ("contract_id", "different-contract", "$.contractId"),
     ],
 )
 def test_requirement_matching_rejects_mixed_verified_contexts(
-    evidence_record_payload: dict[str, Any], field: str, path: str
+    tmp_path: Path,
+    evidence_record_payload: dict[str, Any],
+    field: str,
+    value: str,
+    path: str,
 ) -> None:
     first = _record(evidence_record_payload, suffix=1)
-    second = _record(evidence_record_payload, suffix=2)
-    changed = second.model_copy(update={field: f"different-{field}"})
+    context = {
+        "run_id": first.run_id,
+        "release_id": first.release_id,
+        "contract_id": first.contract_id,
+    }
+    context[field] = value
+    changed = _record(
+        evidence_record_payload,
+        suffix=2,
+        run_id=context["run_id"],
+        release_id=context["release_id"],
+        contract_id=context["contract_id"],
+    )
     requirement = EvidenceRequirement(type=first.type, minimumTrust=TrustLevel.L0)
 
     with pytest.raises(AssuranceError) as captured:
         match_evidence_requirement(
             requirement,
-            [_verified(first, TrustLevel.L2), _verified(changed, TrustLevel.L2)],
+            [_verified(first, tmp_path), _verified(changed, tmp_path)],
         )
 
     assert captured.value.code == "evidence_schema_error"
@@ -296,6 +351,7 @@ def test_requirement_matching_rejects_mixed_verified_contexts(
 
 
 def test_match_evidence_requirements_preserves_requirement_order(
+    tmp_path: Path,
     evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload, suffix=1)
@@ -304,7 +360,7 @@ def test_match_evidence_requirements_preserves_requirement_order(
         EvidenceRequirement(type=record.type, minimumTrust=TrustLevel.L2),
     ]
 
-    matches = match_evidence_requirements(requirements, [_verified(record, TrustLevel.L2)])
+    matches = match_evidence_requirements(requirements, [_verified(record, tmp_path)])
 
     assert [match.requirement.type for match in matches] == [
         "agent.trace.v1",

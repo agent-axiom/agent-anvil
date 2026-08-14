@@ -293,31 +293,6 @@ class VerifiedEvidence:
         return EvidenceRecord.model_validate_json(self._record_json)
 
 
-def _create_verified_evidence(
-    *,
-    record: EvidenceRecord,
-    assigned_trust: TrustLevel,
-    content: VerifiedContent,
-) -> VerifiedEvidence:
-    verified = object.__new__(VerifiedEvidence)
-    object.__setattr__(verified, "evidence_id", record.evidence_id)
-    object.__setattr__(verified, "run_id", record.run_id)
-    object.__setattr__(verified, "release_id", record.release_id)
-    object.__setattr__(verified, "contract_id", record.contract_id)
-    object.__setattr__(verified, "type", record.type)
-    object.__setattr__(verified, "subject", record.subject)
-    object.__setattr__(verified, "parents", tuple(record.parents))
-    object.__setattr__(verified, "assigned_trust", assigned_trust)
-    object.__setattr__(verified, "content", content)
-    object.__setattr__(
-        verified,
-        "_record_json",
-        record.model_dump_json(by_alias=True).encode("utf-8"),
-    )
-    object.__setattr__(verified, "_seal", _VERIFIED_EVIDENCE_SEAL)
-    return verified
-
-
 @dataclass(frozen=True)
 class EvidenceRequirementMatch:
     requirement: EvidenceRequirement
@@ -617,11 +592,23 @@ def verify_evidence_record(
         observed_source=observed_source,
     )
     content = verify_evidence_content(record, store_root)
-    return _create_verified_evidence(
-        record=record,
-        assigned_trust=trust.assigned_trust,
-        content=content,
-    )
+    verified = object.__new__(VerifiedEvidence)
+    snapshot = {
+        "evidence_id": record.evidence_id,
+        "run_id": record.run_id,
+        "release_id": record.release_id,
+        "contract_id": record.contract_id,
+        "type": record.type,
+        "subject": record.subject,
+        "parents": tuple(record.parents),
+        "assigned_trust": trust.assigned_trust,
+        "content": content,
+        "_record_json": record.model_dump_json(by_alias=True).encode("utf-8"),
+        "_seal": _VERIFIED_EVIDENCE_SEAL,
+    }
+    for field_name, value in snapshot.items():
+        object.__setattr__(verified, field_name, value)
+    return verified
 
 
 def validate_evidence_graph(records: Sequence[EvidenceRecord]) -> tuple[EvidenceRecord, ...]:
