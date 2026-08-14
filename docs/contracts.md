@@ -104,10 +104,11 @@ Release-contract YAML is decoded as UTF-8 with default limits of 1 MiB, 50,000
 nodes, and 100 levels of nesting. The parser accepts only string mapping keys
 and rejects duplicate YAML keys, tagged-key ambiguity, and YAML aliases before model
 validation, preventing last-key-wins ambiguity and alias expansion. Assurance
-evidence JSON and schema auto-detection use the same 1 MiB byte ceiling; all JSON
-contracts reject duplicate keys and enforce the node and depth budgets. Explicitly
-selected legacy JSON schemas retain their existing unbounded byte compatibility, so
-use auto-detection or an external artifact-size gate for untrusted unknown inputs.
+evidence JSON and schema auto-detection use the same 1 MiB byte ceiling and enforce
+the node and depth budgets. All JSON contracts reject duplicate keys. Explicitly
+selected legacy JSON schemas retain their existing unbounded byte, node, and depth
+compatibility, so use auto-detection or an external artifact-size gate for untrusted
+unknown inputs.
 Contract readers open paths nonblocking and reject anything that does not resolve to
 a regular file; FIFOs, sockets, devices, and directories cannot stall validation.
 Assurance task inputs, check configuration, and component metadata accept only

@@ -13,6 +13,7 @@ from anvil.assurance.evidence import EvidenceRecord, verify_evidence_identity
 from anvil.attestations import LeaderboardArtifactAttestationVerification
 from anvil.cli import app
 from anvil.contracts import (
+    MAX_CONTRACT_JSON_NODES,
     ContractValidationError,
     validate_schema_contract,
 )
@@ -232,6 +233,19 @@ def test_schema_validate_accepts_large_legacy_trace_with_explicit_schema(tmp_pat
     assert validate_schema_contract(path, schema_id="anvil.trace.v1") == "anvil.trace.v1"
 
 
+def test_schema_validate_accepts_structurally_large_legacy_trace_with_explicit_schema(
+    tmp_path: Path,
+) -> None:
+    payload = json.loads(Path("fixtures/contracts/trace-valid.json").read_text(encoding="utf-8"))
+    payload["steps"][1]["result"] = {"items": list(range(MAX_CONTRACT_JSON_NODES))}
+    path = tmp_path / "trace.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert validate_schema_contract(path, schema_id="anvil.trace.v1") == "anvil.trace.v1"
+    with pytest.raises(ContractValidationError, match="too many nodes"):
+        validate_schema_contract(path)
+
+
 def test_schema_validate_opens_json_contract_nonblocking(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -267,12 +281,12 @@ def test_schema_validate_rejects_non_regular_json_input(tmp_path: Path) -> None:
         validate_schema_contract(tmp_path, schema_id="anvil.trace.v1")
 
 
-def test_schema_validate_normalizes_deep_json_parser_failure(tmp_path: Path) -> None:
+def test_schema_validate_normalizes_deep_json_during_auto_detection(tmp_path: Path) -> None:
     path = tmp_path / "contract.json"
     path.write_text("[" * 2_000 + "]" * 2_000, encoding="utf-8")
 
     with pytest.raises(ContractValidationError, match="nesting is too deep") as captured:
-        validate_schema_contract(path, schema_id="anvil.trace.v1")
+        validate_schema_contract(path)
 
     assert captured.value.__cause__ is None
 

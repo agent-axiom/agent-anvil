@@ -250,11 +250,12 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
         elif schema_id == RELEASE_CONTRACT_SCHEMA_VERSION:
             payload = _read_assurance_yaml_payload(selected_path)
         elif payload is None:
+            bounded_assurance_json = schema_id == EVIDENCE_RECORD_SCHEMA_VERSION
             payload = _read_json_payload(
                 selected_path,
-                max_bytes=(
-                    MAX_CONTRACT_JSON_BYTES if schema_id == EVIDENCE_RECORD_SCHEMA_VERSION else None
-                ),
+                max_bytes=MAX_CONTRACT_JSON_BYTES if bounded_assurance_json else None,
+                max_nodes=MAX_CONTRACT_JSON_NODES if bounded_assurance_json else None,
+                max_depth=MAX_CONTRACT_JSON_DEPTH if bounded_assurance_json else None,
             )
         contract.model.model_validate(payload)
     except ValidationError as error:
@@ -312,7 +313,13 @@ def _matched_contract_paths(
     return tuple(sorted(paths, key=lambda path: path.relative_to(root).as_posix()))
 
 
-def _read_json_payload(path: Path, *, max_bytes: int | None) -> Any:
+def _read_json_payload(
+    path: Path,
+    *,
+    max_bytes: int | None,
+    max_nodes: int | None = MAX_CONTRACT_JSON_NODES,
+    max_depth: int | None = MAX_CONTRACT_JSON_DEPTH,
+) -> Any:
     try:
         encoded = read_regular_file(path, max_bytes=max_bytes)
     except NonRegularFileError:
@@ -343,7 +350,7 @@ def _read_json_payload(path: Path, *, max_bytes: int | None) -> Any:
         raise ContractValidationError(f"invalid JSON contract at {path}") from None
     except RecursionError:
         raise ContractValidationError(f"JSON contract at {path} nesting is too deep") from None
-    _validate_json_structure(payload, path)
+    _validate_json_structure(payload, path, max_nodes=max_nodes, max_depth=max_depth)
     return payload
 
 
@@ -380,15 +387,21 @@ def _read_legacy_yaml_payload(path: Path) -> Any:
         raise ContractValidationError(f"invalid YAML contract at {path}") from None
 
 
-def _validate_json_structure(payload: Any, path: Path) -> None:
+def _validate_json_structure(
+    payload: Any,
+    path: Path,
+    *,
+    max_nodes: int | None,
+    max_depth: int | None,
+) -> None:
     pending: list[tuple[Any, int]] = [(payload, 1)]
     nodes = 0
     while pending:
         value, depth = pending.pop()
         nodes += 1
-        if nodes > MAX_CONTRACT_JSON_NODES:
+        if max_nodes is not None and nodes > max_nodes:
             raise ContractValidationError(f"JSON contract at {path} contains too many nodes")
-        if depth > MAX_CONTRACT_JSON_DEPTH:
+        if max_depth is not None and depth > max_depth:
             raise ContractValidationError(f"JSON contract at {path} nesting is too deep")
         if isinstance(value, dict):
             pending.extend((nested, depth + 1) for nested in value.values())
