@@ -1,0 +1,52 @@
+apiVersion: assurance.anvil.dev/release-contract/v1alpha1
+kind: ReleaseContract
+metadata:
+  name: refund-agent-postgres
+  severity: critical
+  labels:
+    owner: payments-platform
+release:
+  components:
+    - kind: agent_code
+      name: refund-agent
+      version: 8f5c2d1
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000001
+    - kind: model_config
+      name: openai/gpt-5-mini
+      version: "2026-08-01"
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000002
+    - kind: prompt_bundle
+      name: support-prompts
+      version: v12
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000003
+    - kind: tool_schema
+      name: support-tools
+      version: v4
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000004
+    - kind: policy
+      name: refund-policy
+      version: v7
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000005
+    - kind: environment
+      name: postgres-payments
+      version: v3
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000006
+actor:
+  identity: refund-agent
+  permissions:
+    - orders.read
+    - payments.refund
+task:
+  inputRef: fixtures/refund-order-42.json
+packs: []
+checks: []
+evidence:
+  require:
+    - type: postgres.state_snapshot.v1
+      minimumTrust: L2
+      subject: postgres://payments/public
+    - type: agent.trace.v1
+      minimumTrust: L1
+reliability:
+  trials: 3
+  minimumPassRate: 1.0

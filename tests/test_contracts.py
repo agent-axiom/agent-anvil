@@ -6,6 +6,8 @@ from pathlib import Path
 import yaml
 from typer.testing import CliRunner
 
+from anvil.assurance.contracts import ReleaseContract
+from anvil.assurance.evidence import EvidenceRecord, verify_evidence_identity
 from anvil.attestations import LeaderboardArtifactAttestationVerification
 from anvil.cli import app
 from anvil.doctor import DoctorReportPayload
@@ -23,6 +25,12 @@ from anvil.storage import ResultsPayload, RunManifestPayload
 from anvil.trace import TraceRun
 
 CONTRACT_SCHEMAS = {
+    "assurance.anvil.dev/release-contract/v1alpha1": (
+        "assurance.anvil.dev.release-contract.v1alpha1.schema.json"
+    ),
+    "assurance.anvil.dev/evidence-record/v1alpha1": (
+        "assurance.anvil.dev.evidence-record.v1alpha1.schema.json"
+    ),
     "anvil.trace.v1": "anvil.trace.v1.schema.json",
     "anvil.scenario.v1": "anvil.scenario.v1.schema.json",
     "anvil.results.v1": "anvil.results.v1.schema.json",
@@ -96,6 +104,42 @@ def test_cli_schema_validate_accepts_explicit_yaml_contract() -> None:
 
     assert result.exit_code == 0
     assert "Schema: anvil.scenario.v1" in result.stdout
+    assert "Contract is valid" in result.stdout
+
+
+def test_cli_schema_validate_accepts_explicit_assurance_yaml_contract() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "schema",
+            "validate",
+            "fixtures/contracts/assurance-release-contract-valid.yaml",
+            "--schema",
+            "assurance.anvil.dev/release-contract/v1alpha1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Schema: assurance.anvil.dev/release-contract/v1alpha1" in result.stdout
+    assert "Contract is valid" in result.stdout
+
+
+def test_cli_schema_validate_auto_detects_assurance_evidence_contract() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "schema",
+            "validate",
+            "fixtures/contracts/assurance-evidence-record-valid.json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Schema: assurance.anvil.dev/evidence-record/v1alpha1" in result.stdout
     assert "Contract is valid" in result.stdout
 
 
@@ -188,6 +232,16 @@ def test_checked_in_schemas_match_exported_contracts(tmp_path: Path) -> None:
 
 
 def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
+    assurance_contract = ReleaseContract.model_validate(
+        yaml.safe_load(
+            Path("fixtures/contracts/assurance-release-contract-valid.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+    )
+    assurance_evidence = EvidenceRecord.model_validate_json(
+        Path("fixtures/contracts/assurance-evidence-record-valid.json").read_text(encoding="utf-8")
+    )
     valid_trace = TraceRun.model_validate_json(
         Path("fixtures/contracts/trace-valid.json").read_text(encoding="utf-8")
     )
@@ -238,6 +292,11 @@ def test_golden_contract_fixtures_validate_against_pydantic_models() -> None:
     )
 
     assert valid_trace.schema_version == "anvil.trace.v1"
+    assert assurance_contract.api_version == "assurance.anvil.dev/release-contract/v1alpha1"
+    assert assurance_contract.release_id.startswith("sha256:")
+    assert assurance_evidence.schema_version == "assurance.anvil.dev/evidence-record/v1alpha1"
+    assert assurance_evidence.release_id == assurance_contract.release_id
+    assert verify_evidence_identity(assurance_evidence) is None
     assert failed_trace.status == "failed"
     assert failed_trace.steps[0].get("type") == "agent_protocol_error"
     assert scenario.name == "contract_scenario_suite"
@@ -286,7 +345,6 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     )
     assert "schemas/agent-anvil.leaderboard.audit.v1.schema.json" in artifacts
     assert "schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json" in contracts
-
     assert "uv run anvil schema export --out schemas" in contracts
     assert "uv run anvil schema export --out schemas" in cli_doc
     assert "artifact trust summary" in cli_doc
@@ -306,3 +364,25 @@ def test_contract_docs_link_schema_export_and_conformance_fixtures() -> None:
     assert "compatible HTTP endpoint agent" in contracts
     assert "anvil.schema.export.v1" in contracts
     assert "contracts.md" in schema_versioning
+
+
+def test_assurance_schema_exports_use_public_wire_aliases(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["schema", "export", "--out", str(tmp_path)])
+
+    assert result.exit_code == 0
+    release_schema = json.loads(
+        (tmp_path / "assurance.anvil.dev.release-contract.v1alpha1.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    evidence_schema = json.loads(
+        (tmp_path / "assurance.anvil.dev.evidence-record.v1alpha1.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "apiVersion" in release_schema["properties"]
+    assert "api_version" not in release_schema["properties"]
+    assert "schemaVersion" in evidence_schema["properties"]
+    assert "schema_version" not in evidence_schema["properties"]

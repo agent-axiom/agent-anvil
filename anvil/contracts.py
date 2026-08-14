@@ -8,6 +8,8 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ValidationError
 
+from anvil.assurance.contracts import RELEASE_CONTRACT_SCHEMA_VERSION, ReleaseContract
+from anvil.assurance.evidence import EVIDENCE_RECORD_SCHEMA_VERSION, EvidenceRecord
 from anvil.attestations import (
     ARTIFACT_ATTESTATION_VERIFICATION_SCHEMA_VERSION,
     LeaderboardArtifactAttestationVerification,
@@ -80,6 +82,18 @@ class SchemaDirectoryValidationResult:
 
 
 SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
+    SchemaContract(
+        schema_id=RELEASE_CONTRACT_SCHEMA_VERSION,
+        filename="assurance.anvil.dev.release-contract.v1alpha1.schema.json",
+        model=ReleaseContract,
+        description="Agent Anvil Assurance release contract schema.",
+    ),
+    SchemaContract(
+        schema_id=EVIDENCE_RECORD_SCHEMA_VERSION,
+        filename="assurance.anvil.dev.evidence-record.v1alpha1.schema.json",
+        model=EvidenceRecord,
+        description="Agent Anvil Assurance evidence record schema.",
+    ),
     SchemaContract(
         schema_id=TRACE_SCHEMA_VERSION,
         filename="anvil.trace.v1.schema.json",
@@ -167,7 +181,7 @@ class ContractValidationError(ValueError):
 
 
 def contract_schema(contract: SchemaContract) -> dict[str, Any]:
-    schema = contract.model.model_json_schema(mode="validation")
+    schema = contract.model.model_json_schema(mode="validation", by_alias=True)
     schema["$schema"] = JSON_SCHEMA_DRAFT
     schema["$id"] = contract.schema_id
     schema["description"] = contract.description
@@ -198,7 +212,11 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
             raise ContractValidationError(
                 f"schema_version auto-detection requires a JSON object at {selected_path}"
             )
-        detected_schema_id = payload.get("schema_version")
+        detected_schema_id = (
+            payload.get("schema_version")
+            or payload.get("schemaVersion")
+            or payload.get("apiVersion")
+        )
         if not isinstance(detected_schema_id, str) or not detected_schema_id:
             raise ContractValidationError(
                 f"schema_version missing at {selected_path}; pass --schema for YAML contracts"
@@ -213,7 +231,7 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
         )
 
     try:
-        if schema_id == SCENARIO_SCHEMA_VERSION:
+        if schema_id in {SCENARIO_SCHEMA_VERSION, RELEASE_CONTRACT_SCHEMA_VERSION}:
             contract.model.model_validate(_read_yaml_payload(selected_path))
         else:
             contract.model.model_validate(_read_json_payload(selected_path))
