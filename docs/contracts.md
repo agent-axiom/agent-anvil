@@ -108,6 +108,8 @@ evidence JSON and schema auto-detection use the same 1 MiB byte ceiling; all JSO
 contracts reject duplicate keys and enforce the node and depth budgets. Explicitly
 selected legacy JSON schemas retain their existing unbounded byte compatibility, so
 use auto-detection or an external artifact-size gate for untrusted unknown inputs.
+Contract readers open paths nonblocking and reject anything that does not resolve to
+a regular file; FIFOs, sockets, devices, and directories cannot stall validation.
 
 Check definitions are data, not import instructions. Loading a contract without
 a `CheckTypeRegistry` performs inspection-only envelope validation. Any future

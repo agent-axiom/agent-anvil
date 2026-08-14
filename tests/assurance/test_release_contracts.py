@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from pathlib import Path
 from typing import Any
 
@@ -347,6 +348,38 @@ def test_bounded_yaml_enforces_structural_budgets(
 
     with pytest.raises(ContractYamlError, match=message):
         load_bounded_yaml(path, **options)
+
+
+def test_bounded_yaml_opens_contract_nonblocking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "contract.yaml"
+    path.write_text("value: safe\n", encoding="utf-8")
+    real_open = os.open
+    observed_flags: list[int] = []
+
+    def recording_open(
+        selected_path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        observed_flags.append(flags)
+        if dir_fd is None:
+            return real_open(selected_path, flags, mode)
+        return real_open(selected_path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", recording_open)
+
+    assert load_bounded_yaml(path) == {"value": "safe"}
+    assert observed_flags
+    assert observed_flags[0] & os.O_NONBLOCK
+
+
+def test_bounded_yaml_rejects_non_regular_input(tmp_path: Path) -> None:
+    with pytest.raises(ContractYamlError, match="regular file"):
+        load_bounded_yaml(tmp_path)
 
 
 def test_load_release_contract_rejects_oversized_input_before_parsing(tmp_path: Path) -> None:

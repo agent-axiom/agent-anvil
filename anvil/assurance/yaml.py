@@ -7,6 +7,8 @@ import yaml
 from yaml.events import AliasEvent
 from yaml.nodes import MappingNode, ScalarNode
 
+from anvil.assurance.io import FileTooLargeError, NonRegularFileError, read_regular_file
+
 DEFAULT_MAX_YAML_BYTES = 1024 * 1024
 DEFAULT_MAX_YAML_NODES = 50_000
 DEFAULT_MAX_YAML_DEPTH = 100
@@ -71,10 +73,12 @@ def load_bounded_yaml(
 ) -> Any:
     if min(max_bytes, max_nodes, max_depth) < 1:
         raise ValueError("YAML resource budgets must be positive")
-    with path.open("rb") as source:
-        encoded = source.read(max_bytes + 1)
-    if len(encoded) > max_bytes:
-        raise ContractYamlError("YAML exceeds the maximum encoded size")
+    try:
+        encoded = read_regular_file(path, max_bytes=max_bytes)
+    except NonRegularFileError:
+        raise ContractYamlError("YAML input must be a regular file") from None
+    except FileTooLargeError:
+        raise ContractYamlError("YAML exceeds the maximum encoded size") from None
     try:
         text = encoded.decode("utf-8")
     except UnicodeDecodeError as error:

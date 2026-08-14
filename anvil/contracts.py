@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 
 from anvil.assurance.contracts import RELEASE_CONTRACT_SCHEMA_VERSION, ReleaseContract
 from anvil.assurance.evidence import EVIDENCE_RECORD_SCHEMA_VERSION, EvidenceRecord
+from anvil.assurance.io import FileTooLargeError, NonRegularFileError, read_regular_file
 from anvil.assurance.yaml import ContractYamlError, load_bounded_yaml
 from anvil.attestations import (
     ARTIFACT_ATTESTATION_VERIFICATION_SCHEMA_VERSION,
@@ -248,9 +249,7 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
             payload = _read_json_payload(
                 selected_path,
                 max_bytes=(
-                    MAX_CONTRACT_JSON_BYTES
-                    if schema_id == EVIDENCE_RECORD_SCHEMA_VERSION
-                    else None
+                    MAX_CONTRACT_JSON_BYTES if schema_id == EVIDENCE_RECORD_SCHEMA_VERSION else None
                 ),
             )
         contract.model.model_validate(payload)
@@ -311,12 +310,15 @@ def _matched_contract_paths(
 
 def _read_json_payload(path: Path, *, max_bytes: int | None) -> Any:
     try:
-        with path.open("rb") as source:
-            encoded = source.read() if max_bytes is None else source.read(max_bytes + 1)
+        encoded = read_regular_file(path, max_bytes=max_bytes)
+    except NonRegularFileError:
+        raise ContractValidationError(f"JSON contract at {path} must be a regular file") from None
+    except FileTooLargeError:
+        raise ContractValidationError(
+            f"JSON contract at {path} exceeds the maximum encoded size"
+        ) from None
     except OSError:
         raise ContractValidationError(f"cannot read contract at {path}") from None
-    if max_bytes is not None and len(encoded) > max_bytes:
-        raise ContractValidationError(f"JSON contract at {path} exceeds the maximum encoded size")
     try:
         payload = json.loads(
             encoded.decode("utf-8"),

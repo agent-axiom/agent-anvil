@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -229,6 +230,41 @@ def test_schema_validate_accepts_large_legacy_trace_with_explicit_schema(tmp_pat
     path.write_text(json.dumps(payload), encoding="utf-8")
 
     assert validate_schema_contract(path, schema_id="anvil.trace.v1") == "anvil.trace.v1"
+
+
+def test_schema_validate_opens_json_contract_nonblocking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "trace.json"
+    path.write_text(
+        Path("fixtures/contracts/trace-valid.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    real_open = os.open
+    observed_flags: list[int] = []
+
+    def recording_open(
+        selected_path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        observed_flags.append(flags)
+        if dir_fd is None:
+            return real_open(selected_path, flags, mode)
+        return real_open(selected_path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", recording_open)
+
+    assert validate_schema_contract(path, schema_id="anvil.trace.v1") == "anvil.trace.v1"
+    assert observed_flags
+    assert observed_flags[0] & os.O_NONBLOCK
+
+
+def test_schema_validate_rejects_non_regular_json_input(tmp_path: Path) -> None:
+    with pytest.raises(ContractValidationError, match="regular file"):
+        validate_schema_contract(tmp_path, schema_id="anvil.trace.v1")
 
 
 def test_schema_validate_normalizes_deep_json_parser_failure(tmp_path: Path) -> None:
