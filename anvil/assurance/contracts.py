@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
 from pydantic import (
     AfterValidator,
     BaseModel,
@@ -103,6 +108,15 @@ class PackRequirement(BaseModel):
     name: NonBlankStr
     version: NonBlankStr
 
+    @field_validator("version")
+    @classmethod
+    def validate_version_specifier(cls, version: str) -> str:
+        try:
+            SpecifierSet(version)
+        except InvalidSpecifier as error:
+            raise ValueError("invalid pack version specifier") from error
+        return version
+
 
 class CheckDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -165,7 +179,114 @@ class ReleaseContract(BaseModel):
         return release_identity(self.release.components)
 
 
-def load_release_contract(path: str | Path) -> ReleaseContract:
+@dataclass(frozen=True)
+class RegisteredPack:
+    name: str
+    version: Version
+    check_types: Mapping[str, type[BaseModel]]
+
+
+class CheckTypeRegistry:
+    """Explicitly registered check types; contract data never drives imports."""
+
+    def __init__(self) -> None:
+        self._packs: dict[str, RegisteredPack] = {}
+        self._check_type_owners: dict[str, str] = {}
+
+    def register_pack(
+        self,
+        *,
+        name: str,
+        version: str,
+        check_types: Mapping[str, type[BaseModel]],
+    ) -> None:
+        if name in self._packs:
+            raise AssuranceError(
+                "pack is already registered",
+                code="check_config_error",
+                path="$.packs",
+                details={"pack": name},
+            )
+        try:
+            selected_version = Version(version)
+        except InvalidVersion as error:
+            raise AssuranceError(
+                "registered pack version is invalid",
+                code="check_config_error",
+                path="$.packs",
+                details={"pack": name},
+            ) from error
+
+        for check_type in check_types:
+            if re.fullmatch(NAMESPACED_TYPE_PATTERN, check_type) is None:
+                raise AssuranceError(
+                    "registered check type is not namespaced and versioned",
+                    code="check_config_error",
+                    path="$.packs",
+                    details={"check_type": check_type},
+                )
+            if check_type in self._check_type_owners:
+                raise AssuranceError(
+                    "check type already belongs to another pack",
+                    code="check_config_error",
+                    path="$.packs",
+                    details={"check_type": check_type},
+                )
+
+        self._packs[name] = RegisteredPack(
+            name=name,
+            version=selected_version,
+            check_types=dict(check_types),
+        )
+        self._check_type_owners.update(dict.fromkeys(check_types, name))
+
+    def validate(self, contract: ReleaseContract) -> None:
+        declared: dict[str, RegisteredPack] = {}
+        for index, requirement in enumerate(contract.packs):
+            pack = self._packs.get(requirement.name)
+            if pack is None:
+                raise AssuranceError(
+                    "declared pack is not registered",
+                    code="unknown_pack",
+                    path=f"$.packs[{index}].name",
+                    details={"pack": requirement.name},
+                )
+            if pack.version not in SpecifierSet(requirement.version):
+                raise AssuranceError(
+                    "registered pack version is incompatible",
+                    code="incompatible_pack",
+                    path=f"$.packs[{index}].version",
+                    details={"pack": requirement.name},
+                )
+            declared[pack.name] = pack
+
+        for index, check in enumerate(contract.checks):
+            owner_name = self._check_type_owners.get(check.type)
+            owner = declared.get(owner_name) if owner_name is not None else None
+            if owner is None:
+                raise AssuranceError(
+                    "check type is not owned by a declared compatible pack",
+                    code="unknown_check_type",
+                    path=f"$.checks[{index}].type",
+                    details={"check_type": check.type},
+                )
+            config_model = owner.check_types[check.type]
+            try:
+                config_model.model_validate(check.config)
+            except ValidationError as error:
+                first_error = error.errors(include_input=False, include_url=False)[0]
+                suffix = _validation_path(first_error.get("loc", ()))[1:]
+                raise AssuranceError(
+                    "check configuration does not match its registered schema",
+                    code="check_config_error",
+                    path=f"$.checks[{index}].config{suffix}",
+                    details={"check_type": check.type},
+                ) from error
+
+
+def load_release_contract(
+    path: str | Path, *, registry: CheckTypeRegistry | None = None
+) -> ReleaseContract:
     selected_path = Path(path)
     try:
         payload = yaml.safe_load(selected_path.read_text(encoding="utf-8"))
@@ -190,7 +311,7 @@ def load_release_contract(path: str | Path) -> ReleaseContract:
         )
 
     try:
-        return ReleaseContract.model_validate(payload)
+        contract = ReleaseContract.model_validate(payload)
     except ValidationError as error:
         first_error = error.errors(include_input=False, include_url=False)[0]
         raise AssuranceError(
@@ -199,6 +320,9 @@ def load_release_contract(path: str | Path) -> ReleaseContract:
             path=_validation_path(first_error.get("loc", ())),
             details={"validation_type": str(first_error.get("type", "unknown"))},
         ) from error
+    if registry is not None:
+        registry.validate(contract)
+    return contract
 
 
 def _validation_path(location: Any) -> str:

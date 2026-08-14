@@ -3,6 +3,7 @@
 from anvil.assurance.canonical import canonical_json_bytes, sha256_bytes, sha256_json
 from anvil.assurance.contracts import (
     RELEASE_CONTRACT_SCHEMA_VERSION,
+    CheckTypeRegistry,
     ReleaseContract,
     load_release_contract,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "MANDATORY_COMPONENT_KINDS",
     "RELEASE_CONTRACT_SCHEMA_VERSION",
     "AssuranceError",
+    "CheckTypeRegistry",
     "ComponentKind",
     "ReleaseComponent",
     "ReleaseContract",
