@@ -96,6 +96,17 @@ def test_public_release_schema_rejects_duplicate_mandatory_component_kinds(
     _assert_rejected_by_schema_and_model(_validator(RELEASE_SCHEMA), ReleaseContract, payload)
 
 
+def test_public_release_schema_rejects_duplicate_actor_permissions(
+    valid_release_contract_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    permissions = payload["actor"]["permissions"]
+    assert isinstance(permissions, list)
+    permissions.append(permissions[0])
+
+    _assert_rejected_by_schema_and_model(_validator(RELEASE_SCHEMA), ReleaseContract, payload)
+
+
 @pytest.mark.parametrize("trust_level", ["L2", "L3"])
 def test_public_evidence_schema_requires_boundary_for_independent_evidence(
     evidence_record_payload: dict[str, Any],
@@ -106,6 +117,23 @@ def test_public_evidence_schema_requires_boundary_for_independent_evidence(
     source = payload["source"]
     assert isinstance(source, dict)
     source.pop("boundary")
+
+    _assert_rejected_by_schema_and_model(_validator(EVIDENCE_SCHEMA), EvidenceRecord, payload)
+
+
+@pytest.mark.parametrize(
+    "parents",
+    [
+        ["not-a-prefixed-digest"],
+        [f"sha256:{'1' * 64}", f"sha256:{'1' * 64}"],
+    ],
+    ids=["invalid-parent-id", "duplicate-parent-id"],
+)
+def test_public_evidence_schema_rejects_invalid_parent_identifiers(
+    evidence_record_payload: dict[str, Any], parents: list[str]
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    payload["parents"] = parents
 
     _assert_rejected_by_schema_and_model(_validator(EVIDENCE_SCHEMA), EvidenceRecord, payload)
 

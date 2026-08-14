@@ -80,6 +80,7 @@ def _non_blank(value: str) -> str:
 
 
 NonBlankStr = Annotated[str, Field(min_length=1), AfterValidator(_non_blank)]
+PrefixedSha256 = Annotated[str, Field(pattern=SHA256_PREFIXED_PATTERN)]
 
 
 class TrustLevel(StrEnum):
@@ -185,7 +186,10 @@ class EvidenceRecord(BaseModel):
     source: EvidenceSource
     observed_at: AwareDatetime = Field(alias="observedAt")
     content: EvidenceContent
-    parents: list[str] = Field(default_factory=list)
+    parents: list[PrefixedSha256] = Field(
+        default_factory=list,
+        json_schema_extra={"uniqueItems": True},
+    )
     correlations: dict[str, NonBlankStr] = Field(default_factory=dict)
     redaction: EvidenceRedaction
 
@@ -242,7 +246,10 @@ class _EvidenceIdentityPayload(BaseModel):
     source: EvidenceSource
     observed_at: AwareDatetime = Field(alias="observedAt")
     content: EvidenceContent
-    parents: list[str] = Field(default_factory=list)
+    parents: list[PrefixedSha256] = Field(
+        default_factory=list,
+        json_schema_extra={"uniqueItems": True},
+    )
     correlations: dict[str, NonBlankStr] = Field(default_factory=dict)
     redaction: EvidenceRedaction
 

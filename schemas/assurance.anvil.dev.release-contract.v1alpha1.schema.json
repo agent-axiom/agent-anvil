@@ -14,7 +14,8 @@
             "type": "string"
           },
           "title": "Permissions",
-          "type": "array"
+          "type": "array",
+          "uniqueItems": true
         }
       },
       "required": [

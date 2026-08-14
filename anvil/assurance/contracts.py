@@ -121,7 +121,10 @@ class ActorDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     identity: NonBlankStr
-    permissions: list[NonBlankStr] = Field(default_factory=list)
+    permissions: list[NonBlankStr] = Field(
+        default_factory=list,
+        json_schema_extra={"uniqueItems": True},
+    )
 
     @field_validator("permissions")
     @classmethod
