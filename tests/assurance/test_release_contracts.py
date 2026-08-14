@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -17,7 +18,7 @@ from anvil.assurance.identity import release_identity
 
 
 def test_release_contract_round_trips_public_aliases(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     contract = ReleaseContract.model_validate(valid_release_contract_payload)
 
@@ -41,7 +42,7 @@ def test_release_contract_round_trips_public_aliases(
     ],
 )
 def test_release_contract_rejects_wrong_discriminators(
-    valid_release_contract_payload: dict[str, object], field: str, value: str
+    valid_release_contract_payload: dict[str, Any], field: str, value: str
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     payload[field] = value
@@ -55,7 +56,7 @@ def test_release_contract_rejects_wrong_discriminators(
     ["apiVersion", "kind", "metadata", "release", "actor", "task"],
 )
 def test_release_contract_rejects_missing_required_envelope_fields(
-    valid_release_contract_payload: dict[str, object], field: str
+    valid_release_contract_payload: dict[str, Any], field: str
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     del payload[field]
@@ -77,7 +78,7 @@ def test_release_contract_rejects_missing_required_envelope_fields(
     ],
 )
 def test_release_contract_rejects_unknown_fields_at_every_level(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
     section: str | None,
     extra_field: str,
 ) -> None:
@@ -98,7 +99,7 @@ def test_release_contract_rejects_unknown_fields_at_every_level(
     ],
 )
 def test_release_contract_requires_exactly_one_task_input(
-    valid_release_contract_payload: dict[str, object], task: dict[str, object]
+    valid_release_contract_payload: dict[str, Any], task: dict[str, Any]
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     payload["task"] = task
@@ -108,7 +109,7 @@ def test_release_contract_requires_exactly_one_task_input(
 
 
 def test_release_contract_rejects_blank_task_reference(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     payload["task"] = {"inputRef": "  "}
@@ -118,7 +119,7 @@ def test_release_contract_rejects_blank_task_reference(
 
 
 def test_release_contract_accepts_inline_null_input(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     payload["task"] = {"input": None}
@@ -131,7 +132,7 @@ def test_release_contract_accepts_inline_null_input(
 
 @pytest.mark.parametrize("collection", ["packs", "checks"])
 def test_release_contract_rejects_duplicate_named_entries(
-    valid_release_contract_payload: dict[str, object], collection: str
+    valid_release_contract_payload: dict[str, Any], collection: str
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     entries = payload[collection]
@@ -147,7 +148,7 @@ def test_release_contract_rejects_duplicate_named_entries(
     ["row_count", "postgres.row_count", "postgres.row-count.v0", "Postgres.row_count.v1"],
 )
 def test_release_contract_rejects_unversioned_or_unnamespaced_types(
-    valid_release_contract_payload: dict[str, object], invalid_type: str
+    valid_release_contract_payload: dict[str, Any], invalid_type: str
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     checks = payload["checks"]
@@ -168,7 +169,7 @@ def test_release_contract_rejects_unversioned_or_unnamespaced_types(
     ],
 )
 def test_release_contract_rejects_invalid_reliability_bounds(
-    valid_release_contract_payload: dict[str, object], field: str, value: object
+    valid_release_contract_payload: dict[str, Any], field: str, value: object
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     reliability = payload["reliability"]
@@ -180,7 +181,7 @@ def test_release_contract_rejects_invalid_reliability_bounds(
 
 
 def test_release_contract_rejects_duplicate_mandatory_component_kind(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     release = payload["release"]
@@ -197,7 +198,7 @@ def test_release_contract_rejects_duplicate_mandatory_component_kind(
 
 
 def test_load_release_contract_reads_safe_yaml(
-    tmp_path: Path, valid_release_contract_payload: dict[str, object]
+    tmp_path: Path, valid_release_contract_payload: dict[str, Any]
 ) -> None:
     path = tmp_path / "contract.yaml"
     path.write_text(yaml.safe_dump(valid_release_contract_payload), encoding="utf-8")
@@ -221,7 +222,7 @@ def test_load_release_contract_rejects_python_yaml_tags(tmp_path: Path) -> None:
 
 
 def test_load_release_contract_reports_schema_path_without_raw_input(
-    tmp_path: Path, valid_release_contract_payload: dict[str, object]
+    tmp_path: Path, valid_release_contract_payload: dict[str, Any]
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     metadata = payload["metadata"]

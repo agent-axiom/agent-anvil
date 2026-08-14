@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from anvil.assurance.evidence import evidence_identity
@@ -55,7 +57,7 @@ def release_components() -> list[ReleaseComponent]:
 @pytest.fixture
 def valid_release_contract_payload(
     release_components: list[ReleaseComponent],
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return {
         "apiVersion": "assurance.anvil.dev/release-contract/v1alpha1",
         "kind": "ReleaseContract",
@@ -99,8 +101,8 @@ def valid_release_contract_payload(
 
 
 @pytest.fixture
-def evidence_record_payload() -> dict[str, object]:
-    payload: dict[str, object] = {
+def evidence_record_payload() -> dict[str, Any]:
+    payload: dict[str, Any] = {
         "schemaVersion": "assurance.anvil.dev/evidence-record/v1alpha1",
         "runId": "assure_20260814_001",
         "releaseId": f"sha256:{'7' * 64}",

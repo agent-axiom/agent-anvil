@@ -22,7 +22,7 @@
 - Create `tests/assurance/test_errors.py`: public error contract tests.
 - Create `tests/assurance/test_canonical.py`: canonicalization golden vectors.
 - Create `tests/assurance/test_identity.py`: release completeness and digest invariants.
-- Create `tests/assurance/test_contracts.py`: strict envelope and loader tests.
+- Create `tests/assurance/test_release_contracts.py`: strict envelope and loader tests.
 - Create `tests/assurance/test_pack_registry.py`: pack ownership, compatibility, and config tests.
 - Create `tests/assurance/test_evidence.py`: evidence shape, identity, trust, and content tests.
 - Create `tests/assurance/test_evidence_graph.py`: graph and requirement tests.
@@ -298,7 +298,7 @@ git commit -m "feat(assurance): define reproducible release identity"
 
 **Files:**
 - Create: `anvil/assurance/contracts.py`
-- Create: `tests/assurance/test_contracts.py`
+- Create: `tests/assurance/test_release_contracts.py`
 - Modify: `anvil/assurance/__init__.py`
 
 - [ ] **Step 1: Write failing envelope tests**
@@ -336,7 +336,7 @@ Malformed Pydantic fields must become `contract_schema_error` with a JSONPath-li
 
 - [ ] **Step 3: Run focused tests and confirm missing contract API**
 
-Run: `uv run pytest -q tests/assurance/test_contracts.py`
+Run: `uv run pytest -q tests/assurance/test_release_contracts.py`
 
 Expected: collection fails because `ReleaseContract` is not implemented.
 
@@ -368,7 +368,7 @@ class ReleaseContract(BaseModel):
 
 - [ ] **Step 5: Run focused gates**
 
-Run: `uv run ruff format anvil/assurance tests/assurance && uv run ruff check anvil/assurance tests/assurance && uv run ty check anvil/assurance && uv run pytest -q tests/assurance/test_contracts.py tests/assurance/test_identity.py`
+Run: `uv run ruff format anvil/assurance tests/assurance && uv run ruff check anvil/assurance tests/assurance && uv run ty check anvil/assurance && uv run pytest -q tests/assurance/test_release_contracts.py tests/assurance/test_identity.py`
 
 Expected: all tests pass.
 
@@ -513,7 +513,7 @@ class CheckTypeRegistry:
 
 - [ ] **Step 5: Run focused gates**
 
-Run: `uv run ruff format anvil/assurance tests/assurance && uv run ruff check anvil/assurance tests/assurance && uv run ty check anvil/assurance && uv run pytest -q tests/assurance/test_pack_registry.py tests/assurance/test_contracts.py`
+Run: `uv run ruff format anvil/assurance tests/assurance && uv run ruff check anvil/assurance tests/assurance && uv run ty check anvil/assurance && uv run pytest -q tests/assurance/test_pack_registry.py tests/assurance/test_release_contracts.py`
 
 Expected: all tests pass.
 
@@ -616,7 +616,7 @@ Move `EvidenceRequirement` into `evidence.py`, with aliases `minimumTrust` and `
 
 - [ ] **Step 6: Run focused gates**
 
-Run: `uv run ruff format anvil/assurance tests/assurance && uv run ruff check anvil/assurance tests/assurance && uv run ty check anvil/assurance && uv run pytest -q tests/assurance/test_evidence.py tests/assurance/test_contracts.py`
+Run: `uv run ruff format anvil/assurance tests/assurance && uv run ruff check anvil/assurance tests/assurance && uv run ty check anvil/assurance && uv run pytest -q tests/assurance/test_evidence.py tests/assurance/test_release_contracts.py`
 
 Expected: all tests pass.
 

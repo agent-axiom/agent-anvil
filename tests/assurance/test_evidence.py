@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -22,17 +23,17 @@ from anvil.assurance.evidence import (
 )
 
 
-def _record(payload: dict[str, object]) -> EvidenceRecord:
+def _record(payload: dict[str, Any]) -> EvidenceRecord:
     return EvidenceRecord.model_validate(payload)
 
 
-def _reidentify(payload: dict[str, object]) -> dict[str, object]:
+def _reidentify(payload: dict[str, Any]) -> dict[str, Any]:
     payload["evidenceId"] = evidence_identity(payload)
     return payload
 
 
 def _content_record(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
     *,
     relative_path: str,
     content: bytes,
@@ -64,7 +65,7 @@ def trust_policy(maximum_trust: TrustLevel = TrustLevel.L2) -> EvidenceTrustPoli
 
 
 def test_evidence_record_round_trips_aliases_and_identity(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload)
 
@@ -82,7 +83,7 @@ def test_evidence_record_round_trips_aliases_and_identity(
 
 
 def test_evidence_identity_is_independent_of_mapping_order(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     reversed_payload = dict(reversed(list(evidence_record_payload.items())))
 
@@ -107,7 +108,7 @@ def test_evidence_identity_is_independent_of_mapping_order(
     ],
 )
 def test_evidence_record_rejects_missing_required_fields(
-    evidence_record_payload: dict[str, object], field: str
+    evidence_record_payload: dict[str, Any], field: str
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     del payload[field]
@@ -126,7 +127,7 @@ def test_evidence_record_rejects_missing_required_fields(
     ],
 )
 def test_evidence_record_rejects_unknown_fields(
-    evidence_record_payload: dict[str, object], section: str | None, field: str
+    evidence_record_payload: dict[str, Any], section: str | None, field: str
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     target = payload if section is None else payload[section]
@@ -149,7 +150,7 @@ def test_evidence_record_rejects_unknown_fields(
     ],
 )
 def test_evidence_record_rejects_invalid_shape(
-    evidence_record_payload: dict[str, object], path: tuple[str, ...], value: object
+    evidence_record_payload: dict[str, Any], path: tuple[str, ...], value: object
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     target = payload
@@ -180,7 +181,7 @@ def test_evidence_record_rejects_invalid_shape(
     ],
 )
 def test_evidence_identity_binds_all_record_metadata(
-    evidence_record_payload: dict[str, object], path: tuple[str, ...], value: object
+    evidence_record_payload: dict[str, Any], path: tuple[str, ...], value: object
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     target = payload
@@ -199,7 +200,7 @@ def test_evidence_identity_binds_all_record_metadata(
 
 
 def test_evidence_record_rejects_duplicate_or_self_parents(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     parent = f"sha256:{'a' * 64}"
     duplicate_payload = copy.deepcopy(evidence_record_payload)
@@ -215,7 +216,7 @@ def test_evidence_record_rejects_duplicate_or_self_parents(
 
 @pytest.mark.parametrize("key", ["api_key", "authorization", "password", "secret", "token"])
 def test_evidence_record_rejects_secret_like_correlation_keys(
-    evidence_record_payload: dict[str, object], key: str
+    evidence_record_payload: dict[str, Any], key: str
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     correlations = payload["correlations"]
@@ -228,7 +229,7 @@ def test_evidence_record_rejects_secret_like_correlation_keys(
 
 @pytest.mark.parametrize("trust_level", ["L2", "L3"])
 def test_independent_evidence_requires_boundary(
-    evidence_record_payload: dict[str, object], trust_level: str
+    evidence_record_payload: dict[str, Any], trust_level: str
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     payload["trustLevel"] = trust_level
@@ -242,7 +243,7 @@ def test_independent_evidence_requires_boundary(
 
 
 def test_applied_redaction_requires_policy_digest(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     redaction = payload["redaction"]
@@ -254,7 +255,7 @@ def test_applied_redaction_requires_policy_digest(
 
 
 def test_trust_policy_verifies_exact_source_assignment(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload)
 
@@ -266,7 +267,7 @@ def test_trust_policy_verifies_exact_source_assignment(
 
 @pytest.mark.parametrize("claimed", [TrustLevel.L0, TrustLevel.L1, TrustLevel.L2])
 def test_trust_policy_accepts_claim_at_or_below_assignment(
-    evidence_record_payload: dict[str, object], claimed: TrustLevel
+    evidence_record_payload: dict[str, Any], claimed: TrustLevel
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     payload["trustLevel"] = claimed.value
@@ -279,7 +280,7 @@ def test_trust_policy_accepts_claim_at_or_below_assignment(
 
 
 def test_record_cannot_self_elevate_claimed_trust(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     payload["trustLevel"] = "L3"
@@ -302,7 +303,7 @@ def test_record_cannot_self_elevate_claimed_trust(
     ],
 )
 def test_trust_policy_rejects_unassigned_source(
-    evidence_record_payload: dict[str, object], field: str, value: str
+    evidence_record_payload: dict[str, Any], field: str, value: str
 ) -> None:
     payload = copy.deepcopy(evidence_record_payload)
     source = payload["source"]
@@ -331,7 +332,7 @@ def test_trust_policy_rejects_duplicate_assignments() -> None:
 
 
 def test_verify_evidence_content_accepts_contained_regular_file(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     content = b'{"refunds":[{"order_id":42}]}'
     content_path = tmp_path / "objects" / "81" / "snapshot.json"
@@ -351,7 +352,7 @@ def test_verify_evidence_content_accepts_contained_regular_file(
 
 
 def test_verify_evidence_content_rejects_missing_file(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     record = _content_record(
         evidence_record_payload,
@@ -379,7 +380,7 @@ def test_verify_evidence_content_rejects_missing_file(
 )
 def test_verify_evidence_content_rejects_non_normalized_or_escaping_paths(
     tmp_path: Path,
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
     relative_path: str,
 ) -> None:
     record = _content_record(
@@ -396,7 +397,7 @@ def test_verify_evidence_content_rejects_non_normalized_or_escaping_paths(
 
 
 def test_verify_evidence_content_rejects_symlink_escape(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     store = tmp_path / "store"
     store.mkdir()
@@ -418,7 +419,7 @@ def test_verify_evidence_content_rejects_symlink_escape(
 
 
 def test_verify_evidence_content_rejects_directory_target(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     directory = tmp_path / "objects"
     directory.mkdir()
@@ -436,7 +437,7 @@ def test_verify_evidence_content_rejects_directory_target(
 
 
 def test_verify_evidence_content_rejects_wrong_size(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     content_path = tmp_path / "snapshot.json"
     content_path.write_bytes(b"actual")
@@ -454,7 +455,7 @@ def test_verify_evidence_content_rejects_wrong_size(
 
 
 def test_verify_evidence_content_rejects_wrong_digest(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     content_path = tmp_path / "snapshot.json"
     content_path.write_bytes(b"actual")
@@ -472,7 +473,7 @@ def test_verify_evidence_content_rejects_wrong_digest(
 
 
 def test_verify_evidence_record_composes_identity_release_trust_and_content(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     content = b"verified"
     (tmp_path / "evidence.json").write_bytes(content)
@@ -495,7 +496,7 @@ def test_verify_evidence_record_composes_identity_release_trust_and_content(
 
 
 def test_verify_evidence_record_rejects_wrong_release_before_content_read(
-    tmp_path: Path, evidence_record_payload: dict[str, object]
+    tmp_path: Path, evidence_record_payload: dict[str, Any]
 ) -> None:
     record = _content_record(
         evidence_record_payload,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import importlib
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -36,7 +37,7 @@ def postgres_registry() -> CheckTypeRegistry:
 
 
 def test_pack_registry_validates_compatible_owned_check(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     contract = ReleaseContract.model_validate(valid_release_contract_payload)
 
@@ -44,7 +45,7 @@ def test_pack_registry_validates_compatible_owned_check(
 
 
 def test_load_release_contract_applies_supplied_registry(
-    tmp_path: Path, valid_release_contract_payload: dict[str, object]
+    tmp_path: Path, valid_release_contract_payload: dict[str, Any]
 ) -> None:
     path = tmp_path / "contract.yaml"
     path.write_text(yaml.safe_dump(valid_release_contract_payload), encoding="utf-8")
@@ -55,7 +56,7 @@ def test_load_release_contract_applies_supplied_registry(
 
 
 def test_pack_registry_rejects_unknown_declared_pack(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     contract = ReleaseContract.model_validate(valid_release_contract_payload)
 
@@ -67,7 +68,7 @@ def test_pack_registry_rejects_unknown_declared_pack(
 
 
 def test_pack_registry_rejects_incompatible_installed_version(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     packs = payload["packs"]
@@ -84,7 +85,7 @@ def test_pack_registry_rejects_incompatible_installed_version(
 
 
 def test_release_contract_rejects_invalid_pack_specifier(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     packs = payload["packs"]
@@ -97,7 +98,7 @@ def test_release_contract_rejects_invalid_pack_specifier(
 
 
 def test_pack_registry_rejects_unknown_check_type_from_declared_pack(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     registry = CheckTypeRegistry()
     registry.register_pack(name="anvil-pack-postgres", version="0.1.4", check_types={})
@@ -111,7 +112,7 @@ def test_pack_registry_rejects_unknown_check_type_from_declared_pack(
 
 
 def test_pack_registry_rejects_check_owned_by_undeclared_pack(
-    valid_release_contract_payload: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     payload["packs"] = []
@@ -135,8 +136,8 @@ def test_pack_registry_rejects_check_owned_by_undeclared_pack(
     ],
 )
 def test_pack_registry_rejects_invalid_pack_specific_config(
-    valid_release_contract_payload: dict[str, object],
-    config: dict[str, object],
+    valid_release_contract_payload: dict[str, Any],
+    config: dict[str, Any],
     expected_path: str,
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
@@ -192,7 +193,7 @@ def test_pack_registry_rejects_duplicate_check_type_ownership() -> None:
 
 
 def test_pack_registry_never_imports_pack_name_from_contract(
-    valid_release_contract_payload: dict[str, object], mocker: MockerFixture
+    valid_release_contract_payload: dict[str, Any], mocker: MockerFixture
 ) -> None:
     payload = copy.deepcopy(valid_release_contract_payload)
     packs = payload["packs"]

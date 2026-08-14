@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -21,7 +22,7 @@ from anvil.assurance.evidence import (
 
 
 def _record(
-    base_payload: dict[str, object],
+    base_payload: dict[str, Any],
     *,
     suffix: int,
     parents: list[str] | None = None,
@@ -51,7 +52,7 @@ def _verified(record: EvidenceRecord, trust: TrustLevel) -> VerifiedEvidence:
 
 
 def test_validate_evidence_graph_returns_deterministic_topological_order(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     pre_state = _record(evidence_record_payload, suffix=1)
     trace = _record(
@@ -77,7 +78,7 @@ def test_validate_evidence_graph_returns_deterministic_topological_order(
 
 
 def test_validate_evidence_graph_is_independent_of_input_order(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     first = _record(evidence_record_payload, suffix=1)
     second = _record(evidence_record_payload, suffix=2)
@@ -89,7 +90,7 @@ def test_validate_evidence_graph_is_independent_of_input_order(
 
 
 def test_validate_evidence_graph_rejects_duplicate_record_ids(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload, suffix=1)
 
@@ -101,7 +102,7 @@ def test_validate_evidence_graph_rejects_duplicate_record_ids(
 
 
 def test_validate_evidence_graph_rejects_duplicate_parents_even_for_unvalidated_copy(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     parent = _record(evidence_record_payload, suffix=1)
     child = _record(evidence_record_payload, suffix=2, parents=[parent.evidence_id])
@@ -115,7 +116,7 @@ def test_validate_evidence_graph_rejects_duplicate_parents_even_for_unvalidated_
 
 
 def test_validate_evidence_graph_rejects_self_parent_even_for_unvalidated_copy(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload, suffix=1)
     invalid = record.model_copy(update={"parents": [record.evidence_id]})
@@ -128,7 +129,7 @@ def test_validate_evidence_graph_rejects_self_parent_even_for_unvalidated_copy(
 
 
 def test_validate_evidence_graph_rejects_dangling_parent(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(
         evidence_record_payload,
@@ -144,7 +145,7 @@ def test_validate_evidence_graph_rejects_dangling_parent(
 
 
 def test_validate_evidence_graph_rejects_cycle_without_recursion(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     first = _record(evidence_record_payload, suffix=1)
     second = _record(evidence_record_payload, suffix=2)
@@ -167,7 +168,7 @@ def test_validate_evidence_graph_rejects_cycle_without_recursion(
     ],
 )
 def test_requirement_matching_uses_monotonic_trust(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
     assigned: TrustLevel,
     required: TrustLevel,
     satisfied: bool,
@@ -186,13 +187,13 @@ def test_requirement_matching_uses_monotonic_trust(
 
 
 def test_requirement_matching_requires_exact_type_and_optional_subject(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload, suffix=1)
     verified = _verified(record, TrustLevel.L3)
     matching = EvidenceRequirement(
         type="postgres.state_snapshot.v1",
-        minimumTrust="L2",
+        minimumTrust=TrustLevel.L2,
     )
     wrong_type = matching.model_copy(update={"type": "agent.trace.v1"})
     wrong_subject = matching.model_copy(update={"subject": "postgres://other"})
@@ -203,13 +204,13 @@ def test_requirement_matching_requires_exact_type_and_optional_subject(
 
 
 def test_requirement_matching_enforces_minimum_count_and_deduplicates_ids(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     first = _record(evidence_record_payload, suffix=1)
     second = _record(evidence_record_payload, suffix=2)
     requirement = EvidenceRequirement(
         type=first.type,
-        minimumTrust="L2",
+        minimumTrust=TrustLevel.L2,
         subject=first.subject,
         minimumCount=2,
     )
@@ -230,22 +231,22 @@ def test_requirement_matching_enforces_minimum_count_and_deduplicates_ids(
 
 
 def test_requirement_matching_rejects_raw_unverified_record(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload, suffix=1)
-    requirement = EvidenceRequirement(type=record.type, minimumTrust="L0")
+    requirement = EvidenceRequirement(type=record.type, minimumTrust=TrustLevel.L0)
 
     with pytest.raises(TypeError, match="VerifiedEvidence"):
-        match_evidence_requirement(requirement, [record])  # type: ignore[list-item]
+        match_evidence_requirement(requirement, cast(Any, [record]))
 
 
 def test_match_evidence_requirements_preserves_requirement_order(
-    evidence_record_payload: dict[str, object],
+    evidence_record_payload: dict[str, Any],
 ) -> None:
     record = _record(evidence_record_payload, suffix=1)
     requirements = [
-        EvidenceRequirement(type="agent.trace.v1", minimumTrust="L1"),
-        EvidenceRequirement(type=record.type, minimumTrust="L2"),
+        EvidenceRequirement(type="agent.trace.v1", minimumTrust=TrustLevel.L1),
+        EvidenceRequirement(type=record.type, minimumTrust=TrustLevel.L2),
     ]
 
     matches = match_evidence_requirements(requirements, [_verified(record, TrustLevel.L2)])
