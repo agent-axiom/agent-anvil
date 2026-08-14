@@ -214,12 +214,21 @@ def test_cli_schema_validate_rejects_invalid_contract(tmp_path: Path) -> None:
     assert "Traceback" not in result.stderr
 
 
-def test_schema_validate_rejects_oversized_json_before_parsing(tmp_path: Path) -> None:
+def test_schema_validate_rejects_oversized_json_during_auto_detection(tmp_path: Path) -> None:
     path = tmp_path / "contract.json"
     path.write_bytes(b'"' + b"x" * (1024 * 1024) + b'"')
 
     with pytest.raises(ContractValidationError, match="maximum encoded size"):
-        validate_schema_contract(path, schema_id="anvil.trace.v1")
+        validate_schema_contract(path)
+
+
+def test_schema_validate_accepts_large_legacy_trace_with_explicit_schema(tmp_path: Path) -> None:
+    payload = json.loads(Path("fixtures/contracts/trace-valid.json").read_text(encoding="utf-8"))
+    payload["final_output"] = "x" * (1024 * 1024)
+    path = tmp_path / "trace.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert validate_schema_contract(path, schema_id="anvil.trace.v1") == "anvil.trace.v1"
 
 
 def test_schema_validate_normalizes_deep_json_parser_failure(tmp_path: Path) -> None:

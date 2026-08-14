@@ -216,7 +216,7 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
     selected_path = Path(path)
     payload: Any | None = None
     if schema_id is None:
-        payload = _read_json_payload(selected_path)
+        payload = _read_json_payload(selected_path, max_bytes=MAX_CONTRACT_JSON_BYTES)
         if not isinstance(payload, dict):
             raise ContractValidationError(
                 f"schema_version auto-detection requires a JSON object at {selected_path}"
@@ -245,7 +245,14 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
         elif schema_id == RELEASE_CONTRACT_SCHEMA_VERSION:
             payload = _read_assurance_yaml_payload(selected_path)
         elif payload is None:
-            payload = _read_json_payload(selected_path)
+            payload = _read_json_payload(
+                selected_path,
+                max_bytes=(
+                    MAX_CONTRACT_JSON_BYTES
+                    if schema_id == EVIDENCE_RECORD_SCHEMA_VERSION
+                    else None
+                ),
+            )
         contract.model.model_validate(payload)
     except ValidationError as error:
         first_error = error.errors(include_input=False, include_url=False)[0]
@@ -302,13 +309,13 @@ def _matched_contract_paths(
     return tuple(sorted(paths, key=lambda path: path.relative_to(root).as_posix()))
 
 
-def _read_json_payload(path: Path) -> Any:
+def _read_json_payload(path: Path, *, max_bytes: int | None) -> Any:
     try:
         with path.open("rb") as source:
-            encoded = source.read(MAX_CONTRACT_JSON_BYTES + 1)
+            encoded = source.read() if max_bytes is None else source.read(max_bytes + 1)
     except OSError:
         raise ContractValidationError(f"cannot read contract at {path}") from None
-    if len(encoded) > MAX_CONTRACT_JSON_BYTES:
+    if max_bytes is not None and len(encoded) > max_bytes:
         raise ContractValidationError(f"JSON contract at {path} exceeds the maximum encoded size")
     try:
         payload = json.loads(

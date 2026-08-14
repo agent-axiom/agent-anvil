@@ -103,9 +103,11 @@ that claims `L3` does not verify that claim. See
 Release-contract YAML is decoded as UTF-8 with default limits of 1 MiB, 50,000
 nodes, and 100 levels of nesting. The parser accepts only string mapping keys
 and rejects duplicate YAML keys, tagged-key ambiguity, and YAML aliases before model
-validation, preventing last-key-wins ambiguity and alias expansion. Registered
-JSON contracts have the same byte, node, and depth defaults. These limits apply
-to both the direct Assurance loader and `anvil schema validate`.
+validation, preventing last-key-wins ambiguity and alias expansion. Assurance
+evidence JSON and schema auto-detection use the same 1 MiB byte ceiling; all JSON
+contracts reject duplicate keys and enforce the node and depth budgets. Explicitly
+selected legacy JSON schemas retain their existing unbounded byte compatibility, so
+use auto-detection or an external artifact-size gate for untrusted unknown inputs.
 
 Check definitions are data, not import instructions. Loading a contract without
 a `CheckTypeRegistry` performs inspection-only envelope validation. Any future
