@@ -272,8 +272,23 @@ def test_evidence_record_rejects_secret_like_correlation_keys(
     assert isinstance(correlations, dict)
     correlations[key] = "must-not-persist"
 
-    with pytest.raises(ValidationError, match="secret-like correlation keys"):
+    with pytest.raises(ValidationError, match="secret-like correlation keys") as captured:
         _record(payload)
+
+    assert "must-not-persist" not in str(captured.value)
+
+
+def test_evidence_identity_hides_invalid_mapping_input(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    payload.pop("evidenceId")
+    payload["subject"] = {"api_key": "must-not-persist"}
+
+    with pytest.raises(ValidationError) as captured:
+        evidence_identity(payload)
+
+    assert "must-not-persist" not in str(captured.value)
 
 
 @pytest.mark.parametrize("trust_level", ["L2", "L3"])

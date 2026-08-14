@@ -156,6 +156,7 @@ class EvidenceRecord(BaseModel):
         validate_by_alias=True,
         validate_by_name=False,
         extra="forbid",
+        hide_input_in_errors=True,
         json_schema_extra=_INDEPENDENT_EVIDENCE_BOUNDARY_SCHEMA,
     )
 
@@ -209,7 +210,12 @@ class EvidenceRecord(BaseModel):
 class _EvidenceIdentityPayload(BaseModel):
     """Wire-normalized evidence fields covered by evidenceId."""
 
-    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
+    model_config = ConfigDict(
+        validate_by_alias=True,
+        validate_by_name=False,
+        extra="forbid",
+        hide_input_in_errors=True,
+    )
 
     schema_version: Literal["assurance.anvil.dev/evidence-record/v1alpha1"] = Field(
         alias="schemaVersion"
