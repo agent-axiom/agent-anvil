@@ -17,8 +17,10 @@ from pydantic import (
     ConfigDict,
     Field,
     JsonValue,
+    SerializerFunctionWrapHandler,
     ValidationError,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -138,6 +140,17 @@ class TaskDefinition(BaseModel):
 
     input: JsonValue | None = None
     input_ref: NonBlankStr | None = Field(default=None, alias="inputRef")
+
+    @model_serializer(mode="wrap")
+    def serialize_selected_input(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        payload = handler(self)
+        if "input" in self.model_fields_set:
+            payload.pop("input_ref", None)
+            payload.pop("inputRef", None)
+            payload["input"] = self.input
+        else:
+            payload.pop("input", None)
+        return payload
 
     @model_validator(mode="after")
     def require_exactly_one_input(self) -> TaskDefinition:

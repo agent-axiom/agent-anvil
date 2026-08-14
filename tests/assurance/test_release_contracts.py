@@ -13,6 +13,7 @@ from anvil.assurance.contracts import (
     MAX_RELEASE_CONTRACT_BYTES,
     RELEASE_CONTRACT_SCHEMA_VERSION,
     ReleaseContract,
+    TaskDefinition,
     load_release_contract,
 )
 from anvil.assurance.errors import AssuranceError
@@ -35,6 +36,26 @@ def test_release_contract_round_trips_public_aliases(
     assert dumped["apiVersion"] == RELEASE_CONTRACT_SCHEMA_VERSION
     assert dumped["task"] == {"inputRef": "fixtures/refund-order-42.json"}
     assert dumped["evidence"]["require"][0]["minimumTrust"] == "L2"
+
+
+@pytest.mark.parametrize("exclude_none", [False, True])
+def test_task_definition_round_trips_input_ref(exclude_none: bool) -> None:
+    task = TaskDefinition.model_validate({"inputRef": "fixtures/order.json"})
+
+    dumped = task.model_dump(mode="json", by_alias=True, exclude_none=exclude_none)
+
+    assert dumped == {"inputRef": "fixtures/order.json"}
+    assert TaskDefinition.model_validate(dumped) == task
+
+
+@pytest.mark.parametrize("exclude_none", [False, True])
+def test_task_definition_round_trips_explicit_null_input(exclude_none: bool) -> None:
+    task = TaskDefinition.model_validate({"input": None})
+
+    dumped = task.model_dump(mode="json", by_alias=True, exclude_none=exclude_none)
+
+    assert dumped == {"input": None}
+    assert TaskDefinition.model_validate(dumped) == task
 
 
 @pytest.mark.parametrize(
