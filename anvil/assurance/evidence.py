@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import hmac
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path, PurePosixPath
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -172,6 +174,20 @@ class VerifiedTrust:
     assigned_trust: TrustLevel
 
 
+@dataclass(frozen=True)
+class VerifiedContent:
+    path: Path
+    size_bytes: int
+    sha256: str
+
+
+@dataclass(frozen=True)
+class VerifiedEvidence:
+    record: EvidenceRecord
+    assigned_trust: TrustLevel
+    content: VerifiedContent
+
+
 def evidence_identity(value: EvidenceRecord | Mapping[str, Any]) -> str:
     if isinstance(value, EvidenceRecord):
         payload = value.model_dump(mode="json", by_alias=True)
@@ -217,6 +233,108 @@ def verify_evidence_trust(record: EvidenceRecord, policy: EvidenceTrustPolicy) -
             details={"collector": record.source.collector},
         )
     return VerifiedTrust(record=record, assigned_trust=record.trust_level)
+
+
+def verify_evidence_content(record: EvidenceRecord, store_root: Path) -> VerifiedContent:
+    try:
+        root = store_root.resolve(strict=True)
+    except OSError as error:
+        raise AssuranceError(
+            "evidence store is missing",
+            code="evidence_content_missing",
+            path="$.content.path",
+        ) from error
+
+    raw_path = record.content.path
+    relative = PurePosixPath(raw_path)
+    if (
+        "\\" in raw_path
+        or relative.is_absolute()
+        or not relative.parts
+        or ".." in relative.parts
+        or relative.as_posix() != raw_path
+    ):
+        raise AssuranceError(
+            "evidence content path is not a normalized relative POSIX path",
+            code="evidence_path_escape",
+            path="$.content.path",
+        )
+
+    candidate = root.joinpath(*relative.parts)
+    try:
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(root)
+    except FileNotFoundError as error:
+        raise AssuranceError(
+            "evidence content is missing",
+            code="evidence_content_missing",
+            path="$.content.path",
+        ) from error
+    except (OSError, RuntimeError, ValueError) as error:
+        raise AssuranceError(
+            "evidence content path escapes the store",
+            code="evidence_path_escape",
+            path="$.content.path",
+        ) from error
+
+    if not resolved.is_file():
+        raise AssuranceError(
+            "evidence content is not a regular file",
+            code="evidence_content_missing",
+            path="$.content.path",
+        )
+
+    digest = hashlib.sha256()
+    size_bytes = 0
+    try:
+        with resolved.open("rb") as content_file:
+            while chunk := content_file.read(1024 * 1024):
+                size_bytes += len(chunk)
+                digest.update(chunk)
+    except OSError as error:
+        raise AssuranceError(
+            "evidence content cannot be read",
+            code="evidence_content_missing",
+            path="$.content.path",
+        ) from error
+
+    if size_bytes != record.content.size_bytes:
+        raise AssuranceError(
+            "evidence content size does not match its record",
+            code="evidence_digest_mismatch",
+            path="$.content.sizeBytes",
+        )
+    selected_digest = digest.hexdigest()
+    if not hmac.compare_digest(selected_digest, record.content.sha256):
+        raise AssuranceError(
+            "evidence content digest does not match its record",
+            code="evidence_digest_mismatch",
+            path="$.content.sha256",
+        )
+    return VerifiedContent(path=resolved, size_bytes=size_bytes, sha256=selected_digest)
+
+
+def verify_evidence_record(
+    record: EvidenceRecord,
+    *,
+    expected_release_id: str,
+    trust_policy: EvidenceTrustPolicy,
+    store_root: Path,
+) -> VerifiedEvidence:
+    verify_evidence_identity(record)
+    if not hmac.compare_digest(record.release_id, expected_release_id):
+        raise AssuranceError(
+            "evidence belongs to a different release",
+            code="evidence_schema_error",
+            path="$.releaseId",
+        )
+    trust = verify_evidence_trust(record, trust_policy)
+    content = verify_evidence_content(record, store_root)
+    return VerifiedEvidence(
+        record=record,
+        assigned_trust=trust.assigned_trust,
+        content=content,
+    )
 
 
 def _is_prefixed_sha256(value: str) -> bool:

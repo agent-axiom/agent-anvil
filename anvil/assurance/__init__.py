@@ -15,9 +15,13 @@ from anvil.assurance.evidence import (
     EvidenceTrustPolicy,
     TrustAssignment,
     TrustLevel,
+    VerifiedContent,
+    VerifiedEvidence,
     VerifiedTrust,
     evidence_identity,
+    verify_evidence_content,
     verify_evidence_identity,
+    verify_evidence_record,
     verify_evidence_trust,
 )
 from anvil.assurance.identity import (
@@ -42,6 +46,8 @@ __all__ = [
     "ReleaseContract",
     "TrustAssignment",
     "TrustLevel",
+    "VerifiedContent",
+    "VerifiedEvidence",
     "VerifiedTrust",
     "canonical_json_bytes",
     "evidence_identity",
@@ -50,6 +56,8 @@ __all__ = [
     "sha256_bytes",
     "sha256_json",
     "validate_release_components",
+    "verify_evidence_content",
     "verify_evidence_identity",
+    "verify_evidence_record",
     "verify_evidence_trust",
 ]

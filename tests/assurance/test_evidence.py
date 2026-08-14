@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
+from anvil.assurance.canonical import sha256_bytes
 from anvil.assurance.errors import AssuranceError
 from anvil.assurance.evidence import (
     EVIDENCE_RECORD_SCHEMA_VERSION,
@@ -13,7 +15,9 @@ from anvil.assurance.evidence import (
     TrustAssignment,
     TrustLevel,
     evidence_identity,
+    verify_evidence_content,
     verify_evidence_identity,
+    verify_evidence_record,
     verify_evidence_trust,
 )
 
@@ -25,6 +29,25 @@ def _record(payload: dict[str, object]) -> EvidenceRecord:
 def _reidentify(payload: dict[str, object]) -> dict[str, object]:
     payload["evidenceId"] = evidence_identity(payload)
     return payload
+
+
+def _content_record(
+    evidence_record_payload: dict[str, object],
+    *,
+    relative_path: str,
+    content: bytes,
+) -> EvidenceRecord:
+    payload = copy.deepcopy(evidence_record_payload)
+    content_payload = payload["content"]
+    assert isinstance(content_payload, dict)
+    content_payload.update(
+        {
+            "path": relative_path,
+            "sizeBytes": len(content),
+            "sha256": sha256_bytes(content, prefix=False),
+        }
+    )
+    return _record(_reidentify(payload))
 
 
 def trust_policy(maximum_trust: TrustLevel = TrustLevel.L2) -> EvidenceTrustPolicy:
@@ -305,3 +328,188 @@ def test_trust_policy_rejects_duplicate_assignments() -> None:
 
     with pytest.raises(ValidationError, match="duplicate trust assignments"):
         EvidenceTrustPolicy(assignments=[assignment, assignment.model_copy()])
+
+
+def test_verify_evidence_content_accepts_contained_regular_file(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    content = b'{"refunds":[{"order_id":42}]}'
+    content_path = tmp_path / "objects" / "81" / "snapshot.json"
+    content_path.parent.mkdir(parents=True)
+    content_path.write_bytes(content)
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="objects/81/snapshot.json",
+        content=content,
+    )
+
+    verified = verify_evidence_content(record, tmp_path)
+
+    assert verified.path == content_path.resolve()
+    assert verified.size_bytes == len(content)
+    assert verified.sha256 == sha256_bytes(content, prefix=False)
+
+
+def test_verify_evidence_content_rejects_missing_file(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="objects/missing.json",
+        content=b"missing",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, tmp_path)
+
+    assert captured.value.code == "evidence_content_missing"
+    assert captured.value.path == "$.content.path"
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "/tmp/outside.json",
+        "../outside.json",
+        "objects/../outside.json",
+        "objects/./snapshot.json",
+        "objects//snapshot.json",
+        "objects\\snapshot.json",
+    ],
+)
+def test_verify_evidence_content_rejects_non_normalized_or_escaping_paths(
+    tmp_path: Path,
+    evidence_record_payload: dict[str, object],
+    relative_path: str,
+) -> None:
+    record = _content_record(
+        evidence_record_payload,
+        relative_path=relative_path,
+        content=b"content",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, tmp_path)
+
+    assert captured.value.code == "evidence_path_escape"
+    assert captured.value.path == "$.content.path"
+
+
+def test_verify_evidence_content_rejects_symlink_escape(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    store = tmp_path / "store"
+    store.mkdir()
+    outside = tmp_path / "outside.json"
+    outside.write_bytes(b"outside secret")
+    link = store / "snapshot.json"
+    link.symlink_to(outside)
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="snapshot.json",
+        content=outside.read_bytes(),
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, store)
+
+    assert captured.value.code == "evidence_path_escape"
+    assert "outside secret" not in str(captured.value)
+
+
+def test_verify_evidence_content_rejects_directory_target(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    directory = tmp_path / "objects"
+    directory.mkdir()
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="objects",
+        content=b"",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, tmp_path)
+
+    assert captured.value.code == "evidence_content_missing"
+    assert captured.value.path == "$.content.path"
+
+
+def test_verify_evidence_content_rejects_wrong_size(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    content_path = tmp_path / "snapshot.json"
+    content_path.write_bytes(b"actual")
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="snapshot.json",
+        content=b"different-size",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, tmp_path)
+
+    assert captured.value.code == "evidence_digest_mismatch"
+    assert captured.value.path == "$.content.sizeBytes"
+
+
+def test_verify_evidence_content_rejects_wrong_digest(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    content_path = tmp_path / "snapshot.json"
+    content_path.write_bytes(b"actual")
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="snapshot.json",
+        content=b"xxxxxx",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_content(record, tmp_path)
+
+    assert captured.value.code == "evidence_digest_mismatch"
+    assert captured.value.path == "$.content.sha256"
+
+
+def test_verify_evidence_record_composes_identity_release_trust_and_content(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    content = b"verified"
+    (tmp_path / "evidence.json").write_bytes(content)
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="evidence.json",
+        content=content,
+    )
+
+    verified = verify_evidence_record(
+        record,
+        expected_release_id=record.release_id,
+        trust_policy=trust_policy(),
+        store_root=tmp_path,
+    )
+
+    assert verified.record is record
+    assert verified.assigned_trust is TrustLevel.L2
+    assert verified.content.path == (tmp_path / "evidence.json").resolve()
+
+
+def test_verify_evidence_record_rejects_wrong_release_before_content_read(
+    tmp_path: Path, evidence_record_payload: dict[str, object]
+) -> None:
+    record = _content_record(
+        evidence_record_payload,
+        relative_path="missing.json",
+        content=b"missing",
+    )
+
+    with pytest.raises(AssuranceError) as captured:
+        verify_evidence_record(
+            record,
+            expected_release_id=f"sha256:{'0' * 64}",
+            trust_policy=trust_policy(),
+            store_root=tmp_path,
+        )
+
+    assert captured.value.code == "evidence_schema_error"
+    assert captured.value.path == "$.releaseId"
