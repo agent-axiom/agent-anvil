@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from anvil.assurance.evidence import evidence_identity
 from anvil.assurance.identity import ComponentKind, ReleaseComponent
 
 
@@ -95,3 +96,39 @@ def valid_release_contract_payload(
         },
         "reliability": {"trials": 20, "minimumPassRate": 0.95},
     }
+
+
+@pytest.fixture
+def evidence_record_payload() -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schemaVersion": "assurance.anvil.dev/evidence-record/v1alpha1",
+        "runId": "assure_20260814_001",
+        "releaseId": f"sha256:{'7' * 64}",
+        "contractId": "refund-agent-postgres",
+        "type": "postgres.state_snapshot.v1",
+        "trustLevel": "L2",
+        "subject": "postgres://payments/public",
+        "source": {
+            "collector": "postgres-observer",
+            "version": "0.1.0",
+            "boundary": "separate-read-only-credentials",
+        },
+        "observedAt": "2026-08-14T12:00:00Z",
+        "content": {
+            "mediaType": "application/json",
+            "sha256": "8" * 64,
+            "sizeBytes": 4096,
+            "path": f"objects/81/{'8' * 62}",
+        },
+        "parents": [],
+        "correlations": {
+            "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+            "transactionId": "735128",
+        },
+        "redaction": {
+            "applied": True,
+            "policyDigest": f"sha256:{'9' * 64}",
+        },
+    }
+    payload["evidenceId"] = evidence_identity(payload)
+    return payload

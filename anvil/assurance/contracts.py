@@ -22,6 +22,10 @@ from pydantic import (
 )
 
 from anvil.assurance.errors import AssuranceError
+from anvil.assurance.evidence import (
+    NAMESPACED_TYPE_PATTERN,
+    EvidenceRequirement,
+)
 from anvil.assurance.identity import (
     ReleaseComponent,
     release_identity,
@@ -29,7 +33,6 @@ from anvil.assurance.identity import (
 )
 
 RELEASE_CONTRACT_SCHEMA_VERSION = "assurance.anvil.dev/release-contract/v1alpha1"
-NAMESPACED_TYPE_PATTERN = r"^(?:[a-z][a-z0-9_-]*\.)+[a-z][a-z0-9_-]*\.v[1-9][0-9]*$"
 
 
 def _non_blank(value: str) -> str:
@@ -124,15 +127,6 @@ class CheckDefinition(BaseModel):
     id: NonBlankStr
     type: str = Field(pattern=NAMESPACED_TYPE_PATTERN)
     config: dict[str, JsonValue] = Field(default_factory=dict)
-
-
-class EvidenceRequirement(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
-
-    type: str = Field(pattern=NAMESPACED_TYPE_PATTERN)
-    minimum_trust: Literal["L0", "L1", "L2", "L3"] = Field(alias="minimumTrust")
-    subject: NonBlankStr | None = None
-    minimum_count: int = Field(default=1, alias="minimumCount", ge=1)
 
 
 class EvidencePolicy(BaseModel):

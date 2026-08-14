@@ -8,6 +8,18 @@ from anvil.assurance.contracts import (
     load_release_contract,
 )
 from anvil.assurance.errors import AssuranceError
+from anvil.assurance.evidence import (
+    EVIDENCE_RECORD_SCHEMA_VERSION,
+    EvidenceRecord,
+    EvidenceRequirement,
+    EvidenceTrustPolicy,
+    TrustAssignment,
+    TrustLevel,
+    VerifiedTrust,
+    evidence_identity,
+    verify_evidence_identity,
+    verify_evidence_trust,
+)
 from anvil.assurance.identity import (
     MANDATORY_COMPONENT_KINDS,
     ComponentKind,
@@ -17,17 +29,27 @@ from anvil.assurance.identity import (
 )
 
 __all__ = [
+    "EVIDENCE_RECORD_SCHEMA_VERSION",
     "MANDATORY_COMPONENT_KINDS",
     "RELEASE_CONTRACT_SCHEMA_VERSION",
     "AssuranceError",
     "CheckTypeRegistry",
     "ComponentKind",
+    "EvidenceRecord",
+    "EvidenceRequirement",
+    "EvidenceTrustPolicy",
     "ReleaseComponent",
     "ReleaseContract",
+    "TrustAssignment",
+    "TrustLevel",
+    "VerifiedTrust",
     "canonical_json_bytes",
+    "evidence_identity",
     "load_release_contract",
     "release_identity",
     "sha256_bytes",
     "sha256_json",
     "validate_release_components",
+    "verify_evidence_identity",
+    "verify_evidence_trust",
 ]
