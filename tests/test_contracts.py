@@ -433,11 +433,18 @@ def test_assurance_contract_docs_define_trust_and_compatibility_boundaries() -> 
         assert filename in contracts
     assert "assurance.anvil.dev/release-contract/v1alpha1" in contracts
     assert "assurance.anvil.dev/evidence-record/v1alpha1" in contracts
+    assert "duplicate YAML keys" in contracts
+    assert "YAML aliases" in contracts
+    assert "1 MiB" in contracts
+    assert "inspection-only" in contracts
+    assert "CheckTypeRegistry" in contracts
     assert "v1alpha2" in schema_versioning
     assert "unknown fields are rejected" in schema_versioning
     assert "evidenceId" in artifacts
     assert "content.sha256" in artifacts
     assert "normalized relative" in artifacts
+    assert "64 MiB" in artifacts
+    assert "must not reopen" in artifacts
     assert "Trust describes observation provenance, not whether the agent is safe." in trust
     for level in ("L0", "L1", "L2", "L3"):
         assert level in trust
@@ -451,3 +458,6 @@ def test_assurance_contract_docs_define_trust_and_compatibility_boundaries() -> 
         assert limitation in trust
     assert "no Assurance runner" in trust
     assert "no verdict engine" in trust
+    assert "ObservedEvidenceSource" in trust
+    assert "trusted ingestion boundary" in trust
+    assert "contractId" in trust

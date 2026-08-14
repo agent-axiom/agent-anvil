@@ -37,7 +37,8 @@ The command writes schemas using export metadata version
 - [`schemas/assurance.anvil.dev.evidence-record.v1alpha1.schema.json`](../schemas/assurance.anvil.dev.evidence-record.v1alpha1.schema.json)
 
 The source of truth remains the Pydantic models in Agent Anvil. Checked-in
-schemas are generated from those models and protected by tests.
+schemas are generated from those models and protected by Draft 2020-12 tests
+for runtime invariants that Pydantic cannot infer automatically.
 
 Use `schema validate-dir` in submission repositories when maintainers need a
 cheap contract gate before slower GitHub API checks, leaderboard rebuilds, or
@@ -98,6 +99,17 @@ store containment, source trust assignment, release binding, and parent graph
 integrity require the verification APIs in `anvil.assurance`. Parsing a record
 that claims `L3` does not verify that claim. See
 [Assurance Evidence Trust](assurance-trust.md).
+
+Release-contract YAML is decoded as UTF-8 with a 1 MiB default input limit.
+The parser rejects duplicate YAML keys and YAML aliases before model
+validation, preventing last-key-wins ambiguity and alias expansion. These
+limits apply to both the direct Assurance loader and `anvil schema validate`.
+
+Check definitions are data, not import instructions. Loading a contract without
+a `CheckTypeRegistry` performs inspection-only envelope validation. Any future
+runner or verdict path must supply an explicit registry and reject undeclared,
+unregistered, or version-incompatible packs; contract data never drives dynamic
+imports.
 
 ## External Agent Conformance
 

@@ -96,12 +96,19 @@ content-addressed run store. `content.sha256` identifies those bytes.
 time, source, release binding, parents, correlations, and redaction metadata.
 
 Content references use normalized relative POSIX paths. Verification resolves
-the path inside the configured store before reading, rejects traversal and
-symlink escape, then checks size and SHA-256. Parent IDs derive an inspectable
-directed graph; duplicate, dangling, self-referential, and cyclic relationships
-are rejected. Correlations are identifiers for joining evidence, not proof of
+the path inside the configured store, then opens each component relative to the
+trusted store descriptor with symlink following disabled on supported POSIX
+systems. It checks the declared and opened-file size, performs a bounded
+streaming SHA-256 read, and rejects traversal, symlink races, and content larger
+than the configurable 64 MiB default. Parent IDs derive an inspectable directed
+graph; duplicate, dangling, self-referential, and cyclic relationships are
+rejected. Correlations are identifiers for joining evidence, not proof of
 causality.
 
-Verification order is record identity, expected release binding, source trust
-assignment, content containment and digest, then graph and requirement checks.
-Raw evidence remains local unless a user intentionally publishes it.
+Verification order is record identity, expected release and contract binding,
+trusted ingestion-source comparison, trust assignment, content containment and
+digest, then graph and requirement checks. `VerifiedContent.path` is
+informational: consumers must not reopen that path and treat later bytes as the
+already verified object. A future runner must parse from the verified descriptor
+or first copy bytes into an immutable content-addressed object. Raw evidence
+remains local unless a user intentionally publishes it.

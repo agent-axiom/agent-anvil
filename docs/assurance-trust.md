@@ -44,10 +44,14 @@ model provider, or environment integrity is uncompromised.
 
 ## Assignment Rules
 
-The evidence record carries `source` and `trustLevel` claims. A separate
-`EvidenceTrustPolicy` assigns a maximum level to an exact collector, version,
-and boundary tuple. Verification rejects unknown sources and claims above the
-configured maximum. A lower claim is never silently promoted.
+The evidence record carries untrusted `source` and `trustLevel` claims. The
+trusted ingestion boundary independently constructs an
+`ObservedEvidenceSource` from authenticated transport, process configuration,
+or collector identity. Verification first requires an exact match between that
+observation and the producer claim. It then applies a separate
+`EvidenceTrustPolicy`, which assigns a maximum level to the exact collector,
+version, and boundary tuple. Unknown or mismatched sources and claims above the
+configured maximum are rejected. A lower claim is never silently promoted.
 
 For example, writing `trustLevel: L3` into agent output does not establish L3.
 The record remains unverified until trusted configuration contains a matching
@@ -62,7 +66,7 @@ and minimum count must also match.
 The foundation verifies:
 
 - canonical `evidenceId` metadata hashing;
-- exact release identity binding;
+- exact `releaseId` and `contractId` binding to verifier-selected expectations;
 - verifier-controlled source trust assignment;
 - normalized relative content paths and store containment;
 - missing content, byte size, and SHA-256;
@@ -71,7 +75,9 @@ The foundation verifies:
 
 `content.sha256` identifies referenced bytes. `evidenceId` identifies the full
 record metadata except the ID itself and includes `observedAt`, so two separate
-observations of identical bytes remain distinct.
+observations of identical bytes remain distinct. Parent order is canonicalized
+for identity; duplicate parent IDs are invalid and cannot inflate evidence
+requirements.
 
 ## Security Boundary
 
@@ -89,7 +95,9 @@ base. This foundation does not defend against:
 Evidence content is local by default. Collectors must redact secrets and
 personal data before persistence. Release identity contains component digests
 and stable identifiers, not raw prompts, policies, tool definitions, machine
-paths, or credentials.
+paths, or credentials. Trust assignments and `ObservedEvidenceSource` values
+must come from verifier-controlled configuration, never fields copied from the
+producer payload.
 
 ## Current Scope
 
