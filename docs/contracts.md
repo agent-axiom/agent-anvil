@@ -33,9 +33,12 @@ The command writes schemas using export metadata version
 - [`schemas/agent-anvil.leaderboard.audit.v1.schema.json`](../schemas/agent-anvil.leaderboard.audit.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.evidence_index.v1.schema.json`](../schemas/agent-anvil.leaderboard.evidence_index.v1.schema.json)
 - [`schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json`](../schemas/agent-anvil.leaderboard.maintainer_rerun.v1.schema.json)
+- [`schemas/assurance.anvil.dev.release-contract.v1alpha1.schema.json`](../schemas/assurance.anvil.dev.release-contract.v1alpha1.schema.json)
+- [`schemas/assurance.anvil.dev.evidence-record.v1alpha1.schema.json`](../schemas/assurance.anvil.dev.evidence-record.v1alpha1.schema.json)
 
 The source of truth remains the Pydantic models in Agent Anvil. Checked-in
-schemas are generated from those models and protected by tests.
+schemas are generated from those models and protected by Draft 2020-12 tests
+for runtime invariants that Pydantic cannot infer automatically.
 
 Use `schema validate-dir` in submission repositories when maintainers need a
 cheap contract gate before slower GitHub API checks, leaderboard rebuilds, or
@@ -61,9 +64,62 @@ Use the fixture set when writing adapters or compatibility checks:
 - [`fixtures/contracts/leaderboard-audit-valid.json`](../fixtures/contracts/leaderboard-audit-valid.json)
 - [`fixtures/contracts/leaderboard-evidence-index-valid.json`](../fixtures/contracts/leaderboard-evidence-index-valid.json)
 - [`fixtures/contracts/leaderboard-maintainer-rerun-valid.json`](../fixtures/contracts/leaderboard-maintainer-rerun-valid.json)
+- [`fixtures/contracts/assurance-release-contract-valid.yaml`](../fixtures/contracts/assurance-release-contract-valid.yaml)
+- [`fixtures/contracts/assurance-evidence-record-valid.json`](../fixtures/contracts/assurance-evidence-record-valid.json)
 
 These fixtures are intentionally small. They cover the happy path and one
 controlled external-agent protocol failure.
+
+## Assurance Alpha Contracts
+
+The Assurance foundation is additive and experimental. It does not change
+`anvil.scenario.v1`, current trace artifacts, or `anvil run` behavior.
+
+The release envelope uses
+`assurance.anvil.dev/release-contract/v1alpha1`. Validate its YAML fixture with
+an explicit schema ID:
+
+```bash
+uv run anvil schema validate \
+  fixtures/contracts/assurance-release-contract-valid.yaml \
+  --schema assurance.anvil.dev/release-contract/v1alpha1
+```
+
+The evidence envelope uses
+`assurance.anvil.dev/evidence-record/v1alpha1`. Its `schemaVersion` is
+auto-detected from JSON:
+
+```bash
+uv run anvil schema validate \
+  fixtures/contracts/assurance-evidence-record-valid.json
+```
+
+Schema validation checks document shape. Evidence identity, content digest,
+store containment, source trust assignment, release binding, and parent graph
+integrity require the verification APIs in `anvil.assurance`. Parsing a record
+that claims `L3` does not verify that claim. See
+[Assurance Evidence Trust](assurance-trust.md).
+
+Release-contract YAML is decoded as UTF-8 with default limits of 1 MiB, 50,000
+nodes, and 100 levels of nesting. The parser accepts only string mapping keys
+and rejects duplicate YAML keys, tagged-key ambiguity, and YAML aliases before model
+validation, preventing last-key-wins ambiguity and alias expansion. Assurance
+evidence JSON and schema auto-detection use the same 1 MiB byte ceiling and enforce
+the node and depth budgets. All JSON contracts reject duplicate keys. Explicitly
+selected legacy JSON schemas retain their existing unbounded byte, node, and depth
+compatibility, so use auto-detection or an external artifact-size gate for untrusted
+unknown inputs.
+Contract readers open paths nonblocking and reject anything that does not resolve to
+a regular file; FIFOs, sockets, devices, and directories cannot stall validation.
+Assurance task inputs, check configuration, and component metadata accept only
+canonical finite JSON values. Component metadata also rejects secret-like keys;
+credentials belong in the execution environment, never in release contracts.
+
+Check definitions are data, not import instructions. Loading a contract without
+a `CheckTypeRegistry` performs inspection-only envelope validation. Any future
+runner or verdict path must supply an explicit registry and reject undeclared,
+unregistered, or version-incompatible packs; contract data never drives dynamic
+imports.
 
 ## External Agent Conformance
 

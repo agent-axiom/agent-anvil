@@ -8,6 +8,10 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ValidationError
 
+from anvil.assurance.contracts import RELEASE_CONTRACT_SCHEMA_VERSION, ReleaseContract
+from anvil.assurance.evidence import EVIDENCE_RECORD_SCHEMA_VERSION, EvidenceRecord
+from anvil.assurance.io import FileTooLargeError, NonRegularFileError, read_regular_file
+from anvil.assurance.yaml import ContractYamlError, load_bounded_yaml
 from anvil.attestations import (
     ARTIFACT_ATTESTATION_VERIFICATION_SCHEMA_VERSION,
     LeaderboardArtifactAttestationVerification,
@@ -40,6 +44,9 @@ from anvil.trace import TRACE_SCHEMA_VERSION, TraceRun
 SCENARIO_SCHEMA_VERSION = "anvil.scenario.v1"
 SCHEMA_EXPORT_SCHEMA_VERSION = "anvil.schema.export.v1"
 JSON_SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema"
+MAX_CONTRACT_JSON_BYTES = 1024 * 1024
+MAX_CONTRACT_JSON_NODES = 50_000
+MAX_CONTRACT_JSON_DEPTH = 100
 
 
 @dataclass(frozen=True)
@@ -80,6 +87,18 @@ class SchemaDirectoryValidationResult:
 
 
 SCHEMA_CONTRACTS: tuple[SchemaContract, ...] = (
+    SchemaContract(
+        schema_id=RELEASE_CONTRACT_SCHEMA_VERSION,
+        filename="assurance.anvil.dev.release-contract.v1alpha1.schema.json",
+        model=ReleaseContract,
+        description="Agent Anvil Assurance release contract schema.",
+    ),
+    SchemaContract(
+        schema_id=EVIDENCE_RECORD_SCHEMA_VERSION,
+        filename="assurance.anvil.dev.evidence-record.v1alpha1.schema.json",
+        model=EvidenceRecord,
+        description="Agent Anvil Assurance evidence record schema.",
+    ),
     SchemaContract(
         schema_id=TRACE_SCHEMA_VERSION,
         filename="anvil.trace.v1.schema.json",
@@ -166,8 +185,16 @@ class ContractValidationError(ValueError):
     """Raised when an artifact does not match a stable Agent Anvil contract."""
 
 
+class _DuplicateJsonKeyError(ValueError):
+    """Raised without echoing an attacker-controlled duplicate key."""
+
+
+class _NonFiniteJsonNumberError(ValueError):
+    """Raised without echoing an attacker-controlled numeric token."""
+
+
 def contract_schema(contract: SchemaContract) -> dict[str, Any]:
-    schema = contract.model.model_json_schema(mode="validation")
+    schema = contract.model.model_json_schema(mode="validation", by_alias=True)
     schema["$schema"] = JSON_SCHEMA_DRAFT
     schema["$id"] = contract.schema_id
     schema["description"] = contract.description
@@ -192,13 +219,18 @@ def export_schema_contracts(out_dir: str | Path) -> list[Path]:
 
 def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> str:
     selected_path = Path(path)
+    payload: Any | None = None
     if schema_id is None:
-        payload = _read_json_payload(selected_path)
+        payload = _read_json_payload(selected_path, max_bytes=MAX_CONTRACT_JSON_BYTES)
         if not isinstance(payload, dict):
             raise ContractValidationError(
                 f"schema_version auto-detection requires a JSON object at {selected_path}"
             )
-        detected_schema_id = payload.get("schema_version")
+        detected_schema_id = (
+            payload.get("schema_version")
+            or payload.get("schemaVersion")
+            or payload.get("apiVersion")
+        )
         if not isinstance(detected_schema_id, str) or not detected_schema_id:
             raise ContractValidationError(
                 f"schema_version missing at {selected_path}; pass --schema for YAML contracts"
@@ -214,13 +246,26 @@ def validate_schema_contract(path: str | Path, schema_id: str | None = None) -> 
 
     try:
         if schema_id == SCENARIO_SCHEMA_VERSION:
-            contract.model.model_validate(_read_yaml_payload(selected_path))
-        else:
-            contract.model.model_validate(_read_json_payload(selected_path))
-    except (OSError, ValidationError, yaml.YAMLError, json.JSONDecodeError) as error:
+            payload = _read_legacy_yaml_payload(selected_path)
+        elif schema_id == RELEASE_CONTRACT_SCHEMA_VERSION:
+            payload = _read_assurance_yaml_payload(selected_path)
+        elif payload is None:
+            bounded_assurance_json = schema_id == EVIDENCE_RECORD_SCHEMA_VERSION
+            payload = _read_json_payload(
+                selected_path,
+                max_bytes=MAX_CONTRACT_JSON_BYTES if bounded_assurance_json else None,
+                max_nodes=MAX_CONTRACT_JSON_NODES if bounded_assurance_json else None,
+                max_depth=MAX_CONTRACT_JSON_DEPTH if bounded_assurance_json else None,
+            )
+        contract.model.model_validate(payload)
+    except ValidationError as error:
+        first_error = error.errors(include_input=False, include_url=False)[0]
+        location = _validation_location(first_error.get("loc", ()))
+        validation_type = str(first_error.get("type", "unknown"))
         raise ContractValidationError(
-            f"invalid {schema_id} contract at {selected_path}: {error}"
-        ) from error
+            f"invalid {schema_id} contract at {selected_path}: "
+            f"validation failed at {location} ({validation_type})"
+        ) from None
     return schema_id
 
 
@@ -268,17 +313,109 @@ def _matched_contract_paths(
     return tuple(sorted(paths, key=lambda path: path.relative_to(root).as_posix()))
 
 
-def _read_json_payload(path: Path) -> Any:
+def _read_json_payload(
+    path: Path,
+    *,
+    max_bytes: int | None,
+    max_nodes: int | None = MAX_CONTRACT_JSON_NODES,
+    max_depth: int | None = MAX_CONTRACT_JSON_DEPTH,
+) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except OSError as error:
-        raise ContractValidationError(f"cannot read contract at {path}: {error}") from error
-    except json.JSONDecodeError as error:
-        raise ContractValidationError(f"invalid JSON contract at {path}: {error}") from error
+        encoded = read_regular_file(path, max_bytes=max_bytes)
+    except NonRegularFileError:
+        raise ContractValidationError(f"JSON contract at {path} must be a regular file") from None
+    except FileTooLargeError:
+        raise ContractValidationError(
+            f"JSON contract at {path} exceeds the maximum encoded size"
+        ) from None
+    except OSError:
+        raise ContractValidationError(f"cannot read contract at {path}") from None
+    try:
+        payload = json.loads(
+            encoded.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_json_keys,
+            parse_constant=_reject_nonfinite_json_number,
+        )
+    except UnicodeDecodeError:
+        raise ContractValidationError(f"JSON contract at {path} must be UTF-8") from None
+    except _DuplicateJsonKeyError:
+        raise ContractValidationError(
+            f"JSON contract at {path} contains a duplicate JSON key"
+        ) from None
+    except _NonFiniteJsonNumberError:
+        raise ContractValidationError(
+            f"JSON contract at {path} contains a non-finite JSON number"
+        ) from None
+    except (json.JSONDecodeError, ValueError):
+        raise ContractValidationError(f"invalid JSON contract at {path}") from None
+    except RecursionError:
+        raise ContractValidationError(f"JSON contract at {path} nesting is too deep") from None
+    _validate_json_structure(payload, path, max_nodes=max_nodes, max_depth=max_depth)
+    return payload
 
 
-def _read_yaml_payload(path: Path) -> Any:
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in payload:
+            raise _DuplicateJsonKeyError
+        payload[key] = value
+    return payload
+
+
+def _reject_nonfinite_json_number(_value: str) -> Any:
+    raise _NonFiniteJsonNumberError
+
+
+def _read_assurance_yaml_payload(path: Path) -> Any:
+    try:
+        return load_bounded_yaml(path)
+    except OSError:
+        raise ContractValidationError(f"cannot read contract at {path}") from None
+    except ContractYamlError as error:
+        raise ContractValidationError(f"invalid YAML contract at {path}: {error}") from None
+    except yaml.YAMLError:
+        raise ContractValidationError(f"invalid YAML contract at {path}") from None
+
+
+def _read_legacy_yaml_payload(path: Path) -> Any:
     try:
         return yaml.safe_load(path.read_text(encoding="utf-8"))
-    except OSError as error:
-        raise ContractValidationError(f"cannot read contract at {path}: {error}") from error
+    except OSError:
+        raise ContractValidationError(f"cannot read contract at {path}") from None
+    except (UnicodeDecodeError, yaml.YAMLError, RecursionError):
+        raise ContractValidationError(f"invalid YAML contract at {path}") from None
+
+
+def _validate_json_structure(
+    payload: Any,
+    path: Path,
+    *,
+    max_nodes: int | None,
+    max_depth: int | None,
+) -> None:
+    pending: list[tuple[Any, int]] = [(payload, 1)]
+    nodes = 0
+    while pending:
+        value, depth = pending.pop()
+        nodes += 1
+        if max_nodes is not None and nodes > max_nodes:
+            raise ContractValidationError(f"JSON contract at {path} contains too many nodes")
+        if max_depth is not None and depth > max_depth:
+            raise ContractValidationError(f"JSON contract at {path} nesting is too deep")
+        if isinstance(value, dict):
+            pending.extend((nested, depth + 1) for nested in value.values())
+        elif isinstance(value, list):
+            pending.extend((nested, depth + 1) for nested in value)
+
+
+def _validation_location(location: Any) -> str:
+    rendered = "$"
+    for part in location:
+        if isinstance(part, int):
+            rendered += f"[{part}]"
+        elif isinstance(part, str) and part.isidentifier():
+            rendered += f".{part}"
+        else:
+            rendered += f"[{json.dumps(str(part), ensure_ascii=True)}]"
+    return rendered

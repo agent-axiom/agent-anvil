@@ -1,0 +1,495 @@
+{
+  "$defs": {
+    "ActorDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "minLength": 1,
+          "title": "Identity",
+          "type": "string"
+        },
+        "permissions": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Permissions",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "identity"
+      ],
+      "title": "ActorDefinition",
+      "type": "object"
+    },
+    "CheckDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "config": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Config",
+          "type": "object"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "pattern": "^(?:[a-z][a-z0-9_-]*\\.)+[a-z][a-z0-9_-]*\\.v[1-9][0-9]*$",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "title": "CheckDefinition",
+      "type": "object"
+    },
+    "ComponentKind": {
+      "enum": [
+        "agent_code",
+        "model_config",
+        "prompt_bundle",
+        "tool_schema",
+        "policy",
+        "environment",
+        "adapter",
+        "memory_schema"
+      ],
+      "title": "ComponentKind",
+      "type": "string"
+    },
+    "ContractMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "object"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/ContractSeverity"
+        }
+      },
+      "required": [
+        "name",
+        "severity"
+      ],
+      "title": "ContractMetadata",
+      "type": "object"
+    },
+    "ContractSeverity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "ContractSeverity",
+      "type": "string"
+    },
+    "EvidencePolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "require": {
+          "items": {
+            "$ref": "#/$defs/EvidenceRequirement"
+          },
+          "title": "Require",
+          "type": "array"
+        }
+      },
+      "title": "EvidencePolicy",
+      "type": "object"
+    },
+    "EvidenceRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "minimumCount": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Minimumcount",
+          "type": "integer"
+        },
+        "minimumTrust": {
+          "$ref": "#/$defs/TrustLevel"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subject"
+        },
+        "type": {
+          "pattern": "^(?:[a-z][a-z0-9_-]*\\.)+[a-z][a-z0-9_-]*\\.v[1-9][0-9]*$",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "minimumTrust"
+      ],
+      "title": "EvidenceRequirement",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "PackRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "PackRequirement",
+      "type": "object"
+    },
+    "ReleaseComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Digest",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ComponentKind"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "version",
+        "digest"
+      ],
+      "title": "ReleaseComponent",
+      "type": "object"
+    },
+    "ReleaseDefinition": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "agent_code"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "environment"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "model_config"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "policy"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "prompt_bundle"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "components": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "tool_schema"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "maxContains": 1,
+              "minContains": 1
+            }
+          }
+        }
+      ],
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ReleaseComponent"
+          },
+          "minItems": 1,
+          "title": "Components",
+          "type": "array"
+        }
+      },
+      "required": [
+        "components"
+      ],
+      "title": "ReleaseDefinition",
+      "type": "object"
+    },
+    "ReliabilityPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "minimumPassRate": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Minimumpassrate",
+          "type": "number"
+        },
+        "trials": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Trials",
+          "type": "integer"
+        }
+      },
+      "title": "ReliabilityPolicy",
+      "type": "object"
+    },
+    "TaskDefinition": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "inputRef"
+            ]
+          },
+          "required": [
+            "input"
+          ]
+        },
+        {
+          "not": {
+            "required": [
+              "input"
+            ]
+          },
+          "properties": {
+            "inputRef": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "inputRef"
+          ]
+        }
+      ],
+      "properties": {
+        "input": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "inputRef": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Inputref"
+        }
+      },
+      "title": "TaskDefinition",
+      "type": "object"
+    },
+    "TrustLevel": {
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3"
+      ],
+      "title": "TrustLevel",
+      "type": "string"
+    }
+  },
+  "$id": "assurance.anvil.dev/release-contract/v1alpha1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Agent Anvil Assurance release contract schema.",
+  "properties": {
+    "actor": {
+      "$ref": "#/$defs/ActorDefinition"
+    },
+    "apiVersion": {
+      "const": "assurance.anvil.dev/release-contract/v1alpha1",
+      "title": "Apiversion",
+      "type": "string"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/CheckDefinition"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "evidence": {
+      "$ref": "#/$defs/EvidencePolicy"
+    },
+    "kind": {
+      "const": "ReleaseContract",
+      "title": "Kind",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/ContractMetadata"
+    },
+    "packs": {
+      "items": {
+        "$ref": "#/$defs/PackRequirement"
+      },
+      "title": "Packs",
+      "type": "array"
+    },
+    "release": {
+      "$ref": "#/$defs/ReleaseDefinition"
+    },
+    "reliability": {
+      "$ref": "#/$defs/ReliabilityPolicy"
+    },
+    "task": {
+      "$ref": "#/$defs/TaskDefinition"
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "release",
+    "actor",
+    "task"
+  ],
+  "title": "ReleaseContract",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "assurance.anvil.dev/release-contract/v1alpha1"
+}

@@ -1,0 +1,258 @@
+{
+  "$defs": {
+    "EvidenceContent": {
+      "additionalProperties": false,
+      "properties": {
+        "mediaType": {
+          "minLength": 1,
+          "title": "Mediatype",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "sizeBytes": {
+          "minimum": 0,
+          "title": "Sizebytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "mediaType",
+        "sha256",
+        "sizeBytes",
+        "path"
+      ],
+      "title": "EvidenceContent",
+      "type": "object"
+    },
+    "EvidenceRedaction": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applied": {
+                "const": true
+              }
+            },
+            "required": [
+              "applied"
+            ]
+          },
+          "then": {
+            "properties": {
+              "policyDigest": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "policyDigest"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "applied": {
+          "title": "Applied",
+          "type": "boolean"
+        },
+        "policyDigest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policydigest"
+        }
+      },
+      "required": [
+        "applied"
+      ],
+      "title": "EvidenceRedaction",
+      "type": "object"
+    },
+    "EvidenceSource": {
+      "additionalProperties": false,
+      "properties": {
+        "boundary": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Boundary"
+        },
+        "collector": {
+          "minLength": 1,
+          "title": "Collector",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "collector",
+        "version"
+      ],
+      "title": "EvidenceSource",
+      "type": "object"
+    },
+    "TrustLevel": {
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3"
+      ],
+      "title": "TrustLevel",
+      "type": "string"
+    }
+  },
+  "$id": "assurance.anvil.dev/evidence-record/v1alpha1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "trustLevel": {
+            "enum": [
+              "L2",
+              "L3"
+            ]
+          }
+        },
+        "required": [
+          "trustLevel"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "properties": {
+              "boundary": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              }
+            },
+            "required": [
+              "boundary"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "description": "Agent Anvil Assurance evidence record schema.",
+  "properties": {
+    "content": {
+      "$ref": "#/$defs/EvidenceContent"
+    },
+    "contractId": {
+      "minLength": 1,
+      "title": "Contractid",
+      "type": "string"
+    },
+    "correlations": {
+      "additionalProperties": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Correlations",
+      "type": "object"
+    },
+    "evidenceId": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Evidenceid",
+      "type": "string"
+    },
+    "observedAt": {
+      "format": "date-time",
+      "title": "Observedat",
+      "type": "string"
+    },
+    "parents": {
+      "items": {
+        "pattern": "^sha256:[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "title": "Parents",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "redaction": {
+      "$ref": "#/$defs/EvidenceRedaction"
+    },
+    "releaseId": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Releaseid",
+      "type": "string"
+    },
+    "runId": {
+      "minLength": 1,
+      "title": "Runid",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": "assurance.anvil.dev/evidence-record/v1alpha1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/EvidenceSource"
+    },
+    "subject": {
+      "minLength": 1,
+      "title": "Subject",
+      "type": "string"
+    },
+    "trustLevel": {
+      "$ref": "#/$defs/TrustLevel"
+    },
+    "type": {
+      "pattern": "^(?:[a-z][a-z0-9_-]*\\.)+[a-z][a-z0-9_-]*\\.v[1-9][0-9]*$",
+      "title": "Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "evidenceId",
+    "runId",
+    "releaseId",
+    "contractId",
+    "type",
+    "trustLevel",
+    "subject",
+    "source",
+    "observedAt",
+    "content",
+    "redaction"
+  ],
+  "title": "EvidenceRecord",
+  "type": "object",
+  "x-agent-anvil-schema-export-version": "anvil.schema.export.v1",
+  "x-agent-anvil-schema-version": "assurance.anvil.dev/evidence-record/v1alpha1"
+}

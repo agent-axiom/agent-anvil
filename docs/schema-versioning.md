@@ -144,6 +144,24 @@ The external JSONL protocol is intentionally small:
 Protocol changes should preserve old event shapes where practical. Unknown or
 malformed events should become controlled protocol failures with trace artifacts.
 
+## Assurance Alpha Contracts
+
+Assurance currently publishes two alpha schema IDs:
+
+- `assurance.anvil.dev/release-contract/v1alpha1`
+- `assurance.anvil.dev/evidence-record/v1alpha1`
+
+Within `v1alpha1`, unknown fields are rejected and optional fields may be added
+only when old documents retain the same meaning. A required-field change,
+wire-name change, or semantic reinterpretation requires `v1alpha2`. Stable `v1`
+is deferred until at least two external systems have exercised the contracts
+and the first independent PostgreSQL evidence slice is complete.
+
+Migration helpers may generate reviewable drafts, but they must not invent
+missing release components, evidence bytes, observation provenance, or trust.
+Existing scenario, trace, results, leaderboard, and attestation schema IDs are
+not aliases for Assurance contracts.
+
 ## Migration Rules
 
 When a schema changes, release notes should include:

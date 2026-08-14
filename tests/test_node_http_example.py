@@ -11,9 +11,33 @@ import pytest
 from anvil.scenario import ExternalAgentConfig, load_scenario_file
 
 NODE_AGENT = Path("examples/node_http_agent/agent.mjs")
+NODE_MINIMUM_MAJOR = 20
 
 
-@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def _node_major_version() -> int | None:
+    if shutil.which("node") is None:
+        return None
+    completed = subprocess.run(
+        ["node", "--version"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    version = completed.stdout.strip().removeprefix("v")
+    try:
+        return int(version.split(".", maxsplit=1)[0])
+    except ValueError:
+        return None
+
+
+NODE_MAJOR_VERSION = _node_major_version()
+NODE_UNSUPPORTED = NODE_MAJOR_VERSION is None or NODE_MAJOR_VERSION < NODE_MINIMUM_MAJOR
+NODE_SKIP_REASON = f"Node {NODE_MINIMUM_MAJOR}+ is required by the bundled HTTP example"
+
+
+@pytest.mark.skipif(NODE_UNSUPPORTED, reason=NODE_SKIP_REASON)
 def test_node_http_agent_cli_emits_valid_trace_events() -> None:
     response = _run_node_agent(
         {
@@ -36,7 +60,7 @@ def test_node_http_agent_cli_emits_valid_trace_events() -> None:
     assert response["events"][-1]["type"] == "final_output"
 
 
-@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+@pytest.mark.skipif(NODE_UNSUPPORTED, reason=NODE_SKIP_REASON)
 def test_node_http_agent_cli_asks_for_missing_order_id() -> None:
     response = _run_node_agent(
         {

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "assurance.anvil.dev/evidence-record/v1alpha1",
+  "evidenceId": "sha256:7f967e22ebddea4ce998d7dcfe9dea8a41881a42990618fcae788ba908271421",
+  "runId": "assure_20260814_001",
+  "releaseId": "sha256:babac15e48f399cc9826d0aebf117bfd1239e35c43ba0418af062e6e150a49a6",
+  "contractId": "refund-agent-postgres",
+  "type": "postgres.state_snapshot.v1",
+  "trustLevel": "L2",
+  "subject": "postgres://payments/public",
+  "source": {
+    "collector": "postgres-observer",
+    "version": "0.1.0",
+    "boundary": "separate-read-only-credentials"
+  },
+  "observedAt": "2026-08-14T12:00:00Z",
+  "content": {
+    "mediaType": "application/json",
+    "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+    "sizeBytes": 4096,
+    "path": "objects/88/88888888888888888888888888888888888888888888888888888888888888"
+  },
+  "parents": [],
+  "correlations": {
+    "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "transactionId": "735128"
+  },
+  "redaction": {
+    "applied": true,
+    "policyDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+  }
+}
