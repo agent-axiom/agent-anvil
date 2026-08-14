@@ -14,6 +14,7 @@ from anvil.assurance.evidence import (
     TrustLevel,
     VerifiedContent,
     VerifiedEvidence,
+    _create_verified_evidence,
     evidence_identity,
     match_evidence_requirement,
     match_evidence_requirements,
@@ -40,7 +41,7 @@ def _record(
 
 
 def _verified(record: EvidenceRecord, trust: TrustLevel) -> VerifiedEvidence:
-    return VerifiedEvidence(
+    return _create_verified_evidence(
         record=record,
         assigned_trust=trust,
         content=VerifiedContent(

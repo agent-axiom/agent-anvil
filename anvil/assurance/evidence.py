@@ -192,11 +192,24 @@ class VerifiedContent:
     sha256: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class VerifiedEvidence:
     record: EvidenceRecord
     assigned_trust: TrustLevel
     content: VerifiedContent
+
+
+def _create_verified_evidence(
+    *,
+    record: EvidenceRecord,
+    assigned_trust: TrustLevel,
+    content: VerifiedContent,
+) -> VerifiedEvidence:
+    verified = object.__new__(VerifiedEvidence)
+    object.__setattr__(verified, "record", record)
+    object.__setattr__(verified, "assigned_trust", assigned_trust)
+    object.__setattr__(verified, "content", content)
+    return verified
 
 
 @dataclass(frozen=True)
@@ -382,7 +395,7 @@ def verify_evidence_record(
         observed_source=observed_source,
     )
     content = verify_evidence_content(record, store_root)
-    return VerifiedEvidence(
+    return _create_verified_evidence(
         record=record,
         assigned_trust=trust.assigned_trust,
         content=content,

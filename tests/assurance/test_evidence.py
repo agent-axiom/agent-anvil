@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import ValidationError
@@ -16,6 +16,8 @@ from anvil.assurance.evidence import (
     ObservedEvidenceSource,
     TrustAssignment,
     TrustLevel,
+    VerifiedContent,
+    VerifiedEvidence,
     evidence_identity,
     verify_evidence_content,
     verify_evidence_identity,
@@ -552,6 +554,23 @@ def test_verify_evidence_record_composes_identity_release_trust_and_content(
     assert verified.record is record
     assert verified.assigned_trust is TrustLevel.L2
     assert verified.content.path == (tmp_path / "evidence.json").resolve()
+
+
+def test_verified_evidence_cannot_be_constructed_without_verifier(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    record = _record(evidence_record_payload)
+
+    with pytest.raises(TypeError):
+        cast(Any, VerifiedEvidence)(
+            record=record,
+            assigned_trust=TrustLevel.L3,
+            content=VerifiedContent(
+                path=Path("missing"),
+                size_bytes=0,
+                sha256="0" * 64,
+            ),
+        )
 
 
 def test_verify_evidence_record_rejects_wrong_release_before_content_read(
