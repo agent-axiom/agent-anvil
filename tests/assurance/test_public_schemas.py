@@ -108,3 +108,98 @@ def test_public_evidence_schema_requires_boundary_for_independent_evidence(
     source.pop("boundary")
 
     _assert_rejected_by_schema_and_model(_validator(EVIDENCE_SCHEMA), EvidenceRecord, payload)
+
+
+@pytest.mark.parametrize(
+    ("section", "wire_name", "python_name"),
+    [
+        (None, "apiVersion", "api_version"),
+        ("task", "inputRef", "input_ref"),
+        ("reliability", "minimumPassRate", "minimum_pass_rate"),
+    ],
+)
+def test_public_release_contract_rejects_python_field_names(
+    valid_release_contract_payload: dict[str, Any],
+    section: str | None,
+    wire_name: str,
+    python_name: str,
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    target = payload if section is None else payload[section]
+    assert isinstance(target, dict)
+    target[python_name] = target.pop(wire_name)
+
+    _assert_rejected_by_schema_and_model(_validator(RELEASE_SCHEMA), ReleaseContract, payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("trials", True),
+        ("trials", "20"),
+        ("minimumPassRate", True),
+        ("minimumPassRate", "0.95"),
+    ],
+)
+def test_public_release_contract_rejects_scalar_coercion(
+    valid_release_contract_payload: dict[str, Any], field: str, value: object
+) -> None:
+    payload = copy.deepcopy(valid_release_contract_payload)
+    reliability = payload["reliability"]
+    assert isinstance(reliability, dict)
+    reliability[field] = value
+
+    _assert_rejected_by_schema_and_model(_validator(RELEASE_SCHEMA), ReleaseContract, payload)
+
+
+@pytest.mark.parametrize(
+    ("section", "wire_name", "python_name"),
+    [
+        (None, "schemaVersion", "schema_version"),
+        ("content", "sizeBytes", "size_bytes"),
+        ("redaction", "policyDigest", "policy_digest"),
+    ],
+)
+def test_public_evidence_contract_rejects_python_field_names(
+    evidence_record_payload: dict[str, Any],
+    section: str | None,
+    wire_name: str,
+    python_name: str,
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    target = payload if section is None else payload[section]
+    assert isinstance(target, dict)
+    target[python_name] = target.pop(wire_name)
+
+    _assert_rejected_by_schema_and_model(_validator(EVIDENCE_SCHEMA), EvidenceRecord, payload)
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("content", "sizeBytes", True),
+        ("content", "sizeBytes", "4096"),
+        ("redaction", "applied", 1),
+        ("redaction", "applied", "true"),
+    ],
+)
+def test_public_evidence_contract_rejects_scalar_coercion(
+    evidence_record_payload: dict[str, Any], section: str, field: str, value: object
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    target = payload[section]
+    assert isinstance(target, dict)
+    target[field] = value
+
+    _assert_rejected_by_schema_and_model(_validator(EVIDENCE_SCHEMA), EvidenceRecord, payload)
+
+
+def test_public_evidence_schema_requires_policy_digest_when_redaction_applied(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    redaction = payload["redaction"]
+    assert isinstance(redaction, dict)
+    redaction.pop("policyDigest")
+
+    _assert_rejected_by_schema_and_model(_validator(EVIDENCE_SCHEMA), EvidenceRecord, payload)

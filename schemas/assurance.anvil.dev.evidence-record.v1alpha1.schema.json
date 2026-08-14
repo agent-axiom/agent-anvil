@@ -35,6 +35,30 @@
     },
     "EvidenceRedaction": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "applied": {
+                "const": true
+              }
+            },
+            "required": [
+              "applied"
+            ]
+          },
+          "then": {
+            "properties": {
+              "policyDigest": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "policyDigest"
+            ]
+          }
+        }
+      ],
       "properties": {
         "applied": {
           "title": "Applied",

@@ -57,6 +57,20 @@ _INDEPENDENT_EVIDENCE_BOUNDARY_SCHEMA: dict[str, Any] = {
         }
     ]
 }
+_REDACTION_POLICY_SCHEMA: dict[str, Any] = {
+    "allOf": [
+        {
+            "if": {
+                "properties": {"applied": {"const": True}},
+                "required": ["applied"],
+            },
+            "then": {
+                "properties": {"policyDigest": {"type": "string"}},
+                "required": ["policyDigest"],
+            },
+        }
+    ]
+}
 
 
 def _non_blank(value: str) -> str:
@@ -98,18 +112,23 @@ class ObservedEvidenceSource(BaseModel):
 
 
 class EvidenceContent(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
 
     media_type: NonBlankStr = Field(alias="mediaType")
     sha256: str = Field(pattern=SHA256_PATTERN)
-    size_bytes: int = Field(alias="sizeBytes", ge=0)
+    size_bytes: int = Field(alias="sizeBytes", ge=0, strict=True)
     path: NonBlankStr
 
 
 class EvidenceRedaction(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(
+        validate_by_alias=True,
+        validate_by_name=False,
+        extra="forbid",
+        json_schema_extra=_REDACTION_POLICY_SCHEMA,
+    )
 
-    applied: bool
+    applied: bool = Field(strict=True)
     policy_digest: str | None = Field(
         default=None,
         alias="policyDigest",
@@ -124,17 +143,18 @@ class EvidenceRedaction(BaseModel):
 
 
 class EvidenceRequirement(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
 
     type: str = Field(pattern=NAMESPACED_TYPE_PATTERN)
     minimum_trust: TrustLevel = Field(alias="minimumTrust")
     subject: NonBlankStr | None = None
-    minimum_count: int = Field(default=1, alias="minimumCount", ge=1)
+    minimum_count: int = Field(default=1, alias="minimumCount", ge=1, strict=True)
 
 
 class EvidenceRecord(BaseModel):
     model_config = ConfigDict(
-        populate_by_name=True,
+        validate_by_alias=True,
+        validate_by_name=False,
         extra="forbid",
         json_schema_extra=_INDEPENDENT_EVIDENCE_BOUNDARY_SCHEMA,
     )
@@ -184,6 +204,28 @@ class EvidenceRecord(BaseModel):
         if self.trust_level in {TrustLevel.L2, TrustLevel.L3} and self.source.boundary is None:
             raise ValueError("L2 and L3 evidence require an independent boundary")
         return self
+
+
+class _EvidenceIdentityPayload(BaseModel):
+    """Wire-normalized evidence fields covered by evidenceId."""
+
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
+
+    schema_version: Literal["assurance.anvil.dev/evidence-record/v1alpha1"] = Field(
+        alias="schemaVersion"
+    )
+    run_id: NonBlankStr = Field(alias="runId")
+    release_id: str = Field(alias="releaseId", pattern=SHA256_PREFIXED_PATTERN)
+    contract_id: NonBlankStr = Field(alias="contractId")
+    type: str = Field(pattern=NAMESPACED_TYPE_PATTERN)
+    trust_level: TrustLevel = Field(alias="trustLevel")
+    subject: NonBlankStr
+    source: EvidenceSource
+    observed_at: AwareDatetime = Field(alias="observedAt")
+    content: EvidenceContent
+    parents: list[str] = Field(default_factory=list)
+    correlations: dict[str, NonBlankStr] = Field(default_factory=dict)
+    redaction: EvidenceRedaction
 
 
 class TrustAssignment(BaseModel):
@@ -261,6 +303,8 @@ def evidence_identity(value: EvidenceRecord | Mapping[str, Any]) -> str:
         payload = dict(value)
     payload.pop("evidenceId", None)
     payload.pop("evidence_id", None)
+    normalized = _EvidenceIdentityPayload.model_validate(payload)
+    payload = normalized.model_dump(mode="json", by_alias=True)
     parents = payload.get("parents")
     if isinstance(parents, list) and all(isinstance(parent, str) for parent in parents):
         payload["parents"] = sorted(parents)

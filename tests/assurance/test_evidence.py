@@ -102,6 +102,17 @@ def test_evidence_identity_is_independent_of_mapping_order(
     assert evidence_identity(reversed_payload) == evidence_record_payload["evidenceId"]
 
 
+def test_evidence_identity_normalizes_mapping_and_model_timestamps_identically(
+    evidence_record_payload: dict[str, Any],
+) -> None:
+    payload = copy.deepcopy(evidence_record_payload)
+    payload["observedAt"] = "2026-08-14T12:00:00+00:00"
+    payload["evidenceId"] = evidence_identity(payload)
+    record = EvidenceRecord.model_validate(payload)
+
+    assert evidence_identity(payload) == evidence_identity(record)
+
+
 def test_evidence_identity_canonicalizes_parent_edge_order(
     evidence_record_payload: dict[str, Any],
 ) -> None:

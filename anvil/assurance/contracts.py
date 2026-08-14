@@ -130,7 +130,8 @@ class ActorDefinition(BaseModel):
 
 class TaskDefinition(BaseModel):
     model_config = ConfigDict(
-        populate_by_name=True,
+        validate_by_alias=True,
+        validate_by_name=False,
         extra="forbid",
         json_schema_extra=_TASK_INPUT_CARDINALITY_SCHEMA,
     )
@@ -177,14 +178,20 @@ class EvidencePolicy(BaseModel):
 
 
 class ReliabilityPolicy(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
 
-    trials: int = Field(default=1, ge=1)
-    minimum_pass_rate: float = Field(default=1.0, alias="minimumPassRate", ge=0.0, le=1.0)
+    trials: int = Field(default=1, ge=1, strict=True)
+    minimum_pass_rate: float = Field(
+        default=1.0,
+        alias="minimumPassRate",
+        ge=0.0,
+        le=1.0,
+        strict=True,
+    )
 
 
 class ReleaseContract(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=False, extra="forbid")
 
     api_version: Literal["assurance.anvil.dev/release-contract/v1alpha1"] = Field(
         alias="apiVersion"
