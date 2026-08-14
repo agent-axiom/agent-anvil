@@ -95,8 +95,8 @@ def test_canonical_json_is_utf8_sorted_and_compact() -> None:
 
 def test_sha256_json_has_prefixed_lowercase_digest() -> None:
     assert sha256_json({"a": 1}) == (
-        "sha256:015abd7f5cc57a2dd94b7590f04ad8084273905ee33eec5c"
-        "37cffe43bf944be3"
+        "sha256:015abd7f5cc57a2dd94b7590f04ad808"
+        "4273905ee33ec5cebeae62276a97f862"
     )
 ```
 
