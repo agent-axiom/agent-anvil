@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# PR review guidance is shared with Codex through the root AGENTS.md.
+language: en-US
+early_access: false
+tone_instructions: >-
+  Be concise and specific. Explain the trigger and impact of actionable bugs.
+  Avoid stylistic preferences, speculative refactors, and repeated findings.
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: false
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  path_filters:
+    - "!uv.lock"
+    - "!runs/**"
+    - "!reports/**"
+    - "!dist/**"
+    - "!build/**"
+    - "!**/*.egg-info/**"
+    - "!**/.DS_Store"
+  auto_review:
+    enabled: true
+    auto_incremental_review: false
+    drafts: false
+    ignore_title_keywords:
+      - "[skip ai review]"
+  tools:
+    ruff:
+      enabled: false
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+
+chat:
+  auto_reply: true
